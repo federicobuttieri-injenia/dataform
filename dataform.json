@@ -1,0 +1,13 @@
+{
+  "defaultSchema": "injenia",
+  "assertionSchema": "dataform_assertions",
+  "warehouse": "bigquery",
+  "defaultDatabase": "mmfg-dwh-gruppo-test",
+  "defaultIngestionDatabase": "mmfg-ingestion-gruppo-test",
+  "defaultLocation": "EU",
+  "vars": {
+    "year": "2023",
+    "stockoutDays": "63",
+    "interval": "9999"
+  }
+}

@@ -1,0 +1,11 @@
+{
+    "environments": [
+      {
+        "name": "development",
+        "gitRef": "master",
+        "configOverride": { "mmfg_dwh_project": "mmfg-dwh-gruppo-test" },
+        "schedules": [ ]
+      }
+    ]
+  }
+  

@@ -1,0 +1,46 @@
+config {
+    type: "incremental",
+    name: "s_case",
+    bigquery: {
+        partitionBy: "RANGE_BUCKET(numero_case, GENERATE_ARRAY(1, 40000000, 10000))"
+    }
+}
+
+with output_partitions as (
+    SELECT number AS partitions_start,
+        number + ${dataform.projectConfig.vars.interval} AS partitions_end
+    FROM ${ref("output_partitions")}
+)
+
+SELECT
+    a.numero_case AS numero_case,
+    a.pk_consumer AS pk_consumer,
+    a.account_id AS account_id,
+    a.negozio AS negozio,
+    a.canale AS canale,
+    a.sorgente AS sorgente,
+    a.priorita AS priorita,
+    a.stato AS stato,
+    a.oggetto AS oggetto,
+    a.type AS type,
+    a.sub_type AS sub_type,
+    a.id_vendita AS id_vendita,
+    a.brand AS brand,
+    a.barcode_negozio AS barcode_negozio,
+    a.lingua AS lingua,
+    a.dataora_creazione AS dataora_creazione,
+    a.dataora_modifica AS dataora_modifica,
+    a.dataora_chiusura AS dataora_chiusura,
+    a.motivo_chiusura AS motivo_chiusura,
+    TIMESTAMP(_PARTITIONTIME) AS ts_inserimento,
+    CURRENT_TIMESTAMP AS ts_modifica,
+    SAFE_CAST(resource_timestamp AS TIMESTAMP) AS ts_creazione,
+    CAST(null AS STRING) AS cod_consumer
+FROM ${ref("S_LOG_CASE")}, UNNEST (attributes) a
+JOIN output_partitions op ON
+    CAST(a.numero_case AS INT64) BETWEEN op.partitions_start AND op.partitions_end
+WHERE
+    _PARTITIONDATE IN (
+    SELECT *
+    FROM ${ref("input_partitions")}
+)
