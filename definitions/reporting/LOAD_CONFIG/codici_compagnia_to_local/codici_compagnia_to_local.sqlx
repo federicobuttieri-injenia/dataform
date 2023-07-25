@@ -5,5 +5,5 @@ config {
 }
 
 SELECT *
-FROM ${ref("D_CODICE_COMPAGNIA")}
+FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_CODICE_COMPAGNIA`
 		

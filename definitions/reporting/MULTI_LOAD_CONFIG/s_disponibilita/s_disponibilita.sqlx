@@ -13,7 +13,7 @@ SELECT
 	_PARTITIONTIME AS ts_inserimento,
 	CURRENT_TIMESTAMP() AS ts_modifica,
 	'bms' AS source
-FROM ${ref("S_LOG_DISPONIBILITA")}
+FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL_STAGING.S_LOG_DISPONIBILITA`
 WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("s_disponibilita_input_output_partitions")})
 
 UNION ALL
@@ -27,6 +27,6 @@ SELECT
 	_PARTITIONTIME AS ts_inserimento,
 	CURRENT_TIMESTAMP() AS ts_modifica,
 	'om' AS source
-FROM ${ref("S_LOG_DISPONIBILITA_OM")}
+FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL_STAGING.S_LOG_DISPONIBILITA_OM`
 WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("s_disponibilita_input_output_partitions")})
 		

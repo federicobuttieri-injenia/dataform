@@ -10,7 +10,7 @@ WITH trimestri AS (
 		MIN(data) mindata,
 		MAX(data) maxdata,
 		MIN(DATE(CAST(SUBSTR(mese_retail, 1, 4) AS INT64), CAST(SUBSTR(mese_retail, 5, 2) AS INT64), 1)) data_riferimento
-	FROM ${ref("D_TEMPO")}
+	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_TEMPO`
 	WHERE anno_retail >= '2014'
 	AND data < CURRENT_DATE
 	GROUP BY 1
@@ -26,7 +26,7 @@ s AS (
 			CONCAT(CAST(CAST(SUBSTR(trimestre_retail, 1, 4) AS INT64) - 1 AS STRING), '_Q4'),
 			CONCAT(SUBSTR(trimestre_retail, 1, 6), CAST(CAST(SUBSTR(trimestre_retail, 7, 1) AS INT64) - 1 AS STRING))
 		) trimestre_fine_storicizzazione
-	FROM ${ref("D_TEMPO")}
+	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_TEMPO`
 	JOIN trimestri USING (trimestre_retail)
 	WHERE anno_retail >= '2017'
 	AND data < CURRENT_DATE

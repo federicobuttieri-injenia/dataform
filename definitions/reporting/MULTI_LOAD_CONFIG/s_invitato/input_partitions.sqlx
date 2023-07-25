@@ -5,7 +5,7 @@ config {
 }
 
 SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
-FROM ${ref("PARTIZIONI_LOADJOB")}
+FROM `mmfg-dwh-gruppo-prod.TEMP_LOCATION.PARTIZIONI_LOADJOB`
 WHERE
 	DATE(ts_lancio) = CURRENT_DATE
 AND table_name = 'S_LOG_INVITATO'

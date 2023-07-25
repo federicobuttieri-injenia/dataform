@@ -58,21 +58,21 @@ ELSE "20201"
 				REGEXP_CONTAINS(PR.nome, r'^.\d.*$'), -- il secondo carattere NON e una cifra
 				SUBSTR(PR.nome, 1, 1) = SUBSTR(PR.nome, 2, 1) -- il primo carattere N e uguale al secondo
 		) AS rk
-	FROM ${ref("D_MODELLO_PERMANENTE")} PE, UNNEST(varianti) AS var_info
+	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_MODELLO_PERMANENTE` PE, UNNEST(varianti) AS var_info
 	JOIN (
 		SELECT mp.* EXCEPT(barcode_negozio, lavaggi, lista_sku, taglie, varianti, barcode_ean, composizioni, pezzi_unita_vendibili, modello_produzione), sku_info.*, tt.desc_tipo_taglia, var_info.variante, var_info.variante_permanente
-		FROM ${ref("D_MODELLO_PRODUZIONE")} mp, UNNEST(lista_sku) AS sku_info, unnest(varianti) AS var_info
+		FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_MODELLO_PRODUZIONE` mp, UNNEST(lista_sku) AS sku_info, unnest(varianti) AS var_info
 		LEFT JOIN (
 			SELECT T.societa AS societa,
 					T.tipo_taglia AS tipo_taglia,
 					T.desc_tipo_taglia as desc_tipo_taglia,
 					taglie.*
-			FROM ${ref("D_TIPO_TAGLIA")} T,
+			FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_TIPO_TAGLIA` T,
 			UNNEST(T.taglie) AS taglie
 		) tt USING (societa, tipo_taglia, indice_taglia)
 		WHERE sku_info.variante_produzione = var_info.variante_produzione
 	) PR USING (societa, modello_permanente, variante_permanente)
-	LEFT JOIN ${ref("D_USCITA_COLLEZIONE")} UCR USING (societa, anno, stagione, uscita_collezione)
+	LEFT JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_USCITA_COLLEZIONE` UCR USING (societa, anno, stagione, uscita_collezione)
 ),
 modelli_permanenti AS ( -- info del modello rif per modello_perm-variante_perm-societa
 	SELECT DISTINCT
@@ -181,13 +181,13 @@ modelli_produzione_per_rif AS (
 					ELSE 1
 				END AS indice_cifre_modello,
 				mp.ts_inserimento
-			FROM ${ref("D_MODELLO_PRODUZIONE")} mp, UNNEST(lista_sku) AS sku_info, UNNEST(varianti) AS var_info
+			FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_MODELLO_PRODUZIONE` mp, UNNEST(lista_sku) AS sku_info, UNNEST(varianti) AS var_info
 			LEFT JOIN (
 					SELECT T.societa AS societa,
 							T.tipo_taglia AS tipo_taglia,
 							T.desc_tipo_taglia as desc_tipo_taglia,
 							taglie.*
-					FROM ${ref("D_TIPO_TAGLIA")} T,
+					FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_TIPO_TAGLIA` T,
 					UNNEST(T.taglie) AS taglie
 			) tt USING (societa, tipo_taglia, indice_taglia)
 			WHERE sku_info.barcode_negozio IS NOT NULL
@@ -209,10 +209,10 @@ PREZZI_VALIDI AS (
 		PR.controvalore
 	FROM (
 		SELECT *, ROW_NUMBER() OVER(PARTITION BY societa, modello, listino, anno, stagione, tipo_prezzo ORDER BY ts_inserimento DESC, prezzo IS NULL) AS rk
-		FROM ${ref("D_PREZZO")}
+		FROM `mmfg-dwh-gruppo-prod.DM_PREZZO_LISTINO.D_PREZZO`
 		WHERE tipo_prezzo IN ('A', 'V', 'S')
 	) PR
-	LEFT JOIN ${ref("D_TIPO_PREZZO_CLIENTE")} USING (societa, anno, stagione, cliente, tipo_prezzo, progr_periodo)
+	LEFT JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_TIPO_PREZZO_CLIENTE` USING (societa, anno, stagione, cliente, tipo_prezzo, progr_periodo)
 	WHERE (
 		(data_inizio IS NULL AND data_fine IS NULL)
 		OR (CURRENT_DATE() BETWEEN data_inizio AND data_fine)
@@ -241,7 +241,7 @@ CLIENTELE_IT AS (
 					f_tipo_ordine_riferimento,
 					tipo_ordine_cliente,
 					ROW_NUMBER() OVER(PARTITION BY societa, anno, stagione, cliente, uscita_collezione ORDER BY f_tipo_ordine_riferimento IS NOT NULL DESC, f_tipo_ordine_riferimento = '1' DESC, tipo_ordine_cliente = 'CV' DESC, listino_vendita IS NOT NULL DESC, listino_acquisto IS NOT NULL DESC) rk
-				FROM ${ref("D_CLIENTELA")}
+				FROM `mmfg-dwh-gruppo-prod.DM_PREZZO_LISTINO.D_CLIENTELA`
 				WHERE validita IN ('V', '')
 			)
 			where rk = 1
@@ -260,7 +260,7 @@ WHEN cliente = '10010835' THEN CONCAT('00153100', SUBSTR(cliente, -5))
 ELSE cliente
 		END
 	 AS cliente
-			FROM ${ref("D_CLIENTE_STAGIONE")}
+			FROM `mmfg-dwh-gruppo-prod.DM_PREZZO_LISTINO.D_CLIENTE_STAGIONE`
 			WHERE punto_vendita_retail IN (
 				'0100019',  # MM
 				'0100517',  # DT
@@ -572,14 +572,14 @@ FROM
 						mp.multiplo_vendita,
 						mp.minimo_vendibile,
 						mp.desc_editoriale
-					FROM ${ref("D_MODELLO_PRODUZIONE")} mp, UNNEST(lista_sku) AS sku_info, UNNEST(varianti) AS var_info
+					FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_MODELLO_PRODUZIONE` mp, UNNEST(lista_sku) AS sku_info, UNNEST(varianti) AS var_info
 					LEFT JOIN UNNEST(taglie) AS tg USING (indice_taglia)
 					LEFT JOIN (
 						SELECT T.societa AS societa,
 								T.tipo_taglia AS tipo_taglia,
 								T.desc_tipo_taglia as desc_tipo_taglia,
 								taglie.*
-						FROM ${ref("D_TIPO_TAGLIA")} T,
+						FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_TIPO_TAGLIA` T,
 						UNNEST(T.taglie) AS taglie
 					) tt #USING (societa, tipo_taglia, indice_taglia)
 					ON (mp.societa = tt.societa AND mp.tipo_taglia = tt.tipo_taglia AND sku_info.indice_taglia = tt.indice_taglia) #TEST
@@ -594,7 +594,7 @@ FROM
 									STRING_AGG(DISTINCT comp_info.testo_composizione) AS testo_composizione,
 									ROW_NUMBER() OVER(PARTITION BY id ORDER BY comp_info.progr_composizione) as _rank
 								FROM
-									${ref("D_MODELLO_PRODUZIONE")},
+									`mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_MODELLO_PRODUZIONE`,
 									UNNEST(composizioni) AS comp_info
 								WHERE
 									annostagione IN (SELECT * FROM ${ref("modello_barcode_input_output_partitions")})
@@ -613,7 +613,7 @@ FROM
 								progr_articolo,
 								ANY_VALUE(gruppo_merceologico) AS gruppo_merceologico
 							FROM
-								${ref("D_ARTICOLO_PRODUZIONE")}
+								`mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_ARTICOLO_PRODUZIONE`
 							GROUP BY
 								1, 2, 3, 4
 						) AP ON (MP.articolo_principale = AP.articolo AND MP.societa = AP.societa)
@@ -694,7 +694,7 @@ FROM
 						NULL AS minimo_vendibile,
 						NULL AS desc_editoriale
 					FROM
-						${ref("D_ARTICOLO_PRODUZIONE")} AP,
+						`mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_ARTICOLO_PRODUZIONE` AP,
 						UNNEST(lista_sku) AS sku_info,
 						UNNEST(varianti) AS var_info
 						LEFT OUTER JOIN
@@ -704,7 +704,7 @@ FROM
 									comp_info.testo_composizione,
 									comp_info.codice_composizione
 								FROM
-									${ref("D_ARTICOLO_PRODUZIONE")},
+									`mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_ARTICOLO_PRODUZIONE`,
 									UNNEST(composizioni) AS comp_info
 								WHERE
 									comp_info.progr_composizione = 0
@@ -721,7 +721,7 @@ FROM
 						C.colore,
 						raggr_colore,
 						desc_raggr_colore
-					FROM ${ref("D_RAGGR_COLORE")}, UNNEST(colore) as C
+					FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_RAGGR_COLORE`, UNNEST(colore) as C
 				) R  USING (societa, colore)
 			LEFT OUTER JOIN (
 				SELECT
@@ -746,7 +746,7 @@ FROM
 					desc_collezione_brand,
 					modulo
 				FROM
-					${ref("D_USCITA_COLLEZIONE")},
+					`mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_USCITA_COLLEZIONE`,
 					UNNEST(temi) AS info_tema
 			) UC USING (societa, anno, stagione, uscita_collezione, tema)
 			LEFT OUTER JOIN (
@@ -759,7 +759,7 @@ FROM
 					sotto_uscita_collezione,
 					desc_sotto_uscita_collezione,
 				FROM
-					${ref("D_USCITA_COLLEZIONE")},
+					`mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_USCITA_COLLEZIONE`,
 					UNNEST(sotto_uscite_collezione) AS info_sotto_uscite_collezione
 			) SOTT_UC USING (societa, anno, stagione, uscita_collezione, sotto_uscita_collezione)
 			LEFT JOIN (
@@ -792,7 +792,7 @@ FROM
 					) AS collezione_uscita_modello_rif,
 				FROM modelli_produzione_per_rif mod -- modello attuale
 				JOIN modelli_produzione_per_rif mod_orig ON (mod.societa = mod_orig.societa AND mod.modello_origine = mod_orig.modello AND mod.variante_produzione = mod_orig.variante_produzione) -- modello origine
-				LEFT JOIN ${ref("D_USCITA_COLLEZIONE")} UCR ON (mod.societa = UCR.societa AND mod.anno = UCR.anno AND mod.stagione = UCR.stagione AND mod_orig.uscita_collezione = UCR.uscita_collezione) -- uscita coll del modello origine
+				LEFT JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_USCITA_COLLEZIONE` UCR ON (mod.societa = UCR.societa AND mod.anno = UCR.anno AND mod.stagione = UCR.stagione AND mod_orig.uscita_collezione = UCR.uscita_collezione) -- uscita coll del modello origine
 				LEFT JOIN modelli_permanenti ON (mod.modello_permanente = modelli_permanenti.modello_permanente AND mod.societa = modelli_permanenti.societa AND mod.variante_permanente = modelli_permanenti.variante_permanente)
 				WHERE mod.f_tale_quale = '1'
 				AND mod.f_anagrafica_modello_base = '1'
@@ -809,19 +809,19 @@ FROM
 					classe.classe,
 					classe.desc_classe
 				FROM
-					${ref("D_CLASSE")} classe
+					`mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_CLASSE` classe
 				JOIN
-					${ref("D_DEPARTMENT")} dept
+					`mmfg-dwh-gruppo-prod.DM_SELLOUT.D_DEPARTMENT` dept
 					ON (classe.classe = IF(dept.classe_actual != '/', dept.classe_actual, CAST(dept.classe_new AS STRING)))
 			) CL USING (classe)
 			LEFT OUTER JOIN
-				${ref("D_GRUPPO_MERCEOLOGICO")} GM ON (GM.gruppo_merceologico = MOD_ART.gruppo_merceologico AND GM.societa = MOD_ART.societa)
+				`mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_GRUPPO_MERCEOLOGICO` GM ON (GM.gruppo_merceologico = MOD_ART.gruppo_merceologico AND GM.societa = MOD_ART.societa)
 			LEFT OUTER JOIN (
 				SELECT
 					id,
 					ARRAY_AGG(DISTINCT IFNULL(comp_info.testo_composizione, "")) AS composizioni
 				FROM
-					${ref("D_MODELLO_PRODUZIONE")},
+					`mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_MODELLO_PRODUZIONE`,
 					UNNEST(composizioni) AS comp_info
 				WHERE annostagione IN (SELECT * FROM ${ref("modello_barcode_input_output_partitions")})
 				GROUP BY
@@ -833,7 +833,7 @@ FROM
 					id,
 					[IFNULL(comp_info.testo_composizione, "")] AS composizioni
 				FROM
-					${ref("D_ARTICOLO_PRODUZIONE")},
+					`mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_ARTICOLO_PRODUZIONE`,
 					UNNEST(composizioni) AS comp_info
 			) COMP_ART ON (COMP_ART.id = MOD_ART.id)
 			WHERE NOT (CL.classe IS NULL AND _type = 'modello_produzione')
@@ -989,7 +989,7 @@ FROM
 		-- caricamento dello scampolo solo se non presente sulla tabella
 		WHERE barcode_negozio NOT IN (
 			SELECT barcode_negozio
-			FROM ${ref("D_PRODOTTO")}
+			FROM `mmfg-dwh-gruppo-prod.DM_PRODOTTO.D_PRODOTTO`
 		)
 	)
 	

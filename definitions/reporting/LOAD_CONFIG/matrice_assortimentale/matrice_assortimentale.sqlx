@@ -17,13 +17,13 @@ FROM (
 		) AS rk
 	FROM (
 		SELECT mat.*, "TSL" AS origin
-		FROM ${ref("F_MATRICE_ASSORTIMENTALE_TSL")} AS mat
+		FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.F_MATRICE_ASSORTIMENTALE_TSL` AS mat
 		UNION ALL
 		SELECT mac.*, "COMPUTED" AS origin
-		FROM ${ref("F_MATRICE_ASSORTIMENTALE_COMPUTED")} AS mac
+		FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.F_MATRICE_ASSORTIMENTALE_COMPUTED` AS mac
 	) AS union_matrice_assortimentale
-	JOIN ${ref("D_PRODOTTO")} USING(societa, barcode_negozio)
-	JOIN ${ref("D_PORTA")} USING(porta)
+	JOIN `mmfg-dwh-gruppo-prod.DM_PRODOTTO.D_PRODOTTO` USING(societa, barcode_negozio)
+	JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_PORTA` USING(porta)
 ) AS ranked_union_matrice_assortimentale
 WHERE rk = 1
 		

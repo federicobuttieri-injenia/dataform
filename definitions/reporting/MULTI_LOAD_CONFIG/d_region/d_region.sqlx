@@ -23,5 +23,5 @@ SELECT
 	revenue_share_societa_industriale,
 	revenue_share_techcenter,
 	revenue_share_merchant
-FROM ${ref("S_REGION")}
+FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL_STAGING.S_REGION`
 		

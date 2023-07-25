@@ -9,7 +9,7 @@ WITH pk_deprofilate AS (
 		pk_consumer, brand,
 		DATETIME(IF(tipo_operazione = 'anonimizzazione', timestamp_operazione, NULL), 'Europe/Rome') AS timestamp_anonimizzazione,
 		DATETIME(IF(tipo_operazione = 'riprofilazione', timestamp_operazione, NULL), 'Europe/Rome') AS timestamp_riprofilazione
-	FROM ${ref("D_CONSUMER_DEPROFILING")}
+	FROM `mmfg-dwh-gruppo-prod.DM_CRM.D_CONSUMER_DEPROFILING`
 ),
 base_query AS (
 SELECT
@@ -40,16 +40,16 @@ FROM (
 		canale,
 		tipo_movimento,
 		project_name
-	FROM ${ref("RIGA_SCONTRINO_*")}
+	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.RIGA_SCONTRINO_*`
 	JOIN (
 		SELECT societa, anno, stagione, modello, ANY_VALUE(brand) AS brand
-		FROM ${ref("D_PRODOTTO")}
+		FROM `mmfg-dwh-gruppo-prod.DM_PRODOTTO.D_PRODOTTO`
 		GROUP BY 1, 2, 3, 4
 	) AS prodotto_brand USING (societa, anno, stagione, modello)
 ) AS v
-JOIN ${ref("D_PORTA")} AS n ON (v.negozio = n.porta)
-JOIN ${ref("D_MAPPING_INSEGNA_BRAND")} MIB ON (n.insegna=MIB.insegna)
-JOIN ${ref("D_SEGMENTO")} s ON (s.brand = IF(s.f_insegna, MIB.brand, IF(v.societa = 'DT', 'DT', v.brand)))
+JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_PORTA` AS n ON (v.negozio = n.porta)
+JOIN `mmfg-dwh-gruppo-prod.DM_CRM.D_MAPPING_INSEGNA_BRAND` MIB ON (n.insegna=MIB.insegna)
+JOIN `mmfg-dwh-gruppo-prod.DM_CRM.D_SEGMENTO` s ON (s.brand = IF(s.f_insegna, MIB.brand, IF(v.societa = 'DT', 'DT', v.brand)))
 WHERE
 	importo > 0
 
@@ -79,7 +79,7 @@ vendite AS (
 		COUNT(DISTINCT(data_vendita)) AS n_acquisti,
 		"vendite" AS origin
 	FROM base_query AS v
-	JOIN ${ref("STORICIZZAZIONI")} AS stor ON(
+	JOIN `mmfg-dwh-gruppo-prod.DM_CRM.STORICIZZAZIONI` AS stor ON(
 		data_vendita >= DATE_ADD(stor.data_fine_storicizzazione, INTERVAL -6 YEAR)
 	AND data_vendita <= stor.data_fine_storicizzazione
 	)
@@ -99,7 +99,7 @@ FROM (
 	SELECT
 		pk_consumer, insegna,
 		ARRAY_AGG(STRUCT(negozio, data_prima_registrazione, data_ultima_transazione, DATE(NULL) AS data_ultima_interazione, data_chiusura_pdv) ORDER BY data_ultima_transazione DESC, negozio) lista_negozi
-	FROM ${ref("D_CONSUMATRICE_INTERAZIONE")}
+	FROM `DM_CRM.D_CONSUMATRICE_INTERAZIONE`
 	JOIN chiusure_negozi USING (negozio)
 	WHERE negozio NOT IN ("0100550", "0133117")
 	AND data_ultima_transazione < DATE_ADD(CURRENT_DATE() , INTERVAL -6 YEAR)
@@ -111,7 +111,7 @@ FROM (
 	SELECT
 		pk_consumer, insegna,
 		ARRAY_AGG(STRUCT(negozio, data_prima_registrazione, DATE(NULL) AS data_ultima_transazione, data_ultima_interazione, data_chiusura_pdv) ORDER BY data_ultima_interazione DESC, negozio) lista_negozi
-	FROM ${ref("D_CONSUMATRICE_INTERAZIONE")}
+	FROM `DM_CRM.D_CONSUMATRICE_INTERAZIONE`
 	JOIN chiusure_negozi USING (negozio)
 	WHERE negozio NOT IN ("0100550", "0133117")
 	AND data_ultima_transazione IS NULL
@@ -135,17 +135,17 @@ rank_no_vendite AS (
 		0 AS n_acquisti,
 		"no_vendite" AS origin
 	FROM ultime_interazioni ui, UNNEST(ui.lista_negozi) lneg
-	JOIN ${ref("D_PORTA")} AS n ON (lneg.negozio = n.porta)
-	JOIN ${ref("D_MAPPING_INSEGNA_BRAND")} MIB USING (insegna)
-	JOIN ${ref("D_SEGMENTO")} s ON (MIB.brand = s.brand)
-	JOIN ${ref("STORICIZZAZIONI")} AS stor ON (
+	JOIN `DM_SELLOUT.D_PORTA` AS n ON (lneg.negozio = n.porta)
+	JOIN `DM_CRM.D_MAPPING_INSEGNA_BRAND` MIB USING (insegna)
+	JOIN `DM_CRM.D_SEGMENTO` s ON (MIB.brand = s.brand)
+	JOIN `DM_CRM.STORICIZZAZIONI` AS stor ON (
 			lneg.data_ultima_transazione IS NULL 
 		OR lneg.data_ultima_transazione < DATE_ADD(stor.data_fine_storicizzazione, INTERVAL -6 YEAR)
 		OR lneg.data_prima_registrazione <= stor.data_fine_storicizzazione 
 	)
 	LEFT JOIN (
 		SELECT pk_consumer, negozio, MAX(data_ultima_transazione) AS data_ultimo_acquisto
-		FROM ${ref("D_CONSUMATRICE_INTERAZIONE")}
+		FROM `DM_CRM.D_CONSUMATRICE_INTERAZIONE`
 		GROUP BY 1, 2
 	) ua USING (pk_consumer, negozio)
 	WHERE f_insegna

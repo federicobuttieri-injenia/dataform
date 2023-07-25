@@ -9,7 +9,7 @@ WITH ci AS (
 		pk_consumer, 
 		negozio, 
 		MIN(cn.data_registrazione) data_prima_registrazione
-	FROM ${ref("D_CONSUMATRICE")}
+	FROM `mmfg-dwh-gruppo-prod.DM_CRM.D_CONSUMATRICE`
 	JOIN UNNEST(consumer_negozio) cn
 	WHERE cn.data_registrazione IS NOT NULL
 	GROUP BY 1,2
@@ -19,7 +19,7 @@ events AS (
 		pk_consumer, 
 		cod_negozio AS negozio, 
 		DATE(dataora_partecipazione) AS data_partecipazione
-	FROM ${ref("F_INVITATO")}
+	FROM `mmfg-dwh-gruppo-prod.DM_CRM.F_INVITATO`
 	WHERE partecipanti = TRUE 
 	AND dataora_partecipazione IS NOT NULL 
 ),
@@ -32,7 +32,7 @@ fidelity AS(
 			MAX(IF(action = 'ASsign', cod_negozio, NULL)) OVER (PARTITION BY pk_consumer, tipo, codice) AS card_activation_shop,
 			MAX(IF(action = 'ASsign', EXTRACT(DATE FROM timestamp_operazione), NULL)) 
 			OVER (PARTITION BY pk_consumer, tipo, codice) AS card_activation_DATE,
-		FROM ${ref("CONSUMER_FIDELITY_CARD")} f
+		FROM `mmfg-dwh-gruppo-prod.DM_DWG.CONSUMER_FIDELITY_CARD` f
 		GROUP BY pk_consumer, card_program, card_code, action, cod_negozio, timestamp_operazione, tipo
 		qualify ROW_NUMBER() OVER (PARTITION BY pk_consumer, card_program, card_code) = 1
 	)
@@ -47,8 +47,8 @@ fidelity AS(
 		f.pk_consumer,
 		sf.tipo AS card_program,
 		f.codice AS card_code,
-		FROM ${ref("F_FIDELITY_CARD")} f
-		JOIN ${ref("D_SOGLIE_FIDELITY")} AS sf ON (sf.tipo = f.tipo), UNNEST(status) AS status
+		FROM `mmfg-dwh-gruppo-prod.DM_CRM.F_FIDELITY_CARD` f
+		JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_SOGLIE_FIDELITY` AS sf ON (sf.tipo = f.tipo), UNNEST(status) AS status
 		GROUP BY 1,2,3
 	) c 
 	JOIN info_attivazione ia 
@@ -61,10 +61,10 @@ o2o AS (
 		IF(returninstore = 'Y', returninstorecode, pickupinstorecode) negozio, 
 		MIN(IF(returninstore = 'Y', o.data_transazione, EXTRACT(DATE FROM cc.data_consegna))) data_vendita, 
 		MIN(IF(returninstore = 'Y', 'RIS', 'C&C')) tipo
-	FROM ${ref("RIGA_SCONTRINO_*")} o
-	LEFT JOIN ${ref("F_SPEDIZIONI_B2X")} cc 
+	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.RIGA_SCONTRINO_*` o
+	LEFT JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT.F_SPEDIZIONI_B2X` cc 
 		ON (cc.tipo = 'CLICK_COLLECT' AND cc.stato_spedizione = 'CONSEGNATO' AND o.id_spedizione = cc.num_spedizione)
-	JOIN ${ref("D_TEMPO")} t ON (data_vendita = data)
+	JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_TEMPO` t ON (data_vendita = data)
 	WHERE _TABLE_SUFFIX >= CONCAT(CAST(EXTRACT(YEAR FROM CURRENT_DATE)-3 AS STRING), '0101')
 	AND data_vendita >= DATE(EXTRACT(YEAR FROM CURRENT_DATE)-3, 12, 1)
 	AND anno_retail >= CAST(EXTRACT(year FROM current_DATE)-2 AS STRING)
@@ -82,7 +82,7 @@ remote_sale AS(
 		ANY_VALUE((CONCAT(r.project_name,r.commessa) NOT IN 
 		(
 			SELECT DISTINCT CONCAT(c.project_name,c.commessa)
-			FROM ${ref("D_COMMESSA")} c
+			FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_COMMESSA` c
 		) 
 		OR CONCAT(r.project_name,r.commessa) IS NULL,
 		'Assente', 
@@ -91,19 +91,19 @@ remote_sale AS(
 		ANY_VALUE(IF((l4l_current_year = 0 OR l4l_current_year IS NULL), 'False', 'True')) l4l,
 		ANY_VALUE(IF((l.l4l_ly = 0 OR l.l4l_ly IS NULL), 'False', 'True')) l4l_ly, 
 		ANY_VALUE(1) proposte_finalizzate
-	FROM ${ref("RIGA_SCONTRINO_*")} r
-	JOIN ${ref("V_NEGOZIO")} n USING (negozio)
-	JOIN ${ref("D_TEMPO")} t ON (data_vendita = data)
-	LEFT JOIN ${ref("D_CONSUMATRICE")} USING ( pk_consumer)
+	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.RIGA_SCONTRINO_*` r
+	JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT.V_NEGOZIO` n USING (negozio)
+	JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_TEMPO` t ON (data_vendita = data)
+	LEFT JOIN `mmfg-dwh-gruppo-prod.DM_CRM.D_CONSUMATRICE` USING ( pk_consumer)
 	LEFT JOIN (
 		SELECT DISTINCT 
 		nazione_iso, 
 		IF((nazione_iso IS NULL OR nazione_iso = ""), "Assente", nazione_mmfg) nazione_mmfg 
-		FROM ${ref("D_NAZIONE")} 
+		FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_NAZIONE` 
 		ORDER BY 1
 		) 
 		ON (paese_residenza = nazione_iso)  
-	LEFT JOIN ${ref("V_L4L_ANNO")} l 
+	LEFT JOIN `mmfg-dwh-gruppo-prod.DM_AGG_SELLOUT.V_L4L_ANNO` l 
 		ON (t.settimana_retail = l.settimana_retail 
 			AND CAST(t.anno_retail AS INT64) = l.anno_retail 
 			AND r.negozio = l.negozio)
@@ -114,7 +114,7 @@ remote_sale AS(
 	AND canale = 'REMOTE_SALE'
 	AND r.negozio NOT IN (
 		SELECT DISTINCT porta
-		FROM ${ref("D_PORTA")}
+		FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_PORTA`
 		WHERE (contesto = '005' AND 
 			(legame_commerciale = 'FRANC' OR tipo_negozio_retail = 'MCNF') 
 			AND nazione != 'IT')
@@ -131,7 +131,7 @@ remote_sale AS(
 	ANY_VALUE((CONCAT(o.project_name,o.commessa) 
 			NOT IN (SELECT DISTINCT 
 			CONCAT(c.project_name,c.commessa)
-			FROM ${ref("D_COMMESSA")} c) 
+			FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_COMMESSA` c) 
 			OR CONCAT(o.project_name,o.commessa) IS NULL,'Assente',
 			CONCAT(o.project_name,'-',o.commessa))
 			) commessa, 
@@ -139,18 +139,18 @@ remote_sale AS(
 			ANY_VALUE(IF((l4l_current_year = 0 OR l4l_current_year IS NULL), 'False', 'True')) l4l, 
 			ANY_VALUE(IF((l.l4l_ly = 0 OR l.l4l_ly IS NULL), 'False', 'True')) l4l_ly, 
 			ANY_VALUE(1) proposta
-	FROM ${ref("F_SALE_ON_APPROVAL_*")} o
-	JOIN ${ref("D_TEMPO")} t ON (data_sale_on_approval = data)
-	JOIN ${ref("V_NEGOZIO")} n USING (negozio)
-	LEFT JOIN ${ref("D_CONSUMATRICE")} USING ( pk_consumer)
+	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.F_SALE_ON_APPROVAL_*` o
+	JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_TEMPO` t ON (data_sale_on_approval = data)
+	JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT.V_NEGOZIO` n USING (negozio)
+	LEFT JOIN `mmfg-dwh-gruppo-prod.DM_CRM.D_CONSUMATRICE` USING ( pk_consumer)
 	LEFT JOIN (
 		SELECT DISTINCT 
 		nazione_iso, 
 		IF((nazione_iso IS NULL OR nazione_iso = ""), "Assente", nazione_mmfg) nazione_mmfg 
-		FROM ${ref("D_NAZIONE")} 
+		FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_NAZIONE` 
 		ORDER BY 1
 	) ON (paese_residenza = nazione_iso)  
-	LEFT JOIN ${ref("V_L4L_ANNO")} l 
+	LEFT JOIN `mmfg-dwh-gruppo-prod.DM_AGG_SELLOUT.V_L4L_ANNO` l 
 		ON (t.settimana_retail = l.settimana_retail 
 		AND CAST(t.anno_retail AS int64) = l.anno_retail 
 		AND o.negozio = l.negozio
@@ -161,13 +161,13 @@ remote_sale AS(
 	AND CONCAT(id_sale_on_approval,o.negozio,o.data_finalizzazione) NOT IN (
 	SELECT DISTINCT 
 		CONCAT(id_sale_on_approval, negozio, data_finalizzazione)
-	FROM ${ref("F_SALE_ON_APPROVAL_*")} o
+	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.F_SALE_ON_APPROVAL_*` o
 	WHERE stato = "FINALIZED"
 	)
 	AND stato != "OPEN" 
 	AND o.negozio NOT IN (
 	SELECT DISTINCT porta
-	FROM ${ref("D_PORTA")}
+	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_PORTA`
 	WHERE (contesto = '005' AND (legame_commerciale = 'FRANC' OR tipo_negozio_retail = 'MCNF') AND nazione != 'IT')
 	OR (contesto = '194' AND nazione != 'IT') 
 	)
@@ -182,8 +182,8 @@ b2s AS(
 		IF(m.bound = 'outbound', COUNT(m.bound), 0) messaggi_outbound,
 		EXTRACT(DATE FROM (MIN(message_timestamp))) data_primo_invio_inbound, 
 		EXTRACT(DATE FROM (MIN(message_timestamp))) data_ultimo_invio_inbound
-	FROM ${ref("V_B2S_MESSAGE")} m
-	JOIN ${ref("V_B2S_CONVERSATION")} c USING (key_conversation)
+	FROM `mmfg-dwh-gruppo-prod.DM_CRM.V_B2S_MESSAGE` m
+	JOIN `mmfg-dwh-gruppo-prod.DM_CRM.V_B2S_CONVERSATION` c USING (key_conversation)
 	WHERE pk_consumer IS NOT NULL
 	GROUP BY pk_consumer, negozio, key_conversation, m.bound
 	HAVING messaggi_inbound >= 2
@@ -210,16 +210,16 @@ p AS (
 		MAX(fidelity.card_activation_DATE) data_ultima_firma_fidelity,
 		MIN(data_primo_invio_inbound) data_prima_conversazione_B2S,
 		MAX(data_ultimo_invio_inbound) data_ultima_conversazione_B2S
-	FROM ${ref("RIGA_SCONTRINO_*")} r 
+	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.RIGA_SCONTRINO_*` r 
 	FULL OUTER JOIN ci USING (pk_consumer,negozio)
 	FULL OUTER JOIN remote_sale USING (pk_consumer,negozio)
 	FULL OUTER JOIN o2o USING (pk_consumer, negozio)
 	FULL OUTER JOIN events USING (pk_consumer, negozio)
 	FULL OUTER JOIN fidelity USING (pk_consumer, negozio)
 	FULL OUTER JOIN b2s USING (pk_consumer, negozio)
-	INNER JOIN ${ref("V_NEGOZIO")} n USING (negozio)
-	INNER JOIN ${ref("D_CONSUMATRICE")} c USING (pk_consumer)
-	LEFT JOIN ${ref("D_RESO")} reso USING (negozio, data_transazione, id_transazione, id)
+	INNER JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT.V_NEGOZIO` n USING (negozio)
+	INNER JOIN `mmfg-dwh-gruppo-prod.DM_CRM.D_CONSUMATRICE` c USING (pk_consumer)
+	LEFT JOIN `mmfg-dwh-gruppo-prod.DM_CRM.D_RESO` reso USING (negozio, data_transazione, id_transazione, id)
 	WHERE pk_consumer IS NOT NULL 
 	AND negozio IS NOT NULL
 	GROUP BY 1,2

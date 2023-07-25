@@ -75,7 +75,7 @@ config {
                 CURRENT_TIMESTAMP() AS ts_inserimento,
                 CURRENT_TIMESTAMP() AS ts_modifica,
                 tracking_number
-            FROM ${ref("S_LOG_FATTURATO_CONTABILIZZATO_EXT")}
+            FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL_STAGING.S_LOG_FATTURATO_CONTABILIZZATO_EXT`
             WHERE EXTRACT(DATE FROM _PARTITIONTIME) = DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
             AND DATE(daily_sales_date) IN (SELECT * FROM ${ref("s_fatt_contab_ext_input_output_partitions")})
         )
@@ -87,7 +87,7 @@ config {
         LEFT JOIN (
             SELECT DISTINCT pk_consumer_old, pk_consumer_new, 
             ROW_NUMBER() OVER (PARTITION BY pk_consumer_old ORDER BY timestamp_fine IS NULL DESC, timestamp_fine DESC) AS rank
-            FROM ${ref("V_MAPPING_CONSUMER")}
+            FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.V_MAPPING_CONSUMER`
             WHERE f_anagrafica
         ) map_c
         ON (s_log_ext.customer_number = map_c.pk_consumer_old AND rank = 1)

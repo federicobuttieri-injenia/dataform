@@ -5,6 +5,6 @@ config {
 }
 
 SELECT DISTINCT data_carico AS value
-FROM ${ref("S_LOG_FIFO")}
+FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.S_LOG_FIFO`
 WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("fifo_input_partitions")})
 		

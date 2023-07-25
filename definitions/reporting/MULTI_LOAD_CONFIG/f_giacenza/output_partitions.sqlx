@@ -5,6 +5,6 @@ config {
 }
 
 SELECT DISTINCT giorno AS value
-FROM ${ref("S_GIACENZA")}
+FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.S_GIACENZA`
 WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("f_giacenza_input_partitions")})
 		

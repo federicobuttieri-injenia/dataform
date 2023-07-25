@@ -74,7 +74,7 @@ config {
                 'OM' AS project_name,
                 line_id,
                 tracking_number
-            FROM ${ref("S_LOG_FATTURATO_CONTABILIZZATO_OM")}
+            FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL_STAGING.S_LOG_FATTURATO_CONTABILIZZATO_OM`
             WHERE EXTRACT(DATE FROM _PARTITIONTIME) = CURRENT_DATE()
             AND DATE(daily_sales_date) IN (SELECT * FROM ${ref("s_fatt_contab_om_input_output_partitions")})
             AND LOWER(sku) != 'shipping charges'
@@ -87,7 +87,7 @@ config {
         LEFT JOIN (
             SELECT DISTINCT pk_consumer_old, pk_consumer_new, 
             ROW_NUMBER() OVER (PARTITION BY pk_consumer_old ORDER BY timestamp_fine IS NULL DESC, timestamp_fine DESC) AS rank
-            FROM ${ref("V_MAPPING_CONSUMER")}
+            FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.V_MAPPING_CONSUMER`
             WHERE f_anagrafica
         ) map_c
         ON (s_log.customer_number = map_c.pk_consumer_old AND rank = 1)

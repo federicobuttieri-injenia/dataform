@@ -32,7 +32,7 @@ FROM (
 			ANY_VALUE(g.stagione) AS stagione, 
 			ANY_VALUE(codice_item_planning) AS codice_item_planning, 
 			SUM(IFNULL(imp_b2b.qta_impegnata, 0)) AS qta_impegnata
-		FROM ${ref("F_GIACENZA_*")} AS g
+		FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.F_GIACENZA_*` AS g
 		LEFT JOIN (
 			SELECT
 				barcode_negozio,
@@ -40,7 +40,7 @@ FROM (
 				negozio,
 				dislocazione_fisica,
 				SUM(imp.qta_impegnata) AS qta_impegnata
-			FROM ${ref("F_GIACENZA_*")}, UNNEST(impegnato) AS imp
+			FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.F_GIACENZA_*`, UNNEST(impegnato) AS imp
 			WHERE 
 				giorno IN (SELECT * FROM ${ref("grp_stock_input_partitions")})
 			AND imp.causale = "B2B"
@@ -51,7 +51,7 @@ FROM (
 		AND IFNULL(g.negozio, "") = IFNULL(imp_b2b.negozio, "")
 		AND IFNULL(g.dislocazione_fisica, "") = IFNULL(imp_b2b.dislocazione_fisica, "")
 		)
-		JOIN ${ref("D_BOX_BULK")} AS dbb ON (
+		JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_BOX_BULK` AS dbb ON (
 			g.societa = dbb.societa AND g.dislocazione_logica = dbb.codice_industria
 		)
 		WHERE 
@@ -70,8 +70,8 @@ FROM (
 		codice_item_planning, 
 		barcode_negozio, 
 		qta
-	FROM ${ref("F_GIACENZA_*")} AS g 
-	JOIN ${ref("D_BOX_BULK")} AS dbb ON (
+	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.F_GIACENZA_*` AS g 
+	JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_BOX_BULK` AS dbb ON (
 		g.negozio = dbb.codice_bms AND dbb.tipologia = "BULK"
 	)
 	WHERE 

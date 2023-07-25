@@ -5,5 +5,5 @@ config {
 }
 
 SELECT *
-FROM ${ref("D_TIPO_PAGAMENTO")}
+FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_TIPO_PAGAMENTO`
 		

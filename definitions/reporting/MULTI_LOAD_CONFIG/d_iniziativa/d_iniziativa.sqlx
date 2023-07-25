@@ -16,7 +16,7 @@ WITH testata AS (
 		SELECT 
 			*,
 			ROW_NUMBER() OVER(PARTITION BY id_iniziativa ORDER BY ts_inserimento DESC, ts_modifica DESC, ts_creazione DESC) AS rk
-		FROM ${ref("S_INIZIATIVA")}
+		FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.S_INIZIATIVA`
 		WHERE CAST(id_iniziativa AS INT64) BETWEEN op.partition_start AND op.partition_end
 	) AS subquery
 	WHERE 
@@ -30,7 +30,7 @@ dettaglio AS (
 		SELECT 
 			*,
 			ROW_NUMBER() OVER(PARTITION BY id_iniziativa, negozio ORDER BY ts_inserimento DESC, ts_modifica DESC, ts_creazione DESC) AS rk
-		FROM ${ref("S_INIZIATIVA_NEGOZIO")}
+		FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.S_INIZIATIVA_NEGOZIO`
 		WHERE CAST(id_iniziativa AS INT64) BETWEEN op.partition_start AND op.partition_end
 	) AS subquery
 	WHERE 

@@ -5,10 +5,10 @@ config {
 }
 
 SELECT DISTINCT PARSE_DATE('%Y%m%d', event_date)
-FROM ${ref("events_*")}
+FROM `mmfg-analytics-gruppo-prod.analytics_260123046.events_*`
 WHERE _TABLE_SUFFIX = (SELECT * FROM ${ref("ga_product_kpi_advanced_get_last_shard")})
 AND PARSE_DATE('%Y%m%d', event_date) NOT IN (
 	SELECT event_date
-	FROM ${ref("F_GA_PRODUCT_KPI_ADVANCED_*")}
+	FROM `DM_DIGITAL.F_GA_PRODUCT_KPI_ADVANCED_*`
 )
 		

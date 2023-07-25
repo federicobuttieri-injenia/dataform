@@ -22,7 +22,7 @@ FROM(
 		*,
 		_PARTITIONTIME AS ts_inserimento,
 		RANK() OVER(PARTITION BY num_ordine, num_spedizione, stato_vettore, stato_spedizione ORDER BY _PARTITIONTIME DESC, data_creazione DESC, GENERATE_UUID()) AS rk
-	FROM ${ref("S_O2O")}
+	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.S_O2O`
 )
 WHERE rk = 1
 		

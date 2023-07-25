@@ -5,5 +5,5 @@ config {
 }
 
 SELECT DISTINCT date
-FROM ${ref("S_DISPONIBILITA_*")}
+FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL_STAGING.S_DISPONIBILITA_*`
 WHERE CAST(ts_inserimento AS DATE) = DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)

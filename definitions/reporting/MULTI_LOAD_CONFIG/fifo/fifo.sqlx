@@ -12,7 +12,7 @@ FROM (
 			PARTITION BY cod_franchising, barcode_negozio, tipo_ordine_cliente, origine_ordine, data_carico, data_scarico, tipo_scarico
 			ORDER BY upd_datetime DESC
 		) AS rk
-	FROM ${ref("S_FIFO")}
+	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.S_FIFO`
 	WHERE data_carico IN ({where_partitions_current_table})
 )
 WHERE rk = 1

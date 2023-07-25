@@ -5,7 +5,7 @@ config {
 }
 
 SELECT *
-FROM ${ref("S_FILE_VENDITE_ESCLUSI_BMS")}
+FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.S_FILE_VENDITE_ESCLUSI_BMS`
 WHERE 
 	DATE(_PARTITIONTIME) IN ({partitions})
 AND data_documento in ({where_partitions_current_table})

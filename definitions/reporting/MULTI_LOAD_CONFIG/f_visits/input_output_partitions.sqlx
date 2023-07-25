@@ -7,59 +7,59 @@ config {
 with ga_part as (
 	select 
 		distinct parse_date('%Y%m%d', date) as Date 
-	from ${ref("ga_sessions_*")}
+	from `mmfg-analytics-gruppo-prod.81544636.ga_sessions_*`
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) 
 	union all
 	select 
 		distinct parse_date('%Y%m%d', date) as Date
-	from ${ref("ga_sessions_*")}
+	from `mmfg-analytics-gruppo-prod.60894425.ga_sessions_*`
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 	union all
 	select 
 		distinct parse_date('%Y%m%d', date) as Date
-	from ${ref("ga_sessions_*")}
+	from `mmfg-analytics-gruppo-prod.83167489.ga_sessions_*`
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 	union all
 	select
 		distinct parse_date('%Y%m%d', date) as Date 
-	from ${ref("ga_sessions_*")}
+	from `mmfg-analytics-gruppo-prod.74927693.ga_sessions_*`
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 	union all
 	select 
 		distinct parse_date('%Y%m%d', date) as Date 
-	from ${ref("ga_sessions_*")}
+	from `mmfg-analytics-gruppo-prod.82912923.ga_sessions_*`
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 	union all
 	select 
 		distinct parse_date('%Y%m%d', date) as Date 
-	from ${ref("ga_sessions_*")}
+	from `mmfg-analytics-gruppo-prod.83017991.ga_sessions_*`
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 	union all
 	select 
 		distinct parse_date('%Y%m%d', date) as Date
-	from ${ref("ga_sessions_*")}
+	from `mmfg-analytics-gruppo-prod.82912544.ga_sessions_*`
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 	union all
 	select 
 		distinct parse_date('%Y%m%d', date) as Date
-	from ${ref("ga_sessions_*")}
+	from `mmfg-analytics-gruppo-prod.82907875.ga_sessions_*`
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 	union all
 	select 
 		distinct parse_date('%Y%m%d', date) as Date 
-	from ${ref("ga_sessions_*")}
+	from `mmfg-analytics-gruppo-prod.82915505.ga_sessions_*`
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 	union all
 	select 
 		distinct parse_date('%Y%m%d', date) as Date
-	from ${ref("ga_sessions_*")}
+	from `mmfg-analytics-gruppo-prod.83320679.ga_sessions_*`
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 ),
 walkin_part as (
 	SELECT distinct data 
-	FROM ${ref("F_WALKIN_*")} 
+	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.F_WALKIN_*` 
 	WHERE ts_modifica > (
-		SELECT MAX(ts_modifica) from ${ref("F_VISITS_*")}
+		SELECT MAX(ts_modifica) from `mmfg-dwh-gruppo-prod.DM_DIGITAL.F_VISITS_*`
 		WHERE Source = 'Walkin'
 	)
 )

@@ -71,7 +71,7 @@ config {
             'Stargate' AS project_name,
             line_id,
             tracking_number
-        FROM ${ref("S_LOG_FATTURATO_CONTABILIZZATO")}
+        FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL_STAGING.S_LOG_FATTURATO_CONTABILIZZATO`
         WHERE EXTRACT(DATE FROM _PARTITIONTIME) = CURRENT_DATE()
         AND DATE(daily_sales_date) IN (SELECT * FROM ${ref("s_fatt_contab_input_output_partitions")})
         AND LOWER(sku) != 'shipping charges'
