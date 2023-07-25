@@ -1,6 +1,6 @@
 config {
     type: "incremental",
-    schema: "None",
+    schema: "injenia",
     name: "F_DELIVERY_B2X"
 }
 
@@ -44,7 +44,7 @@ cancelled_reason,
 				attributes.* EXCEPT(activity),
 				CURRENT_TIMESTAMP AS ts_inserimento,
 				_PARTITIONTIME AS ingestion_time
-			FROM ${ref("S_DELIVERY_B2X")}, UNNEST(attributes.activity) AS actv
+			FROM ${ref("DM_SELLOUT_STAGING", "S_DELIVERY_B2X")}, UNNEST(attributes.activity) AS actv
 			WHERE DATE(_PARTITIONTIME) = CURRENT_DATE
 			-- da togliere con flusso di file corretti. i piu vecchi in test lo hanno nullo
 			AND attributes.channel IS NOT NULL
@@ -52,7 +52,7 @@ cancelled_reason,
 	)
 	WHERE pk_delivery NOT IN (
 		SELECT DISTINCT pk_delivery
-		FROM ${ref("F_DELIVERY_B2X")}
+		FROM ${ref("DM_MYINVENIO", "F_DELIVERY_B2X")}
 	)
 )
 WHERE rk_dup = 1

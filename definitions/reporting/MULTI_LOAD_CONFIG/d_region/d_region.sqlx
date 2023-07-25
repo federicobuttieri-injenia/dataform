@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "DM_DIGITAL",
+    schema: "injenia",
     name: "D_REGION"
 }
 
@@ -23,5 +23,5 @@ SELECT
 	revenue_share_societa_industriale,
 	revenue_share_techcenter,
 	revenue_share_merchant
-FROM ${ref("S_REGION")}
+FROM ${ref("DM_DIGITAL_STAGING", "S_REGION")}
 		

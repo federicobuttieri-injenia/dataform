@@ -1,9 +1,9 @@
 config {
     type: "table",
-    schema: "STAGING_LOCATION",
+    schema: "injenia",
     name: "D_TIPO_PAGAMENTO"
 }
 
 SELECT *
-FROM ${ref("D_TIPO_PAGAMENTO")}
+FROM ${ref("DM_SELLOUT_STAGING", "D_TIPO_PAGAMENTO")}
 		

@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "DM_CRM",
+    schema: "injenia",
     name: "CLUSTER_COMPORTAMENTALE"
 }
 
@@ -85,7 +85,7 @@ SELECT
 	fatturato_euro / tot_capi prezzo_medio,
 	collezioni,
 	department
-FROM ${ref("DATI_CLUSTER")} cluster_periodo
+FROM ${ref("DM_CRM", "DATI_CLUSTER")} cluster_periodo
 LEFT JOIN (
 	SELECT
 		pk_consumer,
@@ -93,7 +93,7 @@ LEFT JOIN (
 		f_insegna,
 		data_ultimo_acquisto AS data_ultimo_acquisto_stor,
 		storShiftata storicizzazione,
-	FROM ${ref("DATI_CLUSTER")} dc
+	FROM ${ref("DM_CRM", "DATI_CLUSTER")} dc
 	JOIN (
 		SELECT
 			storicizzazione storShiftata,
@@ -102,7 +102,7 @@ LEFT JOIN (
 				LAG(storicizzazione, -5) OVER (ORDER BY storicizzazione DESC),
 				LAG(storicizzazione, -4) OVER (ORDER BY storicizzazione DESC)
 			) AS stor1
-		FROM ${ref("STORICIZZAZIONI")}
+		FROM ${ref("DM_CRM", "STORICIZZAZIONI")}
 		ORDER BY storicizzazione
 	) ON (stor1=dc.storicizzazione)
 ) AS stor USING (pk_consumer, brand, f_insegna, storicizzazione)
@@ -136,34 +136,34 @@ LEFT JOIN (
 				IF(std.stddev_frequenza = 0, 0, (b.frequenza - std.avg_frequenza) / std.stddev_frequenza) AS frequenza_std,
 				IF(std.stddev_scontrino_medio = 0, 0, (b.scontrino_medio - std.avg_scontrino_medio) / std.stddev_scontrino_medio) AS scontrino_medio_std,
 				IF(std.stddev_upt = 0, 0, (b.upt - std.avg_upt) / std.stddev_upt) AS upt_std
-			FROM ${ref("DATI_CLUSTER")} b
+			FROM ${ref("DM_CRM", "DATI_CLUSTER")} b
 			JOIN (
 				--calcolo media e deviazione standard dei 4 kpi per brand/insegna
 				SELECT
 					storicizzazione, brand, f_insegna, AVG(maxprice) AS avg_maxprice, AVG(frequenza) AS avg_frequenza, AVG(scontrino_medio) AS avg_scontrino_medio, AVG(upt) AS avg_upt,
 					STDDEV(maxprice) AS stddev_maxprice, STDDEV(frequenza) AS stddev_frequenza, STDDEV(scontrino_medio) AS stddev_scontrino_medio, STDDEV(upt) AS stddev_upt
-				FROM ${ref("DATI_CLUSTER")}
-				JOIN ${ref("CLUSTER_OUTLIERS")} o USING (brand, f_insegna)
+				FROM ${ref("DM_CRM", "DATI_CLUSTER")}
+				JOIN ${ref("DM_CRM", "CLUSTER_OUTLIERS")} o USING (brand, f_insegna)
 				WHERE maxprice BETWEEN o.min_maxprice AND o.max_maxprice
 				AND scontrino_medio BETWEEN o.min_scontrino_medio AND o.max_scontrino_medio
 				AND frequenza BETWEEN o.min_frequenza AND o.max_frequenza AND upt BETWEEN o.min_upt AND o.max_upt
 				GROUP BY storicizzazione, brand, f_insegna
 			) std USING (storicizzazione, brand, f_insegna)
 		) cluster_periodo_std
-		JOIN ${ref("CLUSTER_CENTERS")} c USING (brand, f_insegna)
+		JOIN ${ref("DM_CRM", "CLUSTER_CENTERS")} c USING (brand, f_insegna)
 	)
 	WHERE r = 1	-- prendo il cluster di rank 1, cioe' piu' vicino
 ) comp USING (storicizzazione, pk_consumer, brand, f_insegna)
-JOIN ${ref("STORICIZZAZIONI")} s USING (storicizzazione)
-LEFT JOIN ${ref("D_NAZIONE")} n ON (n.nazione_mmfg = nazione_consumatrice)
-LEFT JOIN ${ref("CLUSTER_OUTLIERS")} o USING (brand, f_insegna)
-LEFT JOIN ${ref("CLUSTER_MONETARY")} cm ON (
+JOIN ${ref("DM_CRM", "STORICIZZAZIONI")} s USING (storicizzazione)
+LEFT JOIN ${ref("DM_SELLOUT", "D_NAZIONE")} n ON (n.nazione_mmfg = nazione_consumatrice)
+LEFT JOIN ${ref("DM_CRM", "CLUSTER_OUTLIERS")} o USING (brand, f_insegna)
+LEFT JOIN ${ref("DM_CRM", "CLUSTER_MONETARY")} cm ON (
 	cluster_periodo.brand = cm.brand
 	AND cluster_periodo.f_insegna = cm.f_insegna
 	AND (cluster_periodo.fatturato_euro > cm.min_fatturato_euro OR cm.min_fatturato_euro IS NULL)
 	AND (cluster_periodo.fatturato_euro <= cm.max_fatturato_euro or cm.max_fatturato_euro IS NULL)
 )
-LEFT JOIN ${ref("CLUSTER_MONETARY_REGIONAL")} cmr ON (
+LEFT JOIN ${ref("DM_CRM", "CLUSTER_MONETARY_REGIONAL")} cmr ON (
 	cluster_periodo.brand = cmr.brand
 	AND cluster_periodo.f_insegna = cmr.f_insegna
 	AND n.area_geo_a = cmr.area_geo_a

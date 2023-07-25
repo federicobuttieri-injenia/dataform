@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "DM_SELLOUT",
+    schema: "injenia",
     name: "F_ORDINATO_{int}0101"
 }
 
@@ -21,12 +21,12 @@ WITH BACKUP_PRODOTTI AS (
 		IF(classe IS NOT NULL AND classe !='', classe, NULL) as classe,
 		IF(tema IS NOT NULL AND tema !='', tema, NULL) as tema,
 		indice_taglia
-	FROM ${ref("D_PRODOTTO")}
+	FROM ${ref("DM_PRODOTTO", "D_PRODOTTO")}
 ),
 NEGOZI_NEW AS (
 	-- se il negozio sull ordinato non compare nella lista, viene valorizzato con porta_new
 	SELECT cl.codice_cliente AS cliente, cl.societa, cl.anno, cl.stagione, STRING_AGG(DISTINCT porta) lista_porte, ANY_VALUE(porta) AS porta_new
-	FROM ${ref("D_PORTA")}, UNNEST(cliente) AS cl
+	FROM ${ref("DM_SELLOUT", "D_PORTA")}, UNNEST(cliente) AS cl
 	GROUP BY 1, 2, 3, 4
 ),
 PREZZI_VALIDI AS (
@@ -41,10 +41,10 @@ PREZZI_VALIDI AS (
 		PR.controvalore
 	FROM (
 		SELECT *, ROW_NUMBER() OVER(PARTITION BY societa, modello, listino, anno, stagione, tipo_prezzo ORDER BY ts_inserimento DESC, prezzo IS NULL) AS rk
-		FROM ${ref("D_PREZZO")}
+		FROM ${ref("DM_PREZZO_LISTINO", "D_PREZZO")}
 		WHERE tipo_prezzo IN ('A', 'V', 'S')
 	) PR
-	LEFT JOIN ${ref("D_TIPO_PREZZO_CLIENTE")} USING (societa, anno, stagione, cliente, tipo_prezzo, progr_periodo)
+	LEFT JOIN ${ref("DM_SELLOUT_STAGING", "D_TIPO_PREZZO_CLIENTE")} USING (societa, anno, stagione, cliente, tipo_prezzo, progr_periodo)
 	WHERE (
 		(data_inizio IS NULL AND data_fine IS NULL)
 		OR (CURRENT_DATE() BETWEEN data_inizio AND data_fine)
@@ -67,7 +67,7 @@ CLIENTELE AS (
 			f_tipo_ordine_riferimento,
 			tipo_ordine_cliente,
 			ROW_NUMBER() OVER(PARTITION BY societa, anno, stagione, cliente, uscita_collezione ORDER BY f_tipo_ordine_riferimento IS NOT NULL DESC, f_tipo_ordine_riferimento = '1' DESC, tipo_ordine_cliente = 'CV' DESC, listino_vendita IS NOT NULL DESC, listino_acquisto IS NOT NULL DESC) rk
-		FROM ${ref("D_CLIENTELA")}
+		FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTELA")}
 		WHERE validita IN ('V', '')
 	)
 	where rk = 1
@@ -91,7 +91,7 @@ CLIENTELE_IT AS (
 					WHEN cliente = '10010835' THEN CONCAT('00153100', SUBSTR(cliente, -5))
 					ELSE cliente
 				END AS cliente
-			FROM ${ref("D_CLIENTE_STAGIONE")}
+			FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTE_STAGIONE")}
 			WHERE punto_vendita_retail IN (
 				'0100019',  # MM
 				'0100517',  # DT
@@ -174,14 +174,14 @@ FROM (
 					COALESCE(BACKUP_PRODOTTI.indice_taglia, O.indice_taglia) AS indice_taglia,
 					-- fallback per negozi modificati in anagrafica
 					COALESCE(NEGOZI_NEW.negozio, O.negozio) AS negozio
-				FROM ${ref("{from_table}")} O
+				FROM ${ref("DM_SELLOUT", "{from_table}")} O
 				LEFT JOIN (
 					SELECT DISTINCT cli.societa, cli.anno, cli.stagione, cli.cliente, p.porta as negozio, cli.tipo_ordine_cliente
-					FROM ${ref("D_CLIENTE_STAGIONE")} AS cli
-					LEFT JOIN ${ref("D_PORTA")} AS num_porta ON (
+					FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTE_STAGIONE")} AS cli
+					LEFT JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS num_porta ON (
 						CAST(cli.punto_vendita_retail AS INT64) = num_porta.numero_porta AND num_porta.numero_porta != 0
 					)
-					JOIN ${ref("D_PORTA")} AS p ON (
+					JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS p ON (
 						COALESCE(num_porta.porta, cli.punto_vendita_retail) = p.porta
 					)
 				) NEGOZI_NEW USING(cliente, societa, anno, stagione, tipo_ordine_cliente)
@@ -191,7 +191,7 @@ FROM (
 					AND BACKUP_PRODOTTI.anno BETWEEN (CAST(EXTRACT(YEAR FROM data_ordine) AS INT64) - 9) AND (CAST(EXTRACT(YEAR FROM data_ordine) AS INT64) + 1)
 				)
 			) ord
-		LEFT JOIN ${ref("V_MODELLO_BARCODE_NEGOZIO")} mod_ret_var ON (
+		LEFT JOIN ${ref("DM_PRODOTTO", "V_MODELLO_BARCODE_NEGOZIO")} mod_ret_var ON (
 			ord.societa = mod_ret_var.societa
 			AND ord.modello_barcode_negozio = mod_ret_var.modello_barcode_negozio
 			AND ord.variante = mod_ret_var.variante            
@@ -212,7 +212,7 @@ FROM (
 				ANY_VALUE(uscita_collezione) AS uscita_collezione,
 				ANY_VALUE(tema) AS tema,
 				CAST(NULL AS STRING) AS stagionale -- non definito per mod-societa
-			FROM ${ref("V_MODELLO_BARCODE_NEGOZIO")}
+			FROM ${ref("DM_PRODOTTO", "V_MODELLO_BARCODE_NEGOZIO")}
 			GROUP BY modello_barcode_negozio, societa, anno, stagione
 		) mod_var ON (
 			COALESCE(ord.societa, mod_ret_var.societa) = mod_var.societa
@@ -223,12 +223,12 @@ FROM (
 	) ord
 	LEFT JOIN (
 		SELECT societa, modello, listino AS listino_acquisto, prezzo, controvalore
-		FROM ${ref("D_PREZZO")}
+		FROM ${ref("DM_PREZZO_LISTINO", "D_PREZZO")}
 		WHERE tipo_prezzo = 'A'
 	) AS P_ACQUISTO USING (societa, modello, listino_acquisto)
 	LEFT JOIN (
 		SELECT societa, modello, listino AS listino_vendita, prezzo, controvalore
-		FROM ${ref("D_PREZZO")}
+		FROM ${ref("DM_PREZZO_LISTINO", "D_PREZZO")}
 		WHERE tipo_prezzo = 'V'
 	) AS P_VENDITA USING (societa, modello, listino_vendita)
 	LEFT JOIN (

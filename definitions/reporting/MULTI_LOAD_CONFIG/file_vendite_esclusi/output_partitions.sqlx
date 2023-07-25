@@ -1,10 +1,10 @@
 config {
     type: "view",
-    schema: "DM_SELLOUT_STAGING",
+    schema: "injenia",
     name: "file_vendite_esclusi_output_partitions"
 }
 
 SELECT DISTINCT data_documento AS value
-FROM ${ref("S_FILE_VENDITE_ESCLUSI_BMS")}
+FROM ${ref("DM_SELLOUT_STAGING", "S_FILE_VENDITE_ESCLUSI_BMS")}
 WHERE DATE(_PARTITIONTIME) IN (SELECT * FROM ${ref("file_vendite_esclusi_input_partitions")})
 		

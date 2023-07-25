@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "DM_RETAIL",
+    schema: "injenia",
     name: "fr_budget_quindicinale"
 }
 

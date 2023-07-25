@@ -1,11 +1,11 @@
 config {
     type: "table",
-    schema: "DM_SELLOUT_STAGING",
+    schema: "injenia",
     name: "F_MAX_TS_FROM_FR_VENDITE_MERGE"
 }
 
 SELECT negozio, MAX(ts_creazione) max_ts
-FROM ${ref("S_RIGA_SCONTRINO_*")}
+FROM ${ref("DM_SELLOUT_STAGING", "S_RIGA_SCONTRINO_*")}
 WHERE input_filename LIKE 'fr_vendite_merge%'
 GROUP BY negozio
 		

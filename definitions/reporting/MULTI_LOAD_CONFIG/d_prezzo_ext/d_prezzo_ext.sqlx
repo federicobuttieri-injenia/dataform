@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "DM_PREZZO_LISTINO",
+    schema: "injenia",
     name: "D_PREZZO_EXT"
 }
 
@@ -12,12 +12,12 @@ WITH BACKUP_PRODOTTI AS (
 		IF(modello IS NOT NULL AND modello !='', modello, NULL) AS modello,
 		IF(modello_barcode_negozio IS NOT NULL AND modello_barcode_negozio !='', modello_barcode_negozio, NULL) AS modello_retail,
 		annostagione
-	FROM ${ref("D_PRODOTTO")}
+	FROM ${ref("DM_PRODOTTO", "D_PRODOTTO")}
 	WHERE annostagione IN (SELECT * FROM ${ref("d_prezzo_ext_input_output_partitions")})
 ), 
 BACKUP_NEGOZI AS ( # necessario per record provenienti da BMS senza tipo_negozio
 	SELECT DISTINCT porta AS negozio, nazione AS nazione_negozio, tipo_negozio_retail
-	FROM ${ref("D_PORTA")} 
+	FROM ${ref("DM_SELLOUT", "D_PORTA")} 
 ),
 TASSI_CAMBIO_QUOTIDIANI AS (
 	SELECT
@@ -32,12 +32,12 @@ TASSI_CAMBIO_QUOTIDIANI AS (
 				IF(ta.iso_code IS NULL, codici_esistenti.iso_code, ta.iso_code) AS iso_code,
 				IF(reference_date IS NULL, data, reference_date) AS reference_date,
 				CAST(avg_rate AS FLOAT64) AS avg_rate,
-			FROM ${ref("D_TEMPO")} te
+			FROM ${ref("DM_SELLOUT", "D_TEMPO")} te
 			CROSS JOIN (
 				SELECT DISTINCT iso_code
-				FROM ${ref("F_TASSO_QUOTIDIANO")}
+				FROM ${ref("DM_SELLOUT", "F_TASSO_QUOTIDIANO")}
 			) AS codici_esistenti
-			LEFT JOIN ${ref("F_TASSO_QUOTIDIANO")} ta ON (
+			LEFT JOIN ${ref("DM_SELLOUT", "F_TASSO_QUOTIDIANO")} ta ON (
 				te.data = ta.reference_date and codici_esistenti.iso_code = ta.iso_code
 			)
 			GROUP BY 1, 2, 3
@@ -69,14 +69,14 @@ S_PREZZO_EXT AS (
 		SELECT
 			pr.* EXCEPT(tipo_negozio_retail),
 			tipo_negozio_retail
-		FROM ${ref("S_PREZZO_EXT")} pr
+		FROM ${ref("DM_SELLOUT_STAGING", "S_PREZZO_EXT")} pr
 		WHERE input_filename != 'catalogo_prezzi'
 		UNION ALL
 		SELECT
 			pr.* EXCEPT(tipo_negozio_retail),
 			-- FGEDW-945: i prezzi da BMS vengono moltiplicati per nazione-catena
 			neg.tipo_negozio_retail
-		FROM ${ref("S_PREZZO_EXT")} pr
+		FROM ${ref("DM_SELLOUT_STAGING", "S_PREZZO_EXT")} pr
 		LEFT JOIN (
 			SELECT DISTINCT nazione_negozio, tipo_negozio_retail
 			FROM BACKUP_NEGOZI
@@ -93,11 +93,11 @@ PORTE AS (
 			p.tipo_negozio_retail,
 			cli.cliente AS cliente,
 			CAST(CONCAT(cli.anno,cli.stagione) AS INT64) AS annostagione
-	FROM ${ref("D_CLIENTE_STAGIONE")} AS cli
-	LEFT JOIN ${ref("D_PORTA")} AS num_porta ON (
+	FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTE_STAGIONE")} AS cli
+	LEFT JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS num_porta ON (
 		CAST(cli.punto_vendita_retail AS INT64) = num_porta.numero_porta AND num_porta.numero_porta != 0
 	)
-	JOIN ${ref("D_PORTA")} AS p ON (
+	JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS p ON (
 		COALESCE(num_porta.porta, cli.punto_vendita_retail) = p.porta
 	)
 	WHERE cli.cliente IS NOT NULL
@@ -115,13 +115,13 @@ CLIENTI_LISTINI AS (
 				stagione,
 				cliente,
 				listino_acquisto AS listino,
-		FROM ${ref("D_CLIENTELA")}
+		FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTELA")}
 		WHERE listino_acquisto IS NOT NULL
 		AND listino_vendita IS NULL
 		AND validita IN ('V', '') 
 		AND annostagione >= 20131
 	) clientele
-	JOIN ${ref("D_LISTINO")} listini USING (societa, anno, stagione, listino)
+	JOIN ${ref("DM_SELLOUT_STAGING", "D_LISTINO")} listini USING (societa, anno, stagione, listino)
 ),
 PREZZI_ACQUISTO_DBG AS (
 	SELECT DISTINCT *
@@ -137,7 +137,7 @@ PREZZI_ACQUISTO_DBG AS (
 			prezzo AS prezzo_acquisto,
 			controvalore AS controvalore_prezzo_acquisto,
 			divisa,
-		FROM ${ref("D_PREZZO")}
+		FROM ${ref("DM_PREZZO_LISTINO", "D_PREZZO")}
 		WHERE tipo_prezzo = 'A'
 		AND CAST(CONCAT(anno,stagione) AS INT64) IN (SELECT * FROM ${ref("d_prezzo_ext_input_output_partitions")})
 	) prezzi USING (societa, anno, stagione, listino, divisa)
@@ -171,7 +171,7 @@ RICARICHI AS (
 					CAST(cambio_acquisto AS FLOAT64)
 				) AS cambio_acquisto, # Se non presente default 1
 				CAST(annostag AS INT64) AS annostagione
-			FROM ${ref("D_RICARICHI")}
+			FROM ${ref("DM_PREZZO_LISTINO", "D_RICARICHI")}
 			WHERE annostag >= '20131'
 			AND valuta_acquisto IS NOT NULL
 			AND NOT (valuta_acquisto = 'USD' AND cambio_acquisto = '1')
@@ -276,7 +276,7 @@ CAMBI_STAGIONE AS (
 		divisa,
 		tipo_negozio AS tipo_negozio_retail,
 		previsione
-	FROM ${ref("D_CAMBIO_STAGIONE")}
+	FROM ${ref("DM_PREZZO_LISTINO", "D_CAMBIO_STAGIONE")}
 	WHERE previsione != 0
 )
 SELECT *

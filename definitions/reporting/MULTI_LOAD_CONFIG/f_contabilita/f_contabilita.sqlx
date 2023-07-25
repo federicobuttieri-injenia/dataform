@@ -1,12 +1,12 @@
 config {
     type: "table",
-    schema: "DM_BMS",
+    schema: "injenia",
     name: "BILANCIO_GIACENZE"
 }
 
 WITH PORTE AS (
 	SELECT distinct porta, catena, tipo, project_name
-	FROM ${ref("D_PORTA")}
+	FROM ${ref("DM_SELLOUT", "D_PORTA")}
 	QUALIFY ROW_NUMBER() OVER (PARTITION BY porta ORDER BY ts_inserimento DESC) = 1
 ),
 new_rows AS (
@@ -34,7 +34,7 @@ new_rows AS (
 		sum(IF(trattamento = '11 - Campionario', pezzi, 0)) AS campionario_qta,
 		sum(merce_terzi) AS terzi_qta,
 		'REPLACE' AS action
-	FROM ${ref("F_CONTABILITA_*")} c
+	FROM ${ref("DM_SELLOUT", "F_CONTABILITA_*")} c
 		LEFT JOIN PORTE po USING (porta)
 	WHERE c.project_name IS NOT NULL AND porta IS NOT NULL AND tipo_porta IS NOT NULL
 		AND brand IS NOT NULL AND barcode_negozio IS NOT NULL AND anno IS NOT NULL
@@ -51,7 +51,7 @@ new_rows AS (
 ),
 current_table AS (
 	SELECT * EXCEPT(prezzo_import, prezzo_landed), IFNULL(prezzo_import, 0.0) AS prezzo_import, IFNULL(prezzo_landed, 0.0) AS prezzo_landed
-	FROM ${ref("BILANCIO_GIACENZE")}
+	FROM ${ref("DM_BMS", "BILANCIO_GIACENZE")}
 	WHERE data_creazione IN (SELECT * FROM ${ref("f_contabilita_input_output_partitions")})
 )
 SELECT data_documento, data_creazione, project_name, porta, barcode_negozio, data_evento, campi.*, action, ts_modifica, anno_tabella, prezzo_import, prezzo_landed, societa_prodotto FROM (

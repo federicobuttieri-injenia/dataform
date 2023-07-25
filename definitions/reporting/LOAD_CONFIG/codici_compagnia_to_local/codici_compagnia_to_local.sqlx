@@ -1,9 +1,9 @@
 config {
     type: "table",
-    schema: "STAGING_LOCATION",
+    schema: "injenia",
     name: "D_CODICE_COMPAGNIA"
 }
 
 SELECT *
-FROM ${ref("D_CODICE_COMPAGNIA")}
+FROM ${ref("DM_SELLOUT_STAGING", "D_CODICE_COMPAGNIA")}
 		

@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "DM_CRM",
+    schema: "injenia",
     name: "F_EMAIL_RESULT_20230101"
 }
 
@@ -26,8 +26,8 @@ SELECT
 	f.nome_campagna,
 	f.brand,
 	s.cod_consumer
-FROM ${ref("{from_table}")} s
-JOIN ${ref("F_CAMPAIGN")} f USING (id_campagna)
+FROM ${ref("DM_SELLOUT_STAGING", "{from_table}")} s
+JOIN ${ref("DM_CRM", "F_CAMPAIGN")} f USING (id_campagna)
 WHERE 
 	EXTRACT(DATE FROM s.dataora_creazione) IN ({where_partitions_current_table})
 AND f.dataora_invio >= "2022-02-01"

@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "DM_DIGITAL",
+    schema: "injenia",
     name: "F_GA_TRANSAZIONE_20230101"
 }
 WITH regions AS (
@@ -9,7 +9,7 @@ WITH regions AS (
                 societa_v1, societa_v2, brand, region, country, warehouse_code, currency_trx, currency_fnc, date_begin, date_end,
                 webanalytics_brand, webanalytics_country
               FROM 
-                ${ref("D_REGION")}
+                ${ref("DM_DIGITAL", "D_REGION")}
             )
             , fatturato AS (
               SELECT DISTINCT
@@ -23,7 +23,7 @@ WITH regions AS (
                 SUM(f.vat_seasonal_exchange)                                                                                            AS vat_seasonal_exchange,
                 SUM(f.return_revenue_gross_seasonal_exchange)                                                                           AS return_revenue_gross_seasonal_exchange,
                 SUM(f.return_vat_seasonal_exchange)                                                                                     AS return_vat_seasonal_exchange
-              FROM ${ref("V_BI_FATTURATO")} f
+              FROM ${ref("DM_DIGITAL", "V_BI_FATTURATO")} f
               GROUP BY
                 order_number, modello_variante
             )
@@ -39,7 +39,7 @@ WITH regions AS (
                 ep.key                                          AS ep_key,
                 ep.value.string_value                           AS ep_value
               FROM 
-                ${ref("events_*")} e,
+                ${ref("analytics_260123046", "events_*")} e,
                 UNNEST(e.event_params)  AS ep
               WHERE
                     e.event_name = 'purchase' 
@@ -58,7 +58,7 @@ WITH regions AS (
                 ep.key                                          AS ep_key,
                 ep.value.string_value                           AS ep_value,
               FROM 
-                ${ref("events_*")} e,
+                ${ref("analytics_260107564", "events_*")} e,
                 UNNEST(e.event_params) AS ep
               WHERE
                     e.event_name = 'purchase' 
@@ -77,7 +77,7 @@ WITH regions AS (
                 ep.key                                          AS ep_key,
                 ep.value.string_value                           AS ep_value,
               FROM 
-                ${ref("events_*")} e,
+                ${ref("analytics_260112979", "events_*")} e,
                 UNNEST(e.event_params) AS ep
               WHERE
                     e.event_name = 'purchase' 
@@ -96,7 +96,7 @@ WITH regions AS (
                 ep.key                                          AS ep_key,
                 ep.value.string_value                           AS ep_value,
               FROM 
-                ${ref("events_*")} e,
+                ${ref("analytics_260108762", "events_*")} e,
                 UNNEST(e.event_params) AS ep
               WHERE
                     e.event_name = 'purchase' 
@@ -115,7 +115,7 @@ WITH regions AS (
                 ep.key                                          AS ep_key,
                 ep.value.string_value                           AS ep_value,
               FROM 
-                ${ref("events_*")} e,
+                ${ref("analytics_260106982", "events_*")} e,
                 UNNEST(e.event_params) AS ep
               WHERE
                     e.event_name = 'purchase' 
@@ -134,7 +134,7 @@ WITH regions AS (
                 ep.key                                          AS ep_key,
                 ep.value.string_value                           AS ep_value,
               FROM 
-                ${ref("events_*")} e,
+                ${ref("analytics_260088170", "events_*")} e,
                 UNNEST(e.event_params) AS ep
               WHERE
                     e.event_name = 'purchase' 
@@ -153,7 +153,7 @@ WITH regions AS (
                 ep.key                                          AS ep_key,
                 ep.value.string_value                           AS ep_value,
               FROM 
-                ${ref("events_*")} e,
+                ${ref("analytics_260031029", "events_*")} e,
                 UNNEST(e.event_params) AS ep
               WHERE
                     e.event_name = 'purchase' 
@@ -172,7 +172,7 @@ WITH regions AS (
                 ep.key                                          AS ep_key,
                 ep.value.string_value                           AS ep_value,
               FROM 
-                ${ref("events_*")} e,
+                ${ref("analytics_260115782", "events_*")} e,
                 UNNEST(e.event_params) AS ep
               WHERE
                     e.event_name = 'purchase' 
@@ -191,7 +191,7 @@ WITH regions AS (
                 ep.key                                          AS ep_key,
                 ep.value.string_value                           AS ep_value,
               FROM 
-                ${ref("events_*")} e,
+                ${ref("analytics_248931566", "events_*")} e,
                 UNNEST(e.event_params) AS ep
               WHERE
                     e.event_name = 'purchase' 
@@ -210,7 +210,7 @@ WITH regions AS (
                 ep.key                                          AS ep_key,
                 ep.value.string_value                           AS ep_value,
               FROM 
-                ${ref("events_*")} e,
+                ${ref("analytics_248931566", "events_*")} e,
                 UNNEST(e.event_params) AS ep
               WHERE
                     e.event_name = 'purchase' 
@@ -229,7 +229,7 @@ WITH regions AS (
                 ep.key                                          AS ep_key,
                 ep.value.string_value                           AS ep_value,
               FROM 
-                ${ref("events_*")} e,
+                ${ref("analytics_248931566", "events_*")} e,
                 UNNEST(e.event_params) AS ep
               WHERE
                     e.event_name = 'purchase' 
@@ -248,7 +248,7 @@ WITH regions AS (
                 ep.key                                          AS ep_key,
                 ep.value.string_value                           AS ep_value,
               FROM 
-                ${ref("events_*")} e,
+                ${ref("analytics_260115140", "events_*")} e,
                 UNNEST(e.event_params) AS ep
               WHERE
                     e.event_name = 'purchase' 

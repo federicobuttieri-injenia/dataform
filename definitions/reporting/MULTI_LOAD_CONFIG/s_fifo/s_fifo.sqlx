@@ -1,11 +1,11 @@
 config {
     type: "incremental",
-    schema: "DM_SELLOUT_STAGING",
+    schema: "injenia",
     name: "S_FIFO"
 }
 
 SELECT *
-FROM ${ref("S_LOG_FIFO")}
+FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_FIFO")}
 WHERE
 	_PARTITIONDATE IN ({partitions})
 AND data_carico IN ({where_partitions_current_table})

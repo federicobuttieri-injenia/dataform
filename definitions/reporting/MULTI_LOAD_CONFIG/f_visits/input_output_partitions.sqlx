@@ -1,65 +1,65 @@
 config {
     type: "view",
-    schema: "DM_DIGITAL",
+    schema: "injenia",
     name: "f_visits_input_output_partitions"
 }
 
 with ga_part as (
 	select 
 		distinct parse_date('%Y%m%d', date) as Date 
-	from ${ref("ga_sessions_*")}
+	from ${ref("81544636", "ga_sessions_*")}
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) 
 	union all
 	select 
 		distinct parse_date('%Y%m%d', date) as Date
-	from ${ref("ga_sessions_*")}
+	from ${ref("60894425", "ga_sessions_*")}
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 	union all
 	select 
 		distinct parse_date('%Y%m%d', date) as Date
-	from ${ref("ga_sessions_*")}
+	from ${ref("83167489", "ga_sessions_*")}
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 	union all
 	select
 		distinct parse_date('%Y%m%d', date) as Date 
-	from ${ref("ga_sessions_*")}
+	from ${ref("74927693", "ga_sessions_*")}
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 	union all
 	select 
 		distinct parse_date('%Y%m%d', date) as Date 
-	from ${ref("ga_sessions_*")}
+	from ${ref("82912923", "ga_sessions_*")}
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 	union all
 	select 
 		distinct parse_date('%Y%m%d', date) as Date 
-	from ${ref("ga_sessions_*")}
+	from ${ref("83017991", "ga_sessions_*")}
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 	union all
 	select 
 		distinct parse_date('%Y%m%d', date) as Date
-	from ${ref("ga_sessions_*")}
+	from ${ref("82912544", "ga_sessions_*")}
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 	union all
 	select 
 		distinct parse_date('%Y%m%d', date) as Date
-	from ${ref("ga_sessions_*")}
+	from ${ref("82907875", "ga_sessions_*")}
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 	union all
 	select 
 		distinct parse_date('%Y%m%d', date) as Date 
-	from ${ref("ga_sessions_*")}
+	from ${ref("82915505", "ga_sessions_*")}
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 	union all
 	select 
 		distinct parse_date('%Y%m%d', date) as Date
-	from ${ref("ga_sessions_*")}
+	from ${ref("83320679", "ga_sessions_*")}
 	where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20190101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
 ),
 walkin_part as (
 	SELECT distinct data 
-	FROM ${ref("F_WALKIN_*")} 
+	FROM ${ref("DM_SELLOUT", "F_WALKIN_*")} 
 	WHERE ts_modifica > (
-		SELECT MAX(ts_modifica) from ${ref("F_VISITS_*")}
+		SELECT MAX(ts_modifica) from ${ref("DM_DIGITAL", "F_VISITS_*")}
 		WHERE Source = 'Walkin'
 	)
 )

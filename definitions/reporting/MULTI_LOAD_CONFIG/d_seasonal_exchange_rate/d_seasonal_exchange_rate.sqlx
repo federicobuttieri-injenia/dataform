@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "DM_DIGITAL",
+    schema: "injenia",
     name: "D_SEASONAL_EXCHANGE_RATE"
 }
 
@@ -10,5 +10,5 @@ SELECT
 	currency_iso_code,
 	exchange_convention,
 	seasonal_exchange_rate
-FROM ${ref("S_SEASONAL_EXCHANGE_RATE")} 
+FROM ${ref("DM_DIGITAL_STAGING", "S_SEASONAL_EXCHANGE_RATE")} 
 		

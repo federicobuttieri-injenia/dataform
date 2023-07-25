@@ -1,6 +1,6 @@
 config {
     type: "incremental",
-    schema: "DM_SELLOUT_STAGING",
+    schema: "injenia",
     name: "S_EMAIL_RESULT_20230101"
 }
 
@@ -24,7 +24,7 @@ SELECT
 	CURRENT_TIMESTAMP AS ts_modifica,
 	SAFE_CAST(resource_timestamp AS TIMESTAMP) AS ts_creazione,
 	CAST(NULL AS STRING) AS cod_consumer
-FROM ${ref("S_LOG_EMAIL_RESULT")}, UNNEST (attributes) AS a
+FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_EMAIL_RESULT")}, UNNEST (attributes) AS a
 WHERE
 	_PARTITIONTIME IN ({partitions}) 
 AND EXTRACT(DATE FROM a.dataora_creazione) IN ({where_partitions_current_table})

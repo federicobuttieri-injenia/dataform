@@ -1,10 +1,10 @@
 config {
     type: "view",
-    schema: "DM_SELLOUT_STAGING",
+    schema: "injenia",
     name: "s_sms_result_output_partitions"
 }
 
 SELECT DISTINCT DATE(a.dataora_creazione) AS dataora_creazione AS value
-FROM ${ref("S_LOG_SMS_RESULT")}, UNNEST (attributes) a
+FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_SMS_RESULT")}, UNNEST (attributes) a
 WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("s_sms_result_input_partitions")})
 		

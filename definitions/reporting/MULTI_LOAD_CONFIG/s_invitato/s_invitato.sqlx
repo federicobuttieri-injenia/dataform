@@ -1,6 +1,6 @@
 config {
     type: "incremental",
-    schema: "DM_SELLOUT_STAGING",
+    schema: "injenia",
     name: "S_INVITATO"
 }
 
@@ -29,7 +29,7 @@ FROM (
 		CURRENT_TIMESTAMP AS ts_modifica,
 		SAFE_CAST(resource_timestamp AS TIMESTAMP) AS ts_creazione,
 		accoglimento.dataora_partecipazione AS dataora_partecipazione
-	FROM ${ref("S_LOG_INVITATO")}, UNNEST(attributes) AS invitato
+	FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_INVITATO")}, UNNEST(attributes) AS invitato
 	LEFT JOIN UNNEST(invitato.crm_accoglimento) AS accoglimento
 	WHERE
 		_PARTITIONDATE IN (SELECT * FROM ${ref("s_invitato_input_partitions")})

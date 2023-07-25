@@ -1,11 +1,11 @@
 config {
     type: "view",
-    schema: "DM_SELLOUT_STAGING",
+    schema: "injenia",
     name: "s_fifo_input_partitions"
 }
 
 SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
-FROM ${ref("PARTIZIONI_LOADJOB")} 
+FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")} 
 WHERE 
 	DATE(ts_lancio) = CURRENT_DATE 
 AND table_name = 'S_LOG_FIFO'

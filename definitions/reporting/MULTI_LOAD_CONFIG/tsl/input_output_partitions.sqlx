@@ -1,16 +1,16 @@
 config {
     type: "view",
-    schema: "DM_SELLOUT",
+    schema: "injenia",
     name: "tsl_input_output_partitions"
 }
 
 SELECT 
 	PARSE_DATE("%Y%m%d", partizioni.partition)
-FROM ${ref("PARTIZIONI_LOADJOB")} AS partizioni
+FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")} AS partizioni
 JOIN (
 	SELECT 
 		TIMESTAMP_MILLIS(last_modified_time) AS modificata 
-	FROM ${ref("__TABLES__")} 
+	FROM ${ref("DM_SELLOUT", "__TABLES__")} 
 	WHERE table_id = "F_TSL"
 ) AS agg_f_tsl ON (agg_f_tsl.modificata < partizioni.ts_lancio)
 WHERE partizioni.table_name = "S_TSL"

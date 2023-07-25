@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "DM_SELLOUT",
+    schema: "injenia",
     name: "STORE_PLAN_KPI"
 }
 

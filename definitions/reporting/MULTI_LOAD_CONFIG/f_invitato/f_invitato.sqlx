@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "DM_CRM",
+    schema: "injenia",
     name: "F_INVITATO"
 }
 
@@ -17,7 +17,7 @@ WITH new_table AS (
 		SELECT 
 			*,
 			ROW_NUMBER() OVER(PARTITION BY id_iniziativa, cod_negozio, progressivo_invitato ORDER BY ts_inserimento DESC, ts_modifica DESC, ts_creazione DESC) AS rk,
-		FROM ${ref("S_INVITATO")}
+		FROM ${ref("DM_SELLOUT_STAGING", "S_INVITATO")}
 		WHERE
 			id_iniziativa BETWEEN op.partition_start AND op.partition_end
 	) AS subquery
@@ -28,6 +28,6 @@ WITH new_table AS (
 SELECT
 	n.*
 FROM new_table n
-JOIN ${ref("D_INIZIATIVA")} USING(id_iniziativa)
+JOIN ${ref("DM_CRM", "D_INIZIATIVA")} USING(id_iniziativa)
 WHERE n.stato LIKE "VALIDO%"
 OR n.stato = "DEFINITO"

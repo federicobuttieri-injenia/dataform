@@ -1,6 +1,6 @@
 config {
     type: "incremental",
-    schema: "DM_SELLOUT_STAGING",
+    schema: "injenia",
     name: "S_SPEDITO_20230101"
 }
 

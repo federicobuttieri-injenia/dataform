@@ -1,6 +1,6 @@
 config {
     type: "view",
-    schema: "DM_SELLOUT",
+    schema: "injenia",
     name: "ordinato_post_input_output_partitions"
 }
 
@@ -8,15 +8,15 @@ config {
 SELECT DISTINCT EXTRACT(YEAR FROM data_ordine)
 FROM (
 	SELECT societa, negozio, anno, stagione, modello, barcode_negozio, data_ordine, listino_acquisto, listino_vendita, cliente, tipo_ordine_cliente
-	FROM ${ref("F_ORDINATO_*")}
+	FROM ${ref("DM_SELLOUT", "F_ORDINATO_*")}
 ) AS O
 LEFT JOIN (
 	SELECT DISTINCT cli.societa, cli.anno, cli.stagione, cli.cliente, p.porta as negozio, cli.tipo_ordine_cliente
-	FROM ${ref("D_CLIENTE_STAGIONE")} AS cli
-	LEFT JOIN ${ref("D_PORTA")} AS num_porta ON (
+	FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTE_STAGIONE")} AS cli
+	LEFT JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS num_porta ON (
 		CAST(cli.punto_vendita_retail AS INT64) = num_porta.numero_porta AND num_porta.numero_porta != 0
 	)
-	JOIN ${ref("D_PORTA")} AS p ON (
+	JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS p ON (
 		COALESCE(num_porta.porta, cli.punto_vendita_retail) = p.porta
 	)
 ) neg USING (cliente, societa, anno, stagione, tipo_ordine_cliente)
@@ -38,7 +38,7 @@ LEFT JOIN (
 		IF(tema IS NOT NULL AND tema !='', tema, NULL) as tema,
 		ts_modifica,
 		indice_taglia
-	FROM ${ref("D_PRODOTTO")}
+	FROM ${ref("DM_PRODOTTO", "D_PRODOTTO")}
 ) AS BACKUP_PRODOTTI ON (
 	BACKUP_PRODOTTI.barcode_negozio = O.barcode_negozio
 	AND BACKUP_PRODOTTI.societa = O.societa
@@ -58,10 +58,10 @@ LEFT JOIN (
 		PR.ts_inserimento
 	FROM (
 		SELECT *, ROW_NUMBER() OVER(PARTITION BY societa, modello, listino, anno, stagione, tipo_prezzo ORDER BY ts_inserimento DESC, prezzo IS NULL) AS rk
-		FROM ${ref("D_PREZZO")}
+		FROM ${ref("DM_PREZZO_LISTINO", "D_PREZZO")}
 		WHERE tipo_prezzo IN ('A', 'V', 'S')
 	) PR
-	LEFT JOIN ${ref("D_TIPO_PREZZO_CLIENTE")} USING (societa, anno, stagione, cliente, tipo_prezzo, progr_periodo)
+	LEFT JOIN ${ref("DM_SELLOUT_STAGING", "D_TIPO_PREZZO_CLIENTE")} USING (societa, anno, stagione, cliente, tipo_prezzo, progr_periodo)
 	WHERE (
 		(data_inizio IS NULL AND data_fine IS NULL)
 		OR (CURRENT_DATE() BETWEEN data_inizio AND data_fine)

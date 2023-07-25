@@ -1,11 +1,11 @@
 config {
     type: "table",
-    schema: "DM_SELLOUT_STAGING",
+    schema: "injenia",
     name: "FILE_VENDITE_ESCLUSI_BMS"
 }
 
 SELECT *
-FROM ${ref("S_FILE_VENDITE_ESCLUSI_BMS")}
+FROM ${ref("DM_SELLOUT_STAGING", "S_FILE_VENDITE_ESCLUSI_BMS")}
 WHERE 
 	DATE(_PARTITIONTIME) IN ({partitions})
 AND data_documento in ({where_partitions_current_table})

@@ -1,9 +1,9 @@
 config {
     type: "view",
-    schema: "DM_DIGITAL_STAGING",
+    schema: "injenia",
     name: "s_disponibilita_input_output_partitions"
 }
 
 SELECT DISTINCT _PARTITIONDATE
-FROM ${ref("S_LOG_DISPONIBILITA")}
+FROM ${ref("DM_DIGITAL_STAGING", "S_LOG_DISPONIBILITA")}
 WHERE _PARTITIONDATE = DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)

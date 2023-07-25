@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "None",
+    schema: "injenia",
     name: "D_DICITURA"
 }
 
@@ -10,7 +10,7 @@ FROM (
 		id,
 		attributes.*,
 		timestamp AS ts_inserimento,
-	FROM ${ref("S_DICITURA")}
+	FROM ${ref("DM_SELLOUT_STAGING", "S_DICITURA")}
 	WHERE True
 	QUALIFY ROW_NUMBER() OVER(PARTITION BY id ORDER BY timestamp DESC) = 1
 )
