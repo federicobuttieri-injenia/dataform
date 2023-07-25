@@ -1,16 +1,136 @@
 declare({
     schema: "DM_SELLOUT_STAGING",
-    name: "S_MODELLO_PERMANENTE"
+    name: "S_CLIENTELA_CLUSTER"
 });
 
 declare({
     schema: "DM_SELLOUT_STAGING",
-    name: "D_CONSUMER_CLIENTE_FINALE"
+    name: "S_DELIVERY_B2X"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_LOG_SMS_RESULT"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_CLASSE"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_GRUPPO_MERCEOLOGICO"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_USCITA_COLLEZIONE"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "F_STORE_PLAN_FATTURATI"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_BUDGET_SALDI"
 });
 
 declare({
     schema: "DM_SELLOUT_STAGING",
     name: "S_TIPO_TAGLIA_NAZIONE"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "V_CONSUMER_ANONIMA"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_GIFT_CARD_*"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "D_RAGGRUPPAMENTO_GEOGRAFICO"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_CANALE_MMN"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_LOG_INVITATO"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_TIPO_PREZZO_CLIENTE"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_TIPO_TAGLIA"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_GIACENZA"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "D_RIPARTIZIONE"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_VARIANTE_CLUSTER"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "MAPPING_BARCODE_VAR_PRODUZIONE"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "D_BOX_BULK"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "D_RAGGRUPPAMENTO_REGION"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_RAGGR_GRANCLASSE"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "V_FILE_VENDITE_ESPLICITI"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "{from_table}"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_COMMESSA_RETAIL"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_PROMO_ENGINE_*"
 });
 
 declare({
@@ -25,112 +145,7 @@ declare({
 
 declare({
     schema: "DM_SELLOUT_STAGING",
-    name: "S_MOVIMENTO_CONTABILITA_*"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "D_SOGLIE_FIDELITY"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_BUDGET_QUINDICINALE"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "F_STORE_PLAN_FATTURATI"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_GIACENZA"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_ORARIO_NEGOZIO"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "D_BOX_BULK"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_GIFT_CARD_*"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_VARIANTE_CLUSTER"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
     name: "S_GRUPPO_CLUSTER"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_LOG_SMS_RESULT"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_TIPO_TAGLIA"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_RAGGR_COLORE"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_PORTA"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_LOG_INIZIATIVA_NEGOZIO"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_NAZIONE_MAP_ISO_3166"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_LISTINO"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_GRUPPO_MERCEOLOGICO"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "V_CONTESTO_NEGOZIO"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_TIPO_PREZZO_CLIENTE"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_SALE_ON_APPROVAL_*"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "{from_table}"
 });
 
 declare({
@@ -140,92 +155,7 @@ declare({
 
 declare({
     schema: "DM_SELLOUT_STAGING",
-    name: "S_SPEDITO_*"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_FILE_VENDITE_ESCLUSI_BMS"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_RIGA_SCONTRINO_*"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_LOG_CASE"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_LOG_INVITATO"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_CLASSE"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_COMMESSA_BMS"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_PREZZO"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_MOVIMENTAZIONE_2*"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "D_ARTICOLO_PRODUZIONE"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "D_CONSUMER_LOCAL"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_FIDELITY_CARD_HISTORY"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_CONSUMER_DEPROFILING"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_COMMESSA_RETAIL"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_CANALE_MMN"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_DICITURA"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_RAGGR_GRANCLASSE"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "D_RAGGRUPPAMENTO_GEOGRAFICO"
+    name: "D_CONSUMER_CLIENTE_FINALE"
 });
 
 declare({
@@ -235,17 +165,7 @@ declare({
 
 declare({
     schema: "DM_SELLOUT_STAGING",
-    name: "S_LOG_FIFO"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_LOG_SPEDIZIONE"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_CLIENTELA_CLUSTER"
+    name: "D_ARTICOLO_PRODUZIONE"
 });
 
 declare({
@@ -255,32 +175,37 @@ declare({
 
 declare({
     schema: "DM_SELLOUT_STAGING",
-    name: "V_CONSUMER_ANONIMA"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "D_CONFIG_MULTINEGOZIO"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "S_USCITA_COLLEZIONE"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "V_FILE_VENDITE_ESPLICITI"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
     name: "S_CONSUMER_DELETED"
 });
 
 declare({
     schema: "DM_SELLOUT_STAGING",
-    name: "S_BUDGET_SALDI"
+    name: "S_LOG_FIFO"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_LOG_CASE"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_LISTINO"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_RIGA_SCONTRINO_*"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_PORTA"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_DICITURA"
 });
 
 declare({
@@ -290,12 +215,7 @@ declare({
 
 declare({
     schema: "DM_SELLOUT_STAGING",
-    name: "D_RIPARTIZIONE"
-});
-
-declare({
-    schema: "DM_SELLOUT_STAGING",
-    name: "MAPPING_BARCODE_VAR_PRODUZIONE"
+    name: "S_NAZIONE"
 });
 
 declare({
@@ -310,102 +230,107 @@ declare({
 
 declare({
     schema: "DM_SELLOUT_STAGING",
+    name: "S_FIDELITY_CARD_HISTORY"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_ORARIO_NEGOZIO"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_MOVIMENTO_CONTABILITA_*"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_LOG_INIZIATIVA_NEGOZIO"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_BUDGET_QUINDICINALE"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_MODELLO_PERMANENTE"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "D_CONFIG_MULTINEGOZIO"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
     name: "S_LOG_EMAIL_RESULT"
 });
 
 declare({
     schema: "DM_SELLOUT_STAGING",
-    name: "S_NAZIONE"
+    name: "S_SALE_ON_APPROVAL_*"
 });
 
 declare({
     schema: "DM_SELLOUT_STAGING",
-    name: "S_PROMO_ENGINE_*"
+    name: "S_LOG_SPEDIZIONE"
 });
 
 declare({
     schema: "DM_SELLOUT_STAGING",
-    name: "D_RAGGRUPPAMENTO_REGION"
+    name: "S_NAZIONE_MAP_ISO_3166"
 });
 
 declare({
     schema: "DM_SELLOUT_STAGING",
-    name: "S_DELIVERY_B2X"
+    name: "V_CONTESTO_NEGOZIO"
 });
 
 declare({
-    schema: "DM_SELLOUT",
-    name: "V_NEGOZIO"
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_RAGGR_COLORE"
 });
 
 declare({
-    schema: "DM_SELLOUT",
-    name: "VENDITA_20220101"
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_CONSUMER_DEPROFILING"
 });
 
 declare({
-    schema: "DM_SELLOUT",
-    name: "VENDITA_20230101"
+    schema: "DM_SELLOUT_STAGING",
+    name: "D_CONSUMER_LOCAL"
 });
 
 declare({
-    schema: "DM_SELLOUT",
-    name: "RIGA_SCONTRINO_20200101"
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_COMMESSA_BMS"
 });
 
 declare({
-    schema: "DM_SELLOUT",
-    name: "VENDITA_20170101"
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_MOVIMENTAZIONE_2*"
 });
 
 declare({
-    schema: "DM_SELLOUT",
-    name: "RIGA_SCONTRINO_20180101"
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_SPEDITO_*"
 });
 
 declare({
-    schema: "DM_SELLOUT",
-    name: "VENDITA_20160101"
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_PREZZO"
 });
 
 declare({
-    schema: "DM_SELLOUT",
-    name: "__TABLES__"
+    schema: "DM_SELLOUT_STAGING",
+    name: "D_SOGLIE_FIDELITY"
 });
 
 declare({
-    schema: "DM_SELLOUT",
-    name: "RIGA_SCONTRINO_20170101"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "D_MAPPING_MOVIMENTAZIONE"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "RIGA_SCONTRINO_20110101"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "VENDITA_20190101"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "RIGA_SCONTRINO_20210101"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "VENDITA_20210101"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "F_MOVIMENTAZIONE_2*"
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_FILE_VENDITE_ESCLUSI_BMS"
 });
 
 declare({
@@ -415,77 +340,7 @@ declare({
 
 declare({
     schema: "DM_SELLOUT",
-    name: "D_TEMPO"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "RIGA_SCONTRINO_20140101"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "RIGA_SCONTRINO_20130101"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "VENDITA_20110101"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "VENDITA_20200101"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "F_ORDINATO_*"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "VENDITA_20140101"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "RIGA_SCONTRINO_20190101"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "VENDITA_20130101"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "F_GIACENZA_*"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "F_MATRICE_ASSORTIMENTALE_TSL"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "RIGA_SCONTRINO_20230101"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "F_SALE_ON_APPROVAL_*"
-});
-
-declare({
-    schema: "DM_SELLOUT",
     name: "F_MATRICE_ASSORTIMENTALE_COMPUTED"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "D_NEGOZIO_LISTINO_EXT"
 });
 
 declare({
@@ -495,12 +350,7 @@ declare({
 
 declare({
     schema: "DM_SELLOUT",
-    name: "F_CONTABILITA_*"
-});
-
-declare({
-    schema: "DM_SELLOUT",
-    name: "F_WALKIN_*"
+    name: "D_MAPPING_MOVIMENTAZIONE"
 });
 
 declare({
@@ -510,7 +360,42 @@ declare({
 
 declare({
     schema: "DM_SELLOUT",
-    name: "RIGA_SCONTRINO_20160101"
+    name: "D_TEMPO"
+});
+
+declare({
+    schema: "DM_SELLOUT",
+    name: "F_SALE_ON_APPROVAL_*"
+});
+
+declare({
+    schema: "DM_SELLOUT",
+    name: "RIGA_SCONTRINO_20180101"
+});
+
+declare({
+    schema: "DM_SELLOUT",
+    name: "F_GIACENZA_*"
+});
+
+declare({
+    schema: "DM_SELLOUT",
+    name: "__TABLES__"
+});
+
+declare({
+    schema: "DM_SELLOUT",
+    name: "RIGA_SCONTRINO_20200101"
+});
+
+declare({
+    schema: "DM_SELLOUT",
+    name: "V_NEGOZIO"
+});
+
+declare({
+    schema: "DM_SELLOUT",
+    name: "F_MATRICE_ASSORTIMENTALE_TSL"
 });
 
 declare({
@@ -520,17 +405,42 @@ declare({
 
 declare({
     schema: "DM_SELLOUT",
+    name: "RIGA_SCONTRINO_20210101"
+});
+
+declare({
+    schema: "DM_SELLOUT",
+    name: "RIGA_SCONTRINO_20110101"
+});
+
+declare({
+    schema: "DM_SELLOUT",
+    name: "F_WALKIN_*"
+});
+
+declare({
+    schema: "DM_SELLOUT",
+    name: "F_CONTABILITA_*"
+});
+
+declare({
+    schema: "DM_SELLOUT",
     name: "RIGA_SCONTRINO_*"
 });
 
 declare({
     schema: "DM_SELLOUT",
-    name: "VENDITA_20120101"
+    name: "RIGA_SCONTRINO_20190101"
 });
 
 declare({
     schema: "DM_SELLOUT",
-    name: "VENDITA_20180101"
+    name: "RIGA_SCONTRINO_20170101"
+});
+
+declare({
+    schema: "DM_SELLOUT",
+    name: "RIGA_SCONTRINO_20160101"
 });
 
 declare({
@@ -540,7 +450,32 @@ declare({
 
 declare({
     schema: "DM_SELLOUT",
-    name: "VENDITA_20150101"
+    name: "RIGA_SCONTRINO_20140101"
+});
+
+declare({
+    schema: "DM_SELLOUT",
+    name: "RIGA_SCONTRINO_20230101"
+});
+
+declare({
+    schema: "DM_SELLOUT",
+    name: "F_ORDINATO_*"
+});
+
+declare({
+    schema: "DM_SELLOUT",
+    name: "F_MOVIMENTAZIONE_2*"
+});
+
+declare({
+    schema: "DM_SELLOUT",
+    name: "D_NEGOZIO_LISTINO_EXT"
+});
+
+declare({
+    schema: "DM_SELLOUT",
+    name: "RIGA_SCONTRINO_20130101"
 });
 
 declare({
@@ -555,12 +490,12 @@ declare({
 
 declare({
     schema: "TEMP_LOCATION",
-    name: "PARTIZIONI_LOADJOB"
+    name: "LAST_MODIFIED_SOA_DATES"
 });
 
 declare({
     schema: "TEMP_LOCATION",
-    name: "LAST_MODIFIED_SOA_DATES"
+    name: "PARTIZIONI_LOADJOB"
 });
 
 declare({
@@ -575,12 +510,7 @@ declare({
 
 declare({
     schema: "DM_PREZZO_LISTINO",
-    name: "D_CAMBIO_STAGIONE"
-});
-
-declare({
-    schema: "DM_PREZZO_LISTINO",
-    name: "{from_table}"
+    name: "D_CLIENTELA"
 });
 
 declare({
@@ -595,22 +525,17 @@ declare({
 
 declare({
     schema: "DM_PREZZO_LISTINO",
+    name: "{from_table}"
+});
+
+declare({
+    schema: "DM_PREZZO_LISTINO",
     name: "D_RICARICHI"
 });
 
 declare({
     schema: "DM_PREZZO_LISTINO",
-    name: "D_CLIENTELA"
-});
-
-declare({
-    schema: "DM_CRM",
-    name: "F_CAMPAIGN"
-});
-
-declare({
-    schema: "DM_CRM",
-    name: "D_CONSUMATRICE"
+    name: "D_CAMBIO_STAGIONE"
 });
 
 declare({
@@ -620,17 +545,7 @@ declare({
 
 declare({
     schema: "DM_CRM",
-    name: "CLUSTER_CENTERS"
-});
-
-declare({
-    schema: "DM_CRM",
-    name: "CLUSTER_MONETARY_REGIONAL"
-});
-
-declare({
-    schema: "DM_CRM",
-    name: "D_SEGMENTO"
+    name: "CLTV_COMPUTE_ESTIMATES_TOTALS"
 });
 
 declare({
@@ -640,7 +555,32 @@ declare({
 
 declare({
     schema: "DM_CRM",
+    name: "D_CONSUMATRICE_NO_PROFILING"
+});
+
+declare({
+    schema: "DM_CRM",
+    name: "CLUSTER_MONETARY_REGIONAL"
+});
+
+declare({
+    schema: "DM_CRM",
+    name: "CLUSTER_CENTERS"
+});
+
+declare({
+    schema: "DM_CRM",
+    name: "F_CAMPAIGN"
+});
+
+declare({
+    schema: "DM_CRM",
     name: "V_B2S_MESSAGE"
+});
+
+declare({
+    schema: "DM_CRM",
+    name: "D_MAPPING_INSEGNA_BRAND"
 });
 
 declare({
@@ -650,7 +590,7 @@ declare({
 
 declare({
     schema: "DM_CRM",
-    name: "CLTV_COMPUTE_ESTIMATES_TOTALS"
+    name: "D_SEGMENTO"
 });
 
 declare({
@@ -660,12 +600,7 @@ declare({
 
 declare({
     schema: "DM_CRM",
-    name: "D_CONSUMATRICE_NO_PROFILING"
-});
-
-declare({
-    schema: "DM_CRM",
-    name: "D_MAPPING_INSEGNA_BRAND"
+    name: "D_CONSUMATRICE"
 });
 
 declare({
@@ -680,6 +615,11 @@ declare({
 
 declare({
     schema: "DM_DIGITAL_STAGING",
+    name: "S_DISPONIBILITA_*"
+});
+
+declare({
+    schema: "DM_DIGITAL_STAGING",
     name: "S_LOG_FATTURATO_CONTABILIZZATO"
 });
 
@@ -690,12 +630,7 @@ declare({
 
 declare({
     schema: "DM_DIGITAL_STAGING",
-    name: "S_TARGET_MA_IB_MC_PB"
-});
-
-declare({
-    schema: "DM_DIGITAL_STAGING",
-    name: "S_LOG_DISPONIBILITA"
+    name: "S_SEASONAL_EXCHANGE_RATE"
 });
 
 declare({
@@ -705,7 +640,7 @@ declare({
 
 declare({
     schema: "DM_DIGITAL_STAGING",
-    name: "S_TARGET_MM_SP_WE_MR"
+    name: "S_LOG_FATTURATO_CONTABILIZZATO_EXT"
 });
 
 declare({
@@ -715,7 +650,7 @@ declare({
 
 declare({
     schema: "DM_DIGITAL_STAGING",
-    name: "S_SEASONAL_EXCHANGE_RATE"
+    name: "S_LOG_DISPONIBILITA"
 });
 
 declare({
@@ -725,22 +660,17 @@ declare({
 
 declare({
     schema: "DM_DIGITAL_STAGING",
+    name: "S_TARGET_MM_SP_WE_MR"
+});
+
+declare({
+    schema: "DM_DIGITAL_STAGING",
+    name: "S_TARGET_MA_IB_MC_PB"
+});
+
+declare({
+    schema: "DM_DIGITAL_STAGING",
     name: "S_FATTURATO_CONTABILIZZATO_2*"
-});
-
-declare({
-    schema: "DM_DIGITAL_STAGING",
-    name: "S_LOG_FATTURATO_CONTABILIZZATO_EXT"
-});
-
-declare({
-    schema: "DM_DIGITAL_STAGING",
-    name: "S_DISPONIBILITA_*"
-});
-
-declare({
-    schema: "DM_DIGITAL",
-    name: "V_BI_FATTURATO"
 });
 
 declare({
@@ -750,12 +680,7 @@ declare({
 
 declare({
     schema: "DM_DIGITAL",
-    name: "F_VISITS_*"
-});
-
-declare({
-    schema: "DM_DIGITAL",
-    name: "F_GA_PRODUCT_KPI_ADVANCED_*"
+    name: "V_BI_FATTURATO"
 });
 
 declare({
@@ -765,12 +690,22 @@ declare({
 
 declare({
     schema: "DM_DIGITAL",
+    name: "F_GA_STAT_*"
+});
+
+declare({
+    schema: "DM_DIGITAL",
+    name: "F_GA_PRODUCT_KPI_ADVANCED_*"
+});
+
+declare({
+    schema: "DM_DIGITAL",
     name: "D_PRODOTTO_B2C"
 });
 
 declare({
     schema: "DM_DIGITAL",
-    name: "F_GA_STAT_*"
+    name: "F_VISITS_*"
 });
 
 declare({
