@@ -1,0 +1,65 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_CLTV_SOGLIE_LOYALTY"
+}
+
+WITH raggr_soglie AS (
+	SELECT
+		storicizzazione,
+		brand,
+		CLASSE_LOYALTY,
+		SUM(STIMA_T_1) AS STIMA_T_1,
+		SUM(AMOUNT_SPENT_T_1) AS AMOUNT_SPENT_T_1,
+		(SUM(AMOUNT_SPENT_T_1) / SUM(STIMA_T_1)) - 1 AS soglia
+	FROM ${ref("DM_CRM", "CLTV_COMPUTE_ESTIMATES_TOTALS")}
+	WHERE STIMA_T_1 IS NOT NULL
+	AND AMOUNT_SPENT_T_1 IS NOT NULL
+	GROUP BY 1, 2, 3
+	HAVING STIMA_T_1 != 0
+)
+
+SELECT
+	storicizzazione,
+	brand,
+	MAX(soglia_low) AS soglia_low,
+	MAX(soglia_medium) AS soglia_medium,
+	MAX(soglia_high) AS soglia_high,
+	CURRENT_TIMESTAMP AS ts_inserimento
+	FROM (
+		SELECT
+			storicizzazione,
+			brand,
+			soglia AS soglia_low,
+			NULL AS soglia_medium,
+			NULL AS soglia_high
+		FROM raggr_soglie
+		WHERE CLASSE_LOYALTY = 'LOW'
+		UNION ALL
+		SELECT
+			storicizzazione,
+			brand,
+			NULL AS soglia_low,
+			soglia AS soglia_medium,
+			NULL AS soglia_high
+		FROM raggr_soglie
+		WHERE CLASSE_LOYALTY = 'MEDIUM'
+		UNION ALL
+		SELECT
+			storicizzazione,
+			brand,
+			NULL AS soglia_low,
+			NULL AS soglia_medium,
+			soglia AS soglia_high
+		FROM raggr_soglie
+		WHERE CLASSE_LOYALTY = 'HIGH'
+	)
+GROUP BY 1, 2
+HAVING soglia_low IS NOT NULL
+AND soglia_medium IS NOT NULL
+AND soglia_high IS NOT NULL
+AND (
+	(soglia_low <= soglia_medium AND soglia_medium <= soglia_high)
+	OR (soglia_low >= soglia_medium AND soglia_medium >= soglia_high)
+)
+		

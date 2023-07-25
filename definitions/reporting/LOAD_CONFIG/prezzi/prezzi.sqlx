@@ -1,0 +1,19 @@
+config {
+    type: "table",
+    schema: "DM_PREZZO_LISTINO",
+    name: "D_PREZZO"
+}
+
+SELECT * EXCEPT (action, rk)
+FROM (
+	SELECT
+		id,
+		attributes.* EXCEPT(variante),
+		IF(attributes.societa = 'MN', LTRIM(attributes.variante, '0'), attributes.variante) AS variante,
+		timestamp AS ts_inserimento,
+		RANK() OVER(PARTITION BY id ORDER BY timestamp DESC, GENERATE_UUID()) AS rk
+	FROM ${ref("DM_SELLOUT_STAGING", "S_PREZZO")}
+)
+WHERE rk = 1
+AND action != 'DELETE'
+		

@@ -1,0 +1,9 @@
+config {
+    type: "table",
+    schema: "STAGING_LOCATION",
+    name: "D_TIPO_PAGAMENTO"
+}
+
+SELECT *
+FROM ${ref("DM_SELLOUT_STAGING", "D_TIPO_PAGAMENTO")}
+		

@@ -1,0 +1,76 @@
+config {
+    type: "table",
+    schema: "DM_RETAIL",
+    name: "fr_budget_quindicinale"
+}
+
+WITH totale_stagione AS (
+	SELECT 
+		fatt.negozio, 
+		fatt.annostagione, 
+		ROUND(SUM(IF(
+			fatturato_lordo_obiettivi_definitivi_valuta != 0, 
+			fatturato_lordo_obiettivi_definitivi_valuta,
+			IF(
+				fatturato_lordo_obiettivi_acquisti_valuta != 0, 
+				fatturato_lordo_obiettivi_acquisti_valuta, 
+				fatturato_lordo_obiettivi_preliminari_valuta
+			)
+		)), 2) AS totale, 
+		ANY_VALUE(divisa) AS divisa,
+	FROM DM_SELLOUT_STAGING.F_STORE_PLAN_FATTURATI fatt
+	JOIN (
+		SELECT cli_s.negozio, annostag, ANY_VALUE(d_list.divisa) AS divisa
+		FROM DM_RETAIL.fr_clienti_stagione cli_s
+		JOIN DM_RETAIL.fr_clientela cli
+		USING (societa, annostag, negozio, cliente, action)
+		JOIN DM_SELLOUT_STAGING.D_LISTINO d_list
+		ON (
+			d_list.societa = cli.societa AND
+			cli.annostag = CAST(CONCAT(d_list.anno, d_list.stagione) AS INT64) AND
+			tipo_listino = "V" AND
+			cli.listino_vendita = d_list.listino
+		)
+		WHERE action = "REPLACE"
+		GROUP BY 1, 2
+	) cli_s
+	ON (
+		fatt.negozio = cli_s.negozio AND
+		CAST(fatt.annostagione AS INT64) = cli_s.annostag
+	)
+	WHERE fatt.annostagione >= "20202"
+	GROUP BY negozio, annostagione
+)
+SELECT
+	negozio,
+	annostagione annostag,
+	divisa,
+	FORMAT_DATE('%Y%m', giorno) annomese,
+	IF(FORMAT_DATE('%d', giorno) <= '15', '1', '2') prima_seconda,
+	ROUND(SUM(IF(
+		fatturato_lordo_obiettivi_definitivi_valuta != 0, 
+		fatturato_lordo_obiettivi_definitivi_valuta,
+		IF(
+			fatturato_lordo_obiettivi_acquisti_valuta != 0, 
+			fatturato_lordo_obiettivi_acquisti_valuta, 
+			fatturato_lordo_obiettivi_preliminari_valuta
+		)
+	)), 2) fatturato_quindicinale,
+	ROUND(SUM(IF(
+		fatturato_lordo_obiettivi_definitivi_valuta != 0, 
+		fatturato_lordo_obiettivi_definitivi_valuta,
+		IF(
+			fatturato_lordo_obiettivi_acquisti_valuta != 0, 
+			fatturato_lordo_obiettivi_acquisti_valuta, 
+			fatturato_lordo_obiettivi_preliminari_valuta
+		)
+	)) / ANY_VALUE(totale), 2) * 100 AS percentuale,
+	0 AS valore_effettivo,
+	CAST(EXTRACT(DATETIME FROM current_timestamp()) AS timestamp) AS modificato,
+	"REPLACE" as action,
+	CURRENT_TIMESTAMP AS dm_retail_upd_datetime
+FROM DM_SELLOUT_STAGING.F_STORE_PLAN_FATTURATI join totale_stagione USING (negozio, annostagione)
+WHERE annostagione >= "20202"
+AND totale != 0
+GROUP BY negozio, annostag, divisa, annomese, prima_seconda
+		

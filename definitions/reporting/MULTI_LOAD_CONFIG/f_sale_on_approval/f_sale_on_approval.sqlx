@@ -1,0 +1,431 @@
+config {
+    type: "table",
+    schema: "DM_SELLOUT",
+    name: "F_SALE_ON_APPROVAL_20230101"
+}
+
+WITH clienti_fallback AS (
+	SELECT DISTINCT negozio, societa, anno, stagione, uscita_collezione, codice_cliente
+	FROM (
+		SELECT
+			negozio, societa, anno, stagione, uscita_collezione, cliente AS codice_cliente,
+			ROW_NUMBER() OVER(
+				PARTITION BY negozio, societa, anno, stagione, uscita_collezione
+				ORDER BY
+					(listino_vendita IS NOT NULL AND listino_acquisto IS NOT NULL) DESC,
+					(listino_vendita IS NOT NULL) DESC,
+					(listino_acquisto IS NOT NULL) DESC,
+					f_tipo_ordine_riferimento IS NULL,
+					f_tipo_ordine_riferimento = '1' DESC,
+					tipo_ordine_cliente = 'CV' DESC
+			) AS rank_listini_presenti
+		FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTELA")}
+		RIGHT JOIN (
+			SELECT 
+				p.porta AS negozio, 
+				cli.societa,
+				cli.anno, 
+				cli.stagione, 
+				MAX(cli.cliente) AS cliente
+			FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTE_STAGIONE")} AS cli
+			LEFT JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS num_porta ON (
+				CAST(cli.punto_vendita_retail AS INT64) = num_porta.numero_porta AND num_porta.numero_porta != 0
+			)
+			JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS p ON (
+				COALESCE(num_porta.porta, cli.punto_vendita_retail) = p.porta
+			)
+			WHERE cli.societa IS NOT NULL AND cli.anno IS NOT NULL AND cli.stagione IS NOT NULL
+			GROUP BY 1,2,3,4
+		) USING (societa, anno, stagione, cliente)
+	)
+	WHERE rank_listini_presenti = 1
+),
+TASSI AS (
+	SELECT DISTINCT
+		iso_code,
+		reference_month as reference_date,
+		COALESCE(avg_rate, last_avg_rate, first_avg_rate) AS avg_rate
+	FROM (
+		SELECT DISTINCT
+			*,
+			LAST_VALUE(avg_rate IGNORE NULLS) OVER(PARTITION BY iso_code ORDER BY reference_month DESC) AS last_avg_rate,
+			LAST_VALUE(avg_rate IGNORE NULLS) OVER(PARTITION BY iso_code ORDER BY reference_month ASC) AS first_avg_rate
+		FROM (
+			SELECT DISTINCT iso_code,
+				CONCAT(year, month) AS reference_month,
+				avg_rate
+			FROM ${ref("DM_SELLOUT", "F_TASSO_MEDIO_MENSILE")} ta
+		)
+	)
+),
+BACKUP_PRODOTTI AS (
+	SELECT
+		IF(barcode_negozio IS NOT NULL AND barcode_negozio != '', barcode_negozio, NULL) AS barcode_negozio,
+		IF(societa IS NOT NULL AND societa !='', societa, NULL) AS societa,
+		IF(anno IS NOT NULL AND anno > 0, anno, NULL) AS anno,
+		IF(stagione IS NOT NULL AND stagione != 0, stagione, NULL) AS stagione,
+		annostagione,
+		IF(uscita_collezione IS NOT NULL AND uscita_collezione !='', uscita_collezione, NULL) AS  uscita_collezione,
+		IF(modello IS NOT NULL AND modello !='', modello, NULL) AS modello,
+		IF(variante IS NOT NULL AND variante !='', variante, NULL) AS variante,
+		IF(brand IS NOT NULL AND brand != '', brand, NULL) as brand
+	FROM ${ref("DM_PRODOTTO", "D_PRODOTTO")}
+),
+MAPPING_BARCODE_VAR_PROD AS ( -- mapping dei barcode con variante produzione e barcode corretti corrispondenti
+	SELECT *
+	FROM ${ref("DM_SELLOUT_STAGING", "MAPPING_BARCODE_VAR_PRODUZIONE")}
+	WHERE CONCAT(societa, barcode_negozio_var_prod) NOT IN ( -- per non applicare la fix ai barcode gia corretti 
+		SELECT DISTINCT CONCAT(societa, barcode_negozio)
+		FROM ${ref("DM_PRODOTTO", "D_PRODOTTO")}
+	)
+),
+anonimissima AS (
+	SELECT DISTINCT pk_consumer
+	FROM ${ref("DM_SELLOUT_STAGING", "V_CONSUMER_ANONIMA")}
+	WHERE nazione IS NULL
+),
+sale_on_approval AS (
+	SELECT
+		riga.* EXCEPT(anno, societa, modello, stagione, uscita_collezione),
+		-- calcolo dell'ana prodotto in ordine di priorita per JOIN normale, mod_retail-var e mod_retail
+		COALESCE(riga.societa, mod_ret_var.societa, mod_var.societa) AS societa,
+		COALESCE(riga.anno, mod_ret_var.anno, mod_var.anno) AS anno,
+		COALESCE(riga.stagione, mod_ret_var.stagione, mod_var.stagione) AS stagione,
+		COALESCE(riga.modello, mod_ret_var.modello, mod_var.modello) AS modello,
+		COALESCE(riga.variante, mod_ret_var.variante, mod_var.variante) AS variante,
+		COALESCE(riga.uscita_collezione, mod_ret_var.uscita_collezione, mod_var.uscita_collezione) AS uscita_collezione,
+		-- fallback per i clienti da D_PORTA
+		IF(
+			COALESCE(riga.societa, mod_ret_var.societa, mod_var.societa) = 'DT',
+			
+		CASE
+WHEN SAFE_CAST(COALESCE(CF.codice_cliente, riga.codice_cliente) AS INT64) BETWEEN 1 AND 599 THEN CONCAT('0015160000', SUBSTR(COALESCE(CF.codice_cliente, riga.codice_cliente), -3))
+WHEN COALESCE(CF.codice_cliente, riga.codice_cliente) = '10007035' THEN '15110007035'
+WHEN SAFE_CAST(COALESCE(CF.codice_cliente, riga.codice_cliente) AS INT64) BETWEEN 10010776 AND 10010781 THEN CONCAT('00152100', SUBSTR(COALESCE(CF.codice_cliente, riga.codice_cliente), -5))
+WHEN SAFE_CAST(COALESCE(CF.codice_cliente, riga.codice_cliente) AS INT64) BETWEEN 10010828 AND 10010829 THEN CONCAT('00152100', SUBSTR(COALESCE(CF.codice_cliente, riga.codice_cliente), -5))
+WHEN COALESCE(CF.codice_cliente, riga.codice_cliente) = '10010823' THEN CONCAT('00152100', SUBSTR(COALESCE(CF.codice_cliente, riga.codice_cliente), -5))
+WHEN COALESCE(CF.codice_cliente, riga.codice_cliente) = '10010835' THEN CONCAT('00153100', SUBSTR(COALESCE(CF.codice_cliente, riga.codice_cliente), -5))
+ELSE COALESCE(CF.codice_cliente, riga.codice_cliente)
+		END
+	,
+			COALESCE(riga.codice_cliente, CF.codice_cliente)
+		) AS _cliente_per_prezzi
+	FROM (
+		SELECT
+			R.*,
+			S.cliente as codice_cliente,
+			# campi presi in fallback dal prodotto
+			BACKUP_PRODOTTI.anno AS anno,
+			BACKUP_PRODOTTI.stagione AS stagione,
+			BACKUP_PRODOTTI.uscita_collezione AS uscita_collezione,
+			BACKUP_PRODOTTI.modello AS modello,
+			BACKUP_PRODOTTI.variante AS variante,
+			BACKUP_PRODOTTI.brand AS brand, -- eliminato in seguito, usato per codici multinegozio
+			-- modello_retail per JOIN successiva
+			SUBSTR(R.barcode_negozio, 1, 10) AS modello_barcode_negozio,
+			ROW_NUMBER() OVER (PARTITION BY input_filename, R.ts_inserimento, ts_creazione, negozio, data_sale_on_approval, id_sale_on_approval, R.id, pezzi, R.barcode_negozio, R.societa, _rank_most_recent ORDER BY BACKUP_PRODOTTI.anno = EXTRACT(YEAR FROM data_sale_on_approval) DESC, BACKUP_PRODOTTI.anno > EXTRACT(YEAR FROM data_sale_on_approval) DESC, BACKUP_PRODOTTI.anno DESC) AS _rank_decennium_bug
+		FROM (
+			SELECT
+				R.* EXCEPT(barcode_negozio, anno, stagione), -- il barcode viene ricalcolato piu sotto
+				-- controllo a monte informazioni sul prodotto
+				nazione as nazione_negozio,
+				tipo_negozio_retail,
+				ROUND(fatturato / IFNULL(T.avg_rate, 1.0), 2) as fatturato_tasso_mensile,
+				ROUND(fatturato_netto / IFNULL(T.avg_rate, 1.0), 2) as fatturato_netto_tasso_mensile,
+				ROW_NUMBER() OVER(
+					PARTITION BY negozio, id_transazione, id_sale_on_approval, data_sale_on_approval, id
+					ORDER BY ts_creazione DESC, R.ts_inserimento DESC, ts_modifica DESC
+				) AS _rank_most_recent,  -- elimino duplicati
+				-- correzione del barcode quando contiene la variante produzione (FGBI-1057)
+				IF(MAPPING_BARCODE_VAR_PROD.barcode_negozio IS NULL, R.barcode_negozio, MAPPING_BARCODE_VAR_PROD.barcode_negozio) AS barcode_negozio
+			FROM ${ref("DM_SELLOUT_STAGING", "S_SALE_ON_APPROVAL_*")} R
+			LEFT JOIN MAPPING_BARCODE_VAR_PROD
+			ON (
+				R.societa = MAPPING_BARCODE_VAR_PROD.societa
+				AND R.barcode_negozio = MAPPING_BARCODE_VAR_PROD.barcode_negozio_var_prod
+			)
+			LEFT JOIN ${ref("DM_SELLOUT", "D_PORTA")} P ON (P.porta = R.negozio)
+			LEFT JOIN TASSI T ON (T.iso_code = CASE R.valuta
+WHEN "TRL" THEN "TRY"
+WHEN "EURO" THEN "EUR"
+WHEN "RMB" THEN "CNY"
+WHEN "YEN" THEN "JPY"
+ELSE R.valuta
+END AND CONCAT(EXTRACT(YEAR FROM data_sale_on_approval), EXTRACT(MONTH FROM data_sale_on_approval)) = T.reference_date)
+			WHERE data_sale_on_approval IN (SELECT * FROM ${ref("f_sale_on_approval_input_output_partitions")})
+			-- estendere qui per filtri sui record che non necessitano di window function
+		) R
+		LEFT JOIN BACKUP_PRODOTTI ON (
+			BACKUP_PRODOTTI.barcode_negozio = R.barcode_negozio
+			AND BACKUP_PRODOTTI.societa = R.societa
+			-- FGEDW-983: per il decennium bug vengono considerati solo i capi di massimo 8 anni indietro e 1 anno avanti
+			AND BACKUP_PRODOTTI.anno BETWEEN (CAST(EXTRACT(YEAR FROM data_sale_on_approval) AS INT64) - 8) AND (CAST(EXTRACT(YEAR FROM data_sale_on_approval) AS INT64) + 1)
+		)
+		LEFT JOIN ${ref("DM_PREZZO_LISTINO", "D_CLIENTE_STAGIONE")} S ON (
+			S.punto_vendita_retail = R.negozio
+			AND S.annostagione = BACKUP_PRODOTTI.annostagione
+		)
+		WHERE _rank_most_recent = 1
+	) AS riga  -- ultima JOIN
+	LEFT JOIN ${ref("DM_PRODOTTO", "V_MODELLO_BARCODE_NEGOZIO")} mod_ret_var ON (
+		riga.societa = mod_ret_var.societa
+		AND riga.modello_barcode_negozio = mod_ret_var.modello_barcode_negozio
+		AND riga.variante = mod_ret_var.variante
+		-- FGEDW-983: per il decennium bug vengono considerati solo i capi di massimo 8 anni indietro e 1 anno avanti
+		AND mod_ret_var.anno BETWEEN (EXTRACT(YEAR FROM data_sale_on_approval) - 8) AND (EXTRACT(YEAR FROM data_sale_on_approval) + 1))
+	LEFT JOIN (
+		SELECT
+			modello_barcode_negozio,
+			societa,
+			anno,
+			stagione,
+			-- TODO invece di any_value di tutti i campi prendere la prima riga con OFFSET
+			ANY_VALUE(modello) AS modello,
+			ANY_VALUE(variante) AS variante,
+			ANY_VALUE(tipo_taglia) AS tipo_taglia,
+			ANY_VALUE(consegna) AS consegna,
+			ANY_VALUE(classe) AS classe,
+			ANY_VALUE(uscita_collezione) AS uscita_collezione,
+			ANY_VALUE(tema) AS tema,
+			ANY_VALUE(brand) AS brand,
+			CAST(NULL AS STRING) AS stagionale -- non definito per mod-societa
+		FROM ${ref("DM_PRODOTTO", "V_MODELLO_BARCODE_NEGOZIO")}
+		GROUP BY modello_barcode_negozio, societa, anno, stagione
+	) mod_var ON (
+		COALESCE(riga.societa, mod_ret_var.societa) = mod_var.societa
+		AND COALESCE(riga.modello_barcode_negozio, mod_ret_var.modello_barcode_negozio) = mod_var.modello_barcode_negozio
+		-- FGEDW-983: per il decennium bug vengono considerati solo i capi di massimo 8 anni indietro e 1 anno avanti
+		AND mod_var.anno BETWEEN (CAST(EXTRACT(YEAR FROM data_sale_on_approval) AS INT64) - 8) AND (CAST(EXTRACT(YEAR FROM data_sale_on_approval) AS INT64) + 1)
+	)
+	-- FGEDW-967: Match con codice negozio per il cliente in base al brand
+	LEFT JOIN ${ref("DM_SELLOUT_STAGING", "D_CONFIG_MULTINEGOZIO")} multineg ON (
+		multineg.negozio = riga.negozio
+		AND multineg.societa = COALESCE(riga.societa, mod_ret_var.societa, mod_var.societa)
+		AND multineg.brand = COALESCE(riga.brand, mod_ret_var.brand, mod_var.brand)
+	)
+	LEFT JOIN clienti_fallback AS CF ON (
+		COALESCE(multineg.negozio_associato, riga.negozio) = CF.negozio
+		AND COALESCE(riga.anno, mod_ret_var.anno, mod_var.anno) = CF.anno
+		AND COALESCE(riga.stagione, mod_ret_var.stagione, mod_var.stagione) = CF.stagione
+		AND COALESCE(riga.societa, mod_ret_var.societa, mod_var.societa) = CF.societa
+		AND COALESCE(riga.uscita_collezione, mod_ret_var.uscita_collezione, mod_var.uscita_collezione) = CF.uscita_collezione
+	)
+),
+PREZZI_VALIDI AS (
+	SELECT
+		PR.anno,
+		PR.stagione,
+		PR.societa,
+		PR.listino,
+		PR.modello,
+		PR.prezzo,
+		PR.divisa
+	FROM (
+		SELECT *, ROW_NUMBER() OVER(PARTITION BY societa, modello, listino, anno, stagione, tipo_prezzo ORDER BY ts_inserimento DESC, prezzo IS NULL) AS rk
+		FROM ${ref("DM_PREZZO_LISTINO", "D_PREZZO")}
+		WHERE tipo_prezzo IN ('V')
+	) PR
+	LEFT JOIN ${ref("DM_SELLOUT_STAGING", "D_TIPO_PREZZO_CLIENTE")} USING (societa, anno, stagione, cliente, tipo_prezzo, progr_periodo)
+	WHERE (
+		(data_inizio IS NULL AND data_fine IS NULL)
+		OR (CURRENT_DATE() BETWEEN data_inizio AND data_fine)
+		OR (CURRENT_DATE() >= data_inizio AND data_fine IS NULL)
+		OR (data_inizio IS NULL AND CURRENT_DATE <= data_fine)
+	)
+	AND PR.rk = 1
+),
+CLIENTELE AS (
+	SELECT * EXCEPT(rk)
+	FROM (
+		SELECT
+			societa,
+			anno,
+			stagione,
+			cliente,
+			uscita_collezione,
+			listino_acquisto,
+			listino_vendita,
+			f_tipo_ordine_riferimento,
+			tipo_ordine_cliente,
+			mercato_statistica,
+			mercato_vendita,
+			ROW_NUMBER() OVER(PARTITION BY societa, anno, stagione, cliente, uscita_collezione ORDER BY f_tipo_ordine_riferimento IS NOT NULL DESC, f_tipo_ordine_riferimento = '1' DESC, tipo_ordine_cliente = 'CV' DESC, listino_vendita IS NOT NULL DESC, listino_acquisto IS NOT NULL DESC) rk
+		FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTELA")}
+		WHERE validita IN ('V', '')
+	)
+	where rk = 1
+),
+CLIENTELE_IT AS (
+	SELECT * EXCEPT(rk_italia)
+	FROM (
+		SELECT
+			*,
+			ROW_NUMBER() OVER(PARTITION BY societa, anno, stagione, uscita_collezione ORDER BY listino_vendita IS NOT NULL DESC, listino_acquisto IS NOT NULL DESC, f_tipo_ordine_riferimento = '1' DESC, tipo_ordine_cliente = 'CV' DESC) AS rk_italia
+		FROM CLIENTELE
+		JOIN (
+			SELECT
+				societa, anno, stagione,
+				
+		CASE
+WHEN SAFE_CAST(cliente AS INT64) BETWEEN 1 AND 599 THEN CONCAT('0015160000', SUBSTR(cliente, -3))
+WHEN cliente = '10007035' THEN '15110007035'
+WHEN SAFE_CAST(cliente AS INT64) BETWEEN 10010776 AND 10010781 THEN CONCAT('00152100', SUBSTR(cliente, -5))
+WHEN SAFE_CAST(cliente AS INT64) BETWEEN 10010828 AND 10010829 THEN CONCAT('00152100', SUBSTR(cliente, -5))
+WHEN cliente = '10010823' THEN CONCAT('00152100', SUBSTR(cliente, -5))
+WHEN cliente = '10010835' THEN CONCAT('00153100', SUBSTR(cliente, -5))
+ELSE cliente
+		END
+	 AS cliente
+			FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTE_STAGIONE")}
+			WHERE punto_vendita_retail IN (
+				'0100019',  # MM
+				'0100517',  # DT
+				'0100851',  # PE
+				'0100607',  # MR
+				'0000707',  # PB (MN)
+				'0000083',  # MC (MN)
+				'0100404'  # MA
+			)
+		) USING (anno, stagione, societa, cliente)
+	)
+	WHERE rk_italia = 1
+)
+SELECT
+	R.* EXCEPT(prezzo_listino_sell_out_nazionale, tipo_negozio_retail, valuta, uscita_collezione, modello, listino_vendita, nazione_negozio), 
+	
+	# prezzo_listino_sell_out_nazionale e il suo controvalore vengono presi dai prezzi DBG, poi
+	# da markup e SALE (D_PREZZO_EXT) e infine dal valore su S_RIGA. Altrimenti 0.0
+	COALESCE(R.prezzo_listino_sell_out_nazionale, D_PREZZO_EXT.prezzo, D_PREZZO_EXT_NAZIONE.prezzo, R.prezzo_listino_sell_out_nazionale, 0.0) AS prezzo_listino_sell_out_nazionale
+FROM (
+	SELECT
+		R.anno,
+		R.barcode_negozio,
+		R.data_sale_on_approval,
+		R.fatturato,
+		R.fatturato_netto,
+		R.fatturato_tasso_mensile,
+		R.fatturato_netto_tasso_mensile,
+		R.id,
+		R.id_transazione,
+		R.id_sale_on_approval,
+		COALESCE(SAFE_CAST(map_c.pk_consumer_new AS INT64), c_anon.pk_consumer, (SELECT * FROM anonimissima)) AS pk_consumer,
+		R.input_filename,
+		CLIENTELE.listino_vendita AS listino_vendita,
+		R.modello,
+		R.negozio,
+		R.pezzi,
+		R.stato,
+		R.nazione_negozio,
+		R.tipo_negozio_retail,
+		R.valuta,
+		-- per i prezzi viene preso prima il valore da anagrafica, poi da RIGA se > 0, altrimenti 0.0
+		-- prezzi listino A e V IT
+		P_VENDITA_IT.prezzo AS prezzo_listino_sell_out_italia,	
+		
+		-- prezzo listino V + controvalore
+		P_VENDITA.prezzo AS prezzo_listino_sell_out_nazionale,
+		R.project_name,  # In attesa di ricaricamento totale
+		R.societa,
+		R.stagione,
+		R.ts_creazione,
+		R.ts_inserimento,
+		CURRENT_TIMESTAMP() AS ts_modifica,
+		R.uscita_collezione,
+		R.commessa,
+		R.data_finalizzazione
+	FROM sale_on_approval R
+	
+	LEFT JOIN (
+		SELECT consumer_local, negozio, anno_validita, ANY_VALUE(pk_consumer) AS pk_consumer
+		FROM ${ref("DM_SELLOUT_STAGING", "D_CONSUMER_LOCAL")} 
+		GROUP BY 1,2,3
+	) con_local 
+	ON (
+		R.cod_consumer = con_local.consumer_local 
+		AND R.negozio = con_local.negozio
+	)
+	LEFT JOIN (
+		SELECT DISTINCT pk_consumer_old, pk_consumer_new, ROW_NUMBER() OVER (PARTITION BY pk_consumer_old ORDER BY timestamp_fine IS NULL DESC, timestamp_fine DESC) AS rank
+		FROM ${ref("DM_SELLOUT_STAGING", "V_MAPPING_CONSUMER")}
+		WHERE f_anagrafica
+	) map_c
+	ON (
+		-- codice consumatrice preso dal mapping con i locali, se la vendita ha un codice locale
+		COALESCE(CAST(con_local.pk_consumer AS STRING), R.cod_consumer) = map_c.pk_consumer_old
+		AND rank = 1
+	)
+	-- se la consumer proveniente dalla sottoquery e nulla, viene preso l'anonima per nazione
+	LEFT JOIN ${ref("DM_SELLOUT_STAGING", "V_CONSUMER_ANONIMA")} c_anon ON (R.nazione_negozio = c_anon.nazione)
+	
+	LEFT JOIN CLIENTELE ON (
+		R.anno = CLIENTELE.anno
+		AND R.stagione = CLIENTELE.stagione
+		AND R.uscita_collezione = CLIENTELE.uscita_collezione
+		AND R._cliente_per_prezzi = CLIENTELE.cliente
+	)
+	LEFT JOIN PREZZI_VALIDI AS P_VENDITA ON (
+		R.societa = P_VENDITA.societa
+		AND R.modello = P_VENDITA.modello
+		AND CLIENTELE.listino_vendita = P_VENDITA.listino
+		AND R.anno = P_VENDITA.anno
+		AND R.stagione = P_VENDITA.stagione
+		AND (R.valuta = P_VENDITA.divisa OR R.valuta IS NULL)
+	)
+	LEFT JOIN CLIENTELE_IT ON (
+		R.societa = CLIENTELE_IT.societa
+		AND R.anno = CLIENTELE_IT.anno
+		AND R.stagione = CLIENTELE_IT.stagione
+		AND R.uscita_collezione = CLIENTELE_IT.uscita_collezione
+	)
+	LEFT JOIN PREZZI_VALIDI AS P_VENDITA_IT ON (
+		R.societa = P_VENDITA_IT.societa
+		AND R.modello = P_VENDITA_IT.modello
+		AND CLIENTELE_IT.listino_vendita = P_VENDITA_IT.listino
+		AND R.anno = P_VENDITA_IT.anno
+		AND R.stagione = P_VENDITA_IT.stagione
+	)
+	WHERE _rank_decennium_bug = 1
+) R
+# PRIMA JOIN con D_PREZZO_EXT per recupero del controvalore_euro e prezzo_listino_sell_out_nazionale quando manca in D_PREZZO
+LEFT JOIN (
+	SELECT DISTINCT
+		negozio AS negozio_retail,
+		tipo_negozio_retail,
+		modello,
+		societa,
+		divisa,
+		nazione_negozio,
+		annostagione,
+		prezzo,
+		controvalore
+	FROM ${ref("DM_PREZZO_LISTINO", "D_PREZZO_EXT")}
+	WHERE negozio IS NOT NULL
+) D_PREZZO_EXT ON (
+		D_PREZZO_EXT.societa = R.societa 
+	AND D_PREZZO_EXT.annostagione = CAST(CONCAT(R.anno, R.stagione) AS INT64)
+	AND D_PREZZO_EXT.negozio_retail = R.negozio
+	AND D_PREZZO_EXT.modello = R.modello
+	AND D_PREZZO_EXT.divisa = R.valuta
+)
+# SECONDA JOIN con D_PREZZO_EXT per recupero dei prezzi per nazione su D_PREZZO_EXT
+LEFT JOIN (
+	SELECT DISTINCT
+		modello,
+		societa,
+		nazione_negozio,
+		divisa,
+		tipo_negozio_retail,
+		annostagione,
+		prezzo,
+	FROM ${ref("DM_PREZZO_LISTINO", "D_PREZZO_EXT")}
+	WHERE negozio IS NULL
+	AND tipo_prezzo = 'V'
+) D_PREZZO_EXT_NAZIONE ON (
+		D_PREZZO_EXT_NAZIONE.societa = R.societa 
+	AND D_PREZZO_EXT_NAZIONE.annostagione = CAST(CONCAT(R.anno, R.stagione) AS INT64)
+	AND D_PREZZO_EXT_NAZIONE.nazione_negozio = R.nazione_negozio
+	AND D_PREZZO_EXT_NAZIONE.modello = R.modello
+	AND D_PREZZO_EXT_NAZIONE.divisa = R.valuta
+	AND D_PREZZO_EXT_NAZIONE.tipo_negozio_retail = R.tipo_negozio_retail
+)
+		

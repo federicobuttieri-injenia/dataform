@@ -1,0 +1,124 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLOUT",
+    name: "F_GIACENZA_20230101"
+}
+
+SELECT
+	giac.barcode_negozio,
+	giorno,
+	negozio,
+	dislocazione_fisica,
+	qta,
+	qta_transito,
+	CAST(giac.anno AS INT64) AS anno,
+	CAST(giac.stagione AS INT64) AS stagione,
+	ANY_VALUE(impegnato) AS impegnato,
+	ANY_VALUE(DATE_SUB(giorno, INTERVAL EXTRACT(DAY FROM giorno) - 1 DAY)) AS mese,
+	ANY_VALUE(ingestion) AS ingestion,
+	ANY_VALUE(giac.ts_inserimento) AS ts_inserimento,
+	ANY_VALUE(giac.ts_modifica) AS ts_modifica,
+	ANY_VALUE(IFNULL(pr.stagionale, pr_fallback.stagionale)) AS stagionale,
+	ANY_VALUE(IFNULL(giac.dislocazione_logica, rip.codice_logica)) AS dislocazione_logica,
+	ANY_VALUE(IF(rip.box_maxima, rip.box_maxima, false)) AS box_mx,
+	ANY_VALUE(rip.arretrato) AS arretrato,
+	ANY_VALUE(porta) AS porta_ripartizione,
+	ANY_VALUE(IFNULL(giac.societa, pr.societa)) AS societa,
+	ANY_VALUE(visibile) AS visibile
+FROM (
+	SELECT
+		giac.*,
+		_PARTITIONTIME AS ingestion,
+		po_associato.porta,
+		ROW_NUMBER() OVER(PARTITION BY barcode_negozio, giorno, giac.negozio, giac.dislocazione_fisica ORDER BY _PARTITIONTIME desc) AS rank_validita,
+		IF(
+			po.insegna IN ('DT', 'FM') OR po.tipo_negozio_retail = 'MMOD', 'DT',
+			CASE SUBSTR(barcode_negozio, 9, 2)
+				WHEN '02' THEN 'MA'
+				WHEN '03' THEN 'MN'
+				WHEN '06' THEN 'MM'
+				WHEN '04' THEN 'MR'
+				WHEN '05' THEN 'DT'
+				WHEN '08' THEN 'MH'
+				WHEN '09' THEN 'DT'
+			END
+		) AS societa_calcolata,
+	FROM (
+		WITH porte AS (
+			SELECT
+			rip.ripartizione_fisica AS ripartizione_fisica,
+			ARRAY_AGG(porta) AS porta
+			FROM ${ref("DM_SELLOUT", "D_PORTA")}, UNNEST(cliente_ripartizione) AS rip
+			GROUP BY 1
+		)
+		SELECT * REPLACE(
+			(SELECT ARRAY_AGG(STRUCT(porta_associata))
+			FROM (SELECT DISTINCT porta_associata FROM UNNEST(porta) porta_associata
+			)) AS porta
+		) FROM porte
+	) AS po_associato
+	RIGHT JOIN ${ref("DM_SELLOUT_STAGING", "S_GIACENZA")} giac on (giac.dislocazione_fisica = po_associato.ripartizione_fisica)
+	LEFT JOIN ${ref("DM_SELLOUT", "D_PORTA")} po ON (giac.negozio = po.porta)
+	LEFT OUTER JOIN ${ref("DM_SELLOUT", "F_GIACENZA_*")} f using(barcode_negozio, giorno, negozio)
+	WHERE _PARTITIONDATE - 1 IN ({partitions}) AND giorno in ({where_partitions_current_table})
+	and giac.negozio is not null
+  				and (f.barcode_negozio is null and f.negozio is null and f.giorno is null and f.dislocazione_fisica is null)
+	
+	UNION ALL
+	
+	SELECT
+		giac.*,
+		_PARTITIONTIME AS ingestion,
+		po_associato.porta,
+		ROW_NUMBER() OVER(PARTITION BY barcode_negozio, giorno, giac.negozio, giac.dislocazione_fisica ORDER BY _PARTITIONTIME desc) AS rank_validita,
+		IF(
+			po.insegna IN ('DT', 'FM') OR po.tipo_negozio_retail = 'MMOD', 'DT',
+			CASE SUBSTR(barcode_negozio, 9, 2)
+				WHEN '02' THEN 'MA'
+				WHEN '03' THEN 'MN'
+				WHEN '06' THEN 'MM'
+				WHEN '04' THEN 'MR'
+				WHEN '05' THEN 'DT'
+				WHEN '08' THEN 'MH'
+				WHEN '09' THEN 'DT'
+			END
+		) AS societa_calcolata,
+	FROM (
+		WITH porte AS (
+			SELECT
+			rip.ripartizione_fisica AS ripartizione_fisica,
+			ARRAY_AGG(porta) AS porta
+			FROM ${ref("DM_SELLOUT", "D_PORTA")}, UNNEST(cliente_ripartizione) AS rip
+			GROUP BY 1
+		)
+		SELECT * REPLACE(
+			(SELECT ARRAY_AGG(STRUCT(porta_associata))
+			FROM (SELECT DISTINCT porta_associata FROM UNNEST(porta) porta_associata
+			)) AS porta
+		) FROM porte
+	) AS po_associato
+	RIGHT JOIN ${ref("DM_SELLOUT_STAGING", "S_GIACENZA")} giac on (giac.dislocazione_fisica = po_associato.ripartizione_fisica)
+	LEFT JOIN ${ref("DM_SELLOUT", "D_PORTA")} po ON (giac.negozio = po.porta)
+	LEFT OUTER JOIN ${ref("DM_SELLOUT", "F_GIACENZA_*")} f using(barcode_negozio, giorno, dislocazione_fisica)
+	WHERE _PARTITIONDATE - 1 IN ({partitions}) AND giorno in ({where_partitions_current_table})
+	and giac.dislocazione_fisica is not null
+  				and (f.barcode_negozio is null and f.negozio is null and f.giorno is null and f.dislocazione_fisica is null)
+	
+) giac
+LEFT JOIN ${ref("DM_PRODOTTO", "D_PRODOTTO")} pr ON (pr.barcode_negozio = giac.barcode_negozio and pr.societa = societa_calcolata)
+LEFT JOIN ${ref("DM_PRODOTTO", "D_PRODOTTO")} pr_fallback ON (
+	pr_fallback.barcode_negozio = giac.barcode_negozio 
+	AND (pr_fallback.societa != pr.societa OR pr.societa IS NULL)
+)
+LEFT JOIN ${ref("DM_SELLOUT_STAGING", "D_RIPARTIZIONE")} rip ON (
+	rip.codice_fisica = giac.dislocazione_fisica
+)
+WHERE rank_validita = 1
+AND (
+	SAFE_CAST(negozio AS NUMERIC) IS NOT NULL 
+OR negozio IN ('BOX1036', 'BOX0901346', 'BOX0901237', 'BOX0901236', 'BOX0701047') 
+OR negozio IS NULL 
+OR IFNULL(giac.project_name, '') = 'bmshk'
+)
+GROUP BY 1,2,3,4,5,6,7,8
+		

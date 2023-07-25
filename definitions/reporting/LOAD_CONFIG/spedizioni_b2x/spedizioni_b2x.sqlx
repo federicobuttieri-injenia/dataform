@@ -1,0 +1,28 @@
+config {
+    type: "table",
+    schema: "None",
+    name: "F_SPEDIZIONI_B2X"
+}
+
+SELECT
+	'O2O' AS tipo_spedizione,
+	brand,
+	canale,
+	codice_destinatario_spedizione,
+	data_consegna,
+	data_creazione,
+	num_ordine,
+	num_spedizione,
+	stato_vettore,
+	tipo,
+	stato_spedizione,
+	ts_inserimento
+FROM(
+	SELECT
+		*,
+		_PARTITIONTIME AS ts_inserimento,
+		RANK() OVER(PARTITION BY num_ordine, num_spedizione, stato_vettore, stato_spedizione ORDER BY _PARTITIONTIME DESC, data_creazione DESC, GENERATE_UUID()) AS rk
+	FROM ${ref("DM_SELLOUT_STAGING", "S_O2O")}
+)
+WHERE rk = 1
+		

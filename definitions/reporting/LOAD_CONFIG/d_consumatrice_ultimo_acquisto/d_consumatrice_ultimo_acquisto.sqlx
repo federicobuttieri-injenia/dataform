@@ -1,0 +1,40 @@
+config {
+    type: "table",
+    schema: "DM_CRM",
+    name: "D_CONSUMATRICE_ULTIMO_ACQUISTO"
+}
+
+SELECT 
+	pk_consumer AS pk_consumer,
+	negozio AS negozio, 
+	n.insegna AS insegna,
+	MAX(data_vendita) AS data_ultimo_acquisto,
+	MAX(R.ts_creazione) AS ts_inserimento
+FROM ${ref("DM_SELLOUT", "RIGA_SCONTRINO_*")} R
+JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS n ON (R.negozio = n.porta)
+JOIN ${ref("DM_CRM", "D_SEGMENTO")} s ON (
+	s.brand = CASE n.insegna
+WHEN "MM" THEN "MM"
+WHEN "WE" THEN "WE"
+WHEN "SP" THEN "SP"
+WHEN "MH" THEN "MM"
+WHEN "MA" THEN "MA"
+WHEN "IB" THEN "IB"
+WHEN "LM" THEN "EM"
+WHEN "EM" THEN "EM"
+WHEN "DT" THEN "DT"
+WHEN "FM" THEN "FM"
+WHEN "IN" THEN "DT"
+WHEN "MC" THEN "MC"
+WHEN "PB" THEN "PB"
+WHEN "MR" THEN "MR"
+WHEN "PE" THEN "PE"
+WHEN "NP" THEN "PE"
+WHEN "PS" THEN "PE"
+ELSE NULL
+END
+)
+WHERE R.tipo_movimento = 'VENDITA'
+AND R.pk_consumer IS NOT NULL
+GROUP BY pk_consumer, negozio, insegna
+	

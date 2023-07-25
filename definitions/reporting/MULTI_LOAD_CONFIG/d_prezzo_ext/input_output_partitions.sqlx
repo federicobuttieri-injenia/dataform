@@ -1,0 +1,11 @@
+config {
+    type: "view",
+    schema: "DM_PREZZO_LISTINO",
+    name: "d_prezzo_ext_input_output_partitions"
+}
+
+SELECT DISTINCT(CAST(CONCAT(anno,stagione) AS INT64)) AS value
+FROM DM_SELLOUT_STAGING.S_PREZZO_EXT
+WHERE DATE(ts_modifica) = DATE_SUB(CURRENT_DATE, INTERVAL 1 DAY)
+AND CAST(CONCAT(anno,stagione) AS INT64) >= 20001 -- minimo ast possibile
+		

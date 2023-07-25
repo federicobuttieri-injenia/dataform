@@ -1,0 +1,29 @@
+config {
+    type: "table",
+    schema: "None",
+    name: "F_MATRICE_ASSORTIMENTALE"
+}
+
+SELECT * EXCEPT(origin, rk)
+FROM (
+	SELECT 
+		union_matrice_assortimentale.*,
+		ROW_NUMBER() OVER(
+			PARTITION BY data, barcode_negozio, porta
+			ORDER BY
+				anno > EXTRACT(YEAR FROM data) - 10,
+				IF((CONCAT(anno, stagione) >= '20192' AND contesto IN('003', '004', '005', '006', '008', '009', '010', '011'))OR (CONCAT(anno, stagione) >= '20201' AND contesto IN('007')), origin = "TSL", origin = "COMPUTED")
+			DESC
+		) AS rk
+	FROM (
+		SELECT mat.*, "TSL" AS origin
+		FROM ${ref("DM_SELLOUT", "F_MATRICE_ASSORTIMENTALE_TSL")} AS mat
+		UNION ALL
+		SELECT mac.*, "COMPUTED" AS origin
+		FROM ${ref("DM_SELLOUT", "F_MATRICE_ASSORTIMENTALE_COMPUTED")} AS mac
+	) AS union_matrice_assortimentale
+	JOIN ${ref("DM_PRODOTTO", "D_PRODOTTO")} USING(societa, barcode_negozio)
+	JOIN ${ref("DM_SELLOUT", "D_PORTA")} USING(porta)
+) AS ranked_union_matrice_assortimentale
+WHERE rk = 1
+		

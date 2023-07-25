@@ -1,0 +1,10 @@
+config {
+    type: "table",
+    schema: "DM_SELLOUT",
+    name: "F_TASSO_QUOTIDIANO"
+}
+
+SELECT *
+FROM DM_SELLOUT_STAGING.S_TASSO_QUOTIDIANO
+QUALIFY ROW_NUMBER() OVER(PARTITION BY iso_code, reference_date ORDER BY _partitiontime DESC, ts_inserimento DESC) = 1
+		

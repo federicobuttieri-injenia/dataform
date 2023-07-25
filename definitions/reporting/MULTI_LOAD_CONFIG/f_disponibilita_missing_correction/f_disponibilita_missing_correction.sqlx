@@ -1,0 +1,51 @@
+config {
+    type: "table",
+    schema: "DM_DIGITAL",
+    name: "F_DISPONIBILITA_20230101"
+}
+
+WITH
+	f_disponbiilita_complete AS (
+		SELECT DISTINCT
+			sku,
+			warehouse,
+			brand,
+			MIN(date) OVER(PARTITION BY sku, warehouse, brand) AS min_date,
+			MAX(date) OVER(PARTITION BY sku, warehouse, brand) AS max_date,
+			data as `date`
+		FROM ${ref("DM_DIGITAL", "F_DISPONIBILITA_20230101")}
+			CROSS JOIN (
+				SELECT data
+				FROM ${ref("DM_SELLOUT", "D_TEMPO")}
+				WHERE data BETWEEN '2023-01-01' AND '2023-12-31'
+			)
+		QUALIFY date BETWEEN min_date AND max_date
+		),
+	f_disponibilita_conditions AS (
+		SELECT
+			sku,
+			warehouse,
+			brand,
+			date,
+			quantity,
+			(quantity IS NULL) != LAG((quantity IS NULL), 1, true) OVER (PARTITION BY sku, warehouse, brand ORDER BY date) as new_partition_signal,
+		FROM ${ref("DM_DIGITAL", "F_DISPONIBILITA_20230101")}
+			RIGHT JOIN f_disponbiilita_complete USING (sku, warehouse, brand, date)
+	),
+	f_disponibilita_with_partitions_over AS (
+		SELECT *, COUNTIF(new_partition_signal) OVER (PARTITION BY sku, warehouse, brand ORDER BY date) as partition_over_index,
+		FROM f_disponibilita_conditions
+	),
+	f_disponibilita_final AS (
+		SELECT *, COUNTIF(quantity IS NULL) OVER (PARTITION BY sku, warehouse, brand, partition_over_index ORDER BY date) AS to_be_corrected,
+		FROM f_disponibilita_with_partitions_over
+	)
+SELECT
+	sku,
+	warehouse,
+	brand,
+	date,
+	IF(MAX(to_be_corrected) OVER (PARTITION BY sku, warehouse, brand, partition_over_index ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) <= 2,
+		COALESCE(quantity, LAST_VALUE(quantity IGNORE NULLS) OVER (PARTITION BY sku, warehouse, brand ORDER BY date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)), NULL) AS quantity
+FROM f_disponibilita_final
+		

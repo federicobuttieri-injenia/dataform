@@ -1,0 +1,23 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_APPROVAZIONE_ORDINE_20230101"
+}
+
+SELECT
+	id,
+	DATE(attributes.dataora_vidimazione) AS data_vidimazione,
+	attributes.* EXCEPT(
+		righe, importo_lordo, sconto_incond, sconto_ordine, importo_sconto_ordine,
+		importo_sconto_incond, importo_netto, contributo_trasporto_unitario, contributo_trasporto,
+		percentuale_imposta, imponibile, importo_imposta, importo_fattura, totale_capi
+	),
+	(SELECT SUM(qta_ordinata) FROM riga.taglie) AS qta_ordinata,
+	riga.*,
+	_PARTITIONTIME AS ts_inserimento,
+	timestamp AS ts_creazione,
+	CURRENT_TIMESTAMP AS ts_modifica
+FROM DM_SELLOUT_STAGING.S_LOG_APPROVAZIONE_ORDINE, UNNEST(attributes.righe) AS riga
+WHERE _PARTITIONDATE IN ({partitions})
+AND DATE(attributes.dataora_vidimazione) IN ({where_partitions_current_table})
+		

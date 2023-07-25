@@ -1,0 +1,18 @@
+config {
+    type: "view",
+    schema: "DM_SELLOUT",
+    name: "tslr_input_output_partitions"
+}
+
+SELECT  AS value
+	PARSE_DATE("%Y%m%d",  AS valuepartizioni.partition)
+FROM  AS value${ref("TEMP_LOCATION",  AS value"PARTIZIONI_LOADJOB")}  AS valueAS  AS valuepartizioni
+JOIN  AS value(
+	SELECT  AS value
+		TIMESTAMP_MILLIS(last_modified_time)  AS valueAS  AS valuemodificata  AS value
+	FROM  AS value${ref("DM_SELLOUT",  AS value"__TABLES__")}  AS value
+	WHERE  AS valuetable_id  AS value=  AS value"F_TSLR"
+)  AS valueAS  AS valueagg_f_tsl  AS valueON  AS value(agg_f_tsl.modificata  AS value<  AS valuepartizioni.ts_lancio)
+WHERE  AS valuepartizioni.table_name  AS value=  AS value"S_TSLR"
+ORDER  AS valueBY  AS valuepartizioni.partition  AS valueDESC  AS valueLIMIT  AS value1
+		

@@ -1,0 +1,183 @@
+config {
+    type: "table",
+    schema: "DM_CRM",
+    name: "F_PREFERRED_STORE_SEGMENTO"
+}
+WITH pk_deprofilate AS (
+	SELECT DISTINCT
+		pk_consumer, brand,
+		DATETIME(IF(tipo_operazione = 'anonimizzazione', timestamp_operazione, NULL), 'Europe/Rome') AS timestamp_anonimizzazione,
+		DATETIME(IF(tipo_operazione = 'riprofilazione', timestamp_operazione, NULL), 'Europe/Rome') AS timestamp_riprofilazione
+	FROM ${ref("DM_CRM", "D_CONSUMER_DEPROFILING")}
+),
+base_query AS (
+SELECT
+	pk_consumer,
+	v.negozio,
+	s.brand,
+	s.f_insegna,
+	data_vendita,
+	v.commessa,
+	pezzi,
+	canale,
+	data_chiusura_pdv,
+	importo,
+	tipo_movimento,
+	grado_anonimato,
+	COALESCE(v.project_name, n.project_name) AS project_name
+FROM (
+	SELECT
+		societa,
+		pk_consumer,
+		negozio,
+		commessa,
+		prodotto_brand.brand,
+		data_vendita,
+		pezzi,
+		grado_anonimato,
+		IF(controvalore_euro != 0, controvalore_euro, fatturato_tasso_mensile) AS importo,
+		canale,
+		tipo_movimento,
+		project_name
+	FROM ${ref("DM_SELLOUT", "RIGA_SCONTRINO_*")}
+	JOIN (
+		SELECT societa, anno, stagione, modello, ANY_VALUE(brand) AS brand
+		FROM ${ref("DM_PRODOTTO", "D_PRODOTTO")}
+		GROUP BY 1, 2, 3, 4
+	) AS prodotto_brand USING (societa, anno, stagione, modello)
+) AS v
+JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS n ON (v.negozio = n.porta)
+JOIN ${ref("DM_CRM", "D_MAPPING_INSEGNA_BRAND")} MIB ON (n.insegna=MIB.insegna)
+JOIN ${ref("DM_CRM", "D_SEGMENTO")} s ON (s.brand = IF(s.f_insegna, MIB.brand, IF(v.societa = 'DT', 'DT', v.brand)))
+WHERE
+	importo > 0
+AND data_vendita >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 year)
+AND grado_anonimato NOT IN ('40', '50')
+AND pk_consumer is not null
+AND v.negozio != '0100550' /* unidispo */
+AND (s.f_insegna OR n.tipo_negozio_retail NOT LIKE '__O_')
+		),
+vendite AS (
+	SELECT
+		pk_consumer,
+		negozio,
+		brand,
+		f_insegna,
+		ANY_VALUE(data_chiusura_pdv IS NOT NULL) AS f_chiuso,
+		IF(ANY_VALUE(data_chiusura_pdv IS NOT NULL), 0.001, 1) *
+		SUM(
+			importo *
+			(
+				DATE_DIFF(CURRENT_DATE(), DATE_ADD(CURRENT_DATE(), INTERVAL -6 YEAR), DAY) -
+				DATE_DIFF(CURRENT_DATE(), data_vendita, DAY)
+			) /
+			DATE_DIFF(CURRENT_DATE(), DATE_ADD(CURRENT_DATE() , INTERVAL -6 YEAR), DAY)
+		) AS score,
+		MAX(data_vendita) AS data_ultimo_acquisto,
+		COUNT(DISTINCT(data_vendita)) AS n_acquisti,
+		"vendite" AS origin
+	FROM base_query
+	GROUP BY 1,2,3,4
+),
+ultime_interazioni AS (
+	
+WITH chiusure_negozi AS (
+	SELECT DISTINCT porta AS negozio, data_chiusura_pdv
+	FROM DM_SELLOUT.D_PORTA
+)
+SELECT
+	pk_consumer, insegna AS brand,
+	ARRAY_CONCAT_AGG(lista_negozi) AS lista_negozi
+FROM (
+	-- transazioni negli ultimi 6 anni in negozi aperti
+	SELECT
+		pk_consumer, insegna,
+		ARRAY_AGG(STRUCT(negozio, data_prima_registrazione, data_ultima_transazione, DATE(NULL) AS data_ultima_interazione, data_chiusura_pdv) ORDER BY data_ultima_transazione DESC, negozio) lista_negozi
+	FROM ${ref("DM_CRM", "D_CONSUMATRICE_INTERAZIONE")}
+	JOIN chiusure_negozi USING (negozio)
+	WHERE negozio NOT IN ("0100550", "0133117")
+	AND data_ultima_transazione < DATE_ADD(CURRENT_DATE() , INTERVAL -6 YEAR)
+	GROUP BY 1, 2
+	HAVING ARRAY_LENGTH(lista_negozi) > 0
+	
+	UNION ALL
+	
+	SELECT
+		pk_consumer, insegna,
+		ARRAY_AGG(STRUCT(negozio, data_prima_registrazione, DATE(NULL) AS data_ultima_transazione, data_ultima_interazione, data_chiusura_pdv) ORDER BY data_ultima_interazione DESC, negozio) lista_negozi
+	FROM ${ref("DM_CRM", "D_CONSUMATRICE_INTERAZIONE")}
+	JOIN chiusure_negozi USING (negozio)
+	WHERE negozio NOT IN ("0100550", "0133117")
+	AND data_ultima_transazione IS NULL
+	AND data_ultima_interazione IS NOT NULL
+	GROUP BY 1, 2
+	HAVING ARRAY_LENGTH(lista_negozi) > 0
+)
+GROUP BY 1, 2
+		
+),
+rank_no_vendite AS (
+	SELECT
+		pk_consumer,
+		lneg.negozio,
+		s.brand,
+		s.f_insegna,
+		IFNULL(lneg.data_chiusura_pdv < CURRENT_DATE, FALSE) AS f_chiuso,
+		- DATE_DIFF(CURRENT_DATE, COALESCE(lneg.data_ultima_transazione, lneg.data_prima_registrazione), DAY) AS score,
+		ua.data_ultimo_acquisto,
+		0 AS n_acquisti,
+		"no_vendite" AS origin
+	FROM ultime_interazioni ui, UNNEST(ui.lista_negozi) lneg
+	JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS n ON (lneg.negozio = n.porta)
+	JOIN ${ref("DM_CRM", "D_MAPPING_INSEGNA_BRAND")} MIB USING (insegna)
+	JOIN ${ref("DM_CRM", "D_SEGMENTO")} s ON (MIB.brand = s.brand)
+	LEFT JOIN (
+		SELECT pk_consumer, negozio, MAX(data_ultima_transazione) AS data_ultimo_acquisto
+		FROM ${ref("DM_CRM", "D_CONSUMATRICE_INTERAZIONE")}
+		GROUP BY 1, 2
+	) ua USING (pk_consumer, negozio)
+	-- esclusione degli outlet per i dati di brand
+	WHERE f_insegna
+	OR n.tipo_negozio_retail NOT LIKE '__O_'
+	QUALIFY ROW_NUMBER() OVER(
+		PARTITION BY pk_consumer, brand, f_insegna
+		ORDER BY
+			-- vendita precedente a 6 anni in negozio aperto
+			(lneg.data_ultima_transazione IS NOT NULL AND (lneg.data_chiusura_pdv IS NULL OR lneg.data_chiusura_pdv >= CURRENT_DATE)) DESC,
+			-- interazione precedente a 6 anni in negozio aperto
+			(lneg.data_ultima_interazione IS NOT NULL AND (lneg.data_chiusura_pdv IS NULL OR lneg.data_chiusura_pdv >= CURRENT_DATE)) DESC,
+			-- vendita precedente a 6 anni in negozio chiuso
+			(lneg.data_ultima_transazione IS NOT NULL AND lneg.data_chiusura_pdv IS NOT NULL AND lneg.data_chiusura_pdv < CURRENT_DATE) DESC,
+			-- interazione precedente a 6 anni in negozio chiuso
+			(lneg.data_ultima_interazione IS NOT NULL AND lneg.data_chiusura_pdv IS NOT NULL AND lneg.data_chiusura_pdv < CURRENT_DATE) DESC
+	) = 1
+),
+totale_negozio AS (
+	SELECT *
+	FROM vendite
+	UNION ALL
+	SELECT *
+	FROM rank_no_vendite
+)
+
+SELECT
+	totale_negozio.pk_consumer,
+	negozio,
+	totale_negozio.brand AS brand_preferred_store,
+	f_insegna,
+	f_chiuso,
+	score,
+	row_number() OVER (PARTITION BY totale_negozio.pk_consumer, totale_negozio.brand, f_insegna ORDER BY score DESC) AS rank,
+	data_ultimo_acquisto,
+	n_acquisti,
+	CURRENT_TIMESTAMP AS ts_inserimento
+FROM totale_negozio
+	LEFT JOIN pk_deprofilate ON (
+		totale_negozio.pk_consumer = pk_deprofilate.pk_consumer 
+		AND pk_deprofilate.brand = totale_negozio.brand
+	)
+WHERE TRUE
+AND (
+	timestamp_anonimizzazione IS NULL OR CURRENT_DATE > timestamp_riprofilazione
+)
+QUALIFY RANK() OVER(PARTITION BY totale_negozio.pk_consumer, negozio, totale_negozio.brand, f_insegna ORDER BY origin = "vendite" DESC) = 1

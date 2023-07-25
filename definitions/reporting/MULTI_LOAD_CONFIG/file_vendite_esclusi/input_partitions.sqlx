@@ -1,0 +1,13 @@
+config {
+    type: "view",
+    schema: "DM_SELLOUT_STAGING",
+    name: "file_vendite_esclusi_input_partitions"
+}
+
+SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`) AS value
+FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")} 
+WHERE 
+	table_name = 'S_FILE_VENDITE_ESCLUSI_BMS'
+AND DATE(ts_lancio) >= DATE_SUB(CURRENT_DATE, INTERVAL 1 DAY) 
+QUALIFY RANK() OVER(PARTITION BY table_name ORDER BY ts_lancio DESC) = 1
+		

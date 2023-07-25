@@ -1,0 +1,84 @@
+config {
+    type: "table",
+    schema: "DM_RETAIL",
+    name: "fr_budget_saldi"
+}
+
+SELECT
+	fatt.annostagione AS annostag,
+	fatt.negozio AS negozio,
+	divisa AS valuta_vendita,
+	ROUND(SUM(IF(
+		fatturato_lordo_obiettivi_definitivi_valuta != 0, 
+		fatturato_lordo_obiettivi_definitivi_valuta,
+		IF(
+			fatturato_lordo_obiettivi_acquisti_valuta != 0, 
+			fatturato_lordo_obiettivi_acquisti_valuta, 
+			fatturato_lordo_obiettivi_preliminari_valuta
+		)
+	)) / SUM(IF(
+		fatturato_lordo_obiettivi_definitivi_valuta != 0, 
+		fatturato_lordo_obiettivi_definitivi_valuta,
+		IF(
+			fatturato_lordo_obiettivi_acquisti_valuta != 0, 
+			fatturato_lordo_obiettivi_acquisti_valuta, 
+			fatturato_lordo_obiettivi_preliminari_valuta
+		)
+	)), 2) AS cambio,
+	ROUND(SUM(IF(
+		fatturato_lordo_obiettivi_definitivi_euro != 0, 
+		fatturato_lordo_obiettivi_definitivi_euro,
+		IF(
+			fatturato_lordo_obiettivi_acquisti_euro != 0, 
+			fatturato_lordo_obiettivi_acquisti_euro, 
+			fatturato_lordo_obiettivi_preliminari_euro
+		)
+	)), 2)  AS val_previsto,
+	ROUND(SUM(IF(
+		fatturato_lordo_obiettivi_definitivi_valuta != 0, 
+		fatturato_lordo_obiettivi_definitivi_valuta,
+		IF(
+			fatturato_lordo_obiettivi_acquisti_valuta != 0, 
+			fatturato_lordo_obiettivi_acquisti_valuta, 
+			fatturato_lordo_obiettivi_preliminari_valuta
+		)
+	)), 2) AS val_previsto_valuta,
+	"0" AS obbiettivo_carico,
+	"0" AS obbiettivo_carico_valuta,
+	"0" AS moltiplicatore,
+	"0" AS ric_norm,
+	"0" AS ric_saldi,
+	FORMAT_DATE('%Y%m%d', CURRENT_DATE) AS data_creazione,
+	"importa_dw" AS utente,
+	CAST(EXTRACT(DATETIME FROM current_timestamp()) AS timestamp) AS modificato,
+	"0.00" AS perc_stagione,
+	"0.00" AS perc_saldi,
+	"0" AS pm_previsto,
+	"0.00" AS upt_previsto,
+	"" AS negozio_controcifra,
+	"REPLACE" as action,
+	CURRENT_TIMESTAMP AS dm_retail_upd_datetime
+FROM DM_SELLOUT_STAGING.F_STORE_PLAN_FATTURATI fatt
+JOIN (
+	SELECT cli_s.negozio, annostag, ANY_VALUE(d_list.divisa) AS divisa
+	FROM DM_RETAIL.fr_clienti_stagione cli_s
+	JOIN DM_RETAIL.fr_clientela cli
+	USING (societa, annostag, negozio, cliente, action)
+	JOIN DM_SELLOUT_STAGING.D_LISTINO d_list
+	ON (
+		d_list.societa = cli.societa AND
+		cli.annostag = CAST(CONCAT(d_list.anno, d_list.stagione) AS INT64) AND
+		tipo_listino = "V" AND
+		cli.listino_vendita = d_list.listino
+	)
+	WHERE action = "REPLACE"
+	GROUP BY 1, 2
+) cli_s
+ON (
+	fatt.negozio = cli_s.negozio AND
+	CAST(fatt.annostagione AS INT64) = cli_s.annostag
+)
+WHERE fatturato_lordo_obiettivi_definitivi_euro != 0
+AND fatt.annostagione >= "20202"
+GROUP BY annostag, negozio, divisa
+		

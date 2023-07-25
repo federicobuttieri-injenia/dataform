@@ -1,0 +1,10 @@
+config {
+    type: "view",
+    schema: "DM_SELLOUT",
+    name: "f_movimenti_contabilita_input_output_partitions"
+}
+
+SELECT DISTINCT(EXTRACT(YEAR FROM data_vendita)) AS value
+FROM ${ref("DM_SELLOUT_STAGING", "S_MOVIMENTO_CONTABILITA_*")}
+WHERE DATE(CAST(ts_modifica AS TIMESTAMP)) = CURRENT_DATE
+		

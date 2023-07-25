@@ -1,0 +1,20 @@
+config {
+    type: "table",
+    schema: "DM_SELLIN",
+    name: "D_CANALE_MMN"
+}
+
+SELECT * EXCEPT (action)
+FROM (
+	SELECT
+		id,
+		attributes.*,
+		timestamp AS ts_creazione,
+		_PARTITIONTIME AS ts_inserimento,
+		CURRENT_TIMESTAMP AS ts_modifica
+	FROM ${ref("DM_SELLOUT_STAGING", "S_CANALE_MMN")} s
+	WHERE True
+	QUALIFY ROW_NUMBER() OVER(PARTITION BY id ORDER BY timestamp DESC, _PARTITIONDATE DESC) = 1
+)
+WHERE action != 'DELETE' 
+		

@@ -1,0 +1,40 @@
+config {
+    type: "table",
+    schema: "DM_EVENTI",
+    name: "F_RFID"
+}
+
+SELECT
+	id,
+	negozio,
+	epc,
+	biz_step,
+	read_point,
+	disposition,
+	biz_location,
+	area,
+	ts_creazione,
+	ddt,
+	id_inventory,
+	serial,
+	CURRENT_TIMESTAMP() ts_inserimento
+FROM (
+	SELECT
+		attributes.event.id AS id,
+		attributes.event.negozio AS negozio,
+		attributes.event.epc AS epc,
+		attributes.event.bizStep AS biz_step,
+		attributes.event.readPoint AS read_point,
+		attributes.event.disposition AS disposition,
+		attributes.event.bizLocation AS biz_location,
+		attributes.event.area AS area,
+		attributes.event.timeStamp AS ts_creazione,
+		attributes.event.ddt AS ddt,
+		attributes.event.inventoryId AS id_inventory,
+		attributes.event.serial AS serial,
+		ROW_NUMBER() OVER(PARTITION BY id ORDER BY input_filename DESC, ts_inserimento DESC) AS rk
+	FROM
+		${ref("DM_EVENTI_STAGING", "S_RFID")}
+)
+WHERE rk = 1
+		

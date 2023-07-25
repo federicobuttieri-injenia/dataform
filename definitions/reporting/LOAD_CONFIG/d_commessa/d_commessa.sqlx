@@ -1,0 +1,300 @@
+config {
+    type: "table",
+    schema: "DM_SELLOUT",
+    name: "D_COMMESSA"
+}
+
+WITH s_commesse_from_bms AS (
+	SELECT * EXCEPT(project_name),
+			IF(RK_MODIFICATO = ts_creazione, project_name, 'retail') AS project_name,
+			IF(RK_MODIFICATO = ts_creazione, 'BMS', 'AUTO_from_bms') AS record_type
+	FROM (
+			SELECT *,
+				MAX(ts_creazione) OVER (PARTITION BY project_name) AS RK_MODIFICATO, # LE commesse con RK_MODIFICATO=ts_creazione sono le più recenti, quindi considerate provenienti da BMS, le altre sono pregresso di BMS, verranno considerate come commesse provenienti da retail
+			FROM (
+						SELECT * EXCEPT(RK)
+						FROM (
+								SELECT *,                                                                                                                              --    tutti i campi
+										CURRENT_TIMESTAMP                                                                                                         AS ts_modifica,
+										_PARTITIONTIME                                                                                                            AS ts_inserimento,
+										_PARTITIONTIME                                                                                                            AS ts_creazione,
+										ROW_NUMBER() OVER (PARTITION BY project_name, negozio, commessa ORDER BY project_name, negozio, commessa, _PARTITIONTIME DESC) AS RK # RANKING per leggere le commesse più recenti (anche le modifiche)
+								FROM ${ref("DM_SELLOUT_STAGING", "S_COMMESSA_BMS")}
+							) AS S_COMMESSE_BMS
+						WHERE RK = 1
+					)
+		)
+	), from_bms AS (
+	SELECT
+		project_name                AS project_name,
+		commessa                    AS commessa,
+		negozio                     AS negozio,
+		negozio_secondario          AS negozio_secondario,
+		codice_commessa             AS codice_commessa,
+		nome                        AS nome,
+		cognome                     AS cognome,
+		data_nascita                AS data_nascita,
+		CAST(matricola AS STRING)   AS matricola,
+		sesso                       AS sesso,
+		nazionalita                 AS nazionalita,
+		tipo_periodo_scadenza_pt_ft AS tipo_periodo_scadenza_pt_ft,
+		tipo_periodo_scadenza_mt_ma AS tipo_periodo_scadenza_mt_ma,
+		data_inizio_contratto       AS data_inizio_contratto,
+		data_cessazione             AS data_cessazione,
+		inquadramento               AS inquadramento,
+		ruolo                       AS ruolo,
+		data_scadenza_td_ins        AS data_scadenza_td_ins,
+		nazione_nascita             AS nazione_nascita,
+		tipo_contratto              AS tipo_contratto,
+		fte                         AS fte,
+		data_fine_contratto         AS data_fine_contratto,
+		data_scadenza_mt_ma_ad      AS data_scadenza_mt_ma_ad,
+		data_scadenza_pt_ft         AS data_scadenza_pt_ft,
+		lingue_parlate              AS lingue_parlate,
+		codice_contratto            AS codice_contratto,
+		sostituzione                AS sostituzione,
+		data_assunzione             AS data_assunzione,
+		desc_contratto              AS desc_contratto,
+		livello_lingue              AS livello_lingue,
+		desc_inquadramento          AS desc_inquadramento,
+		desc_ruolo                  AS desc_ruolo,
+		ts_inserimento              AS ts_inserimento,
+		ts_modifica                 AS ts_modifica,
+		ts_creazione                AS ts_creazione,
+		record_type                 AS record_type,
+		CAST(NULL AS INT64)         AS attiva,
+		CAST(NULL AS STRING)        AS stato,
+		CAST(NULL AS STRING)        AS codice_proprietario,
+		CAST(NULL AS STRING)        AS commessa_new,
+		CAST(NULL AS DATE)          AS data_cancellazione,
+		CAST(NULL AS DATE)          AS data_licenziamento,
+		CAST(NULL AS STRING)        AS descrizione,
+		CAST(NULL AS STRING)        AS input_filename,
+	FROM s_commesse_from_bms
+),
+	S_COMMESSA_RETAIL AS (
+		SELECT *
+		FROM (
+				SELECT *, ROW_NUMBER() OVER (PARTITION BY project_name, negozio, commessa, record_type ORDER BY _PARTITIONTIME DESC, ts_creazione DESC) AS RK_RETAIL
+				FROM ${ref("DM_SELLOUT_STAGING", "S_COMMESSA_RETAIL")}
+			)
+		WHERE RK_RETAIL = 1
+	),
+	COMMESSE_RETAIL_CANCELLAZIONI AS (
+		SELECT input_filename, record_type, negozio, commessa, data_cancellazione, ts_creazione
+		FROM S_COMMESSA_RETAIL
+		WHERE record_type = '79'
+	),
+	COMMESSE_RETAIL_MODIFICHE AS (
+		SELECT *
+		FROM (
+			SELECT 
+				input_filename,
+				record_type,
+				project_name,
+				negozio,
+				commessa,
+				nome,
+				cognome,
+				descrizione,
+				attiva,
+				stato,
+				codice_proprietario,
+				commessa_new,
+				data_cancellazione,
+				data_licenziamento,
+				matricola,
+				data_nascita,
+				data_assunzione,
+				ts_creazione,
+				ts_inserimento,
+				ts_modifica,
+				ROW_NUMBER() OVER (PARTITION BY project_name, negozio, commessa ORDER BY DATE(ts_creazione) DESC, CASE WHEN record_type = '82' THEN 1 WHEN record_type = 'STAFF' THEN 2 ELSE 3 END ASC ) AS RK_MODIFICHE
+			FROM S_COMMESSA_RETAIL
+			WHERE record_type IN ('82', 'STAFF', 'AUTO')
+		) record_modifiche
+		WHERE RK_MODIFICHE = 1
+	),
+	COMMESSE_RETAIL AS (
+		SELECT *
+		FROM S_COMMESSA_RETAIL
+		WHERE record_type NOT IN ('79', '82', 'STAFF', 'AUTO')
+	),
+	from_retail AS (
+		SELECT commesse_retail.* EXCEPT(data_cancellazione, input_filename, record_type),
+		CAST(COALESCE(cancellazioni.data_cancellazione, commesse_retail.data_cancellazione) AS DATE) AS data_cancellazione,
+		COALESCE(cancellazioni.input_filename, commesse_retail.input_filename) AS input_filename,
+		COALESCE(cancellazioni.record_type, commesse_retail.record_type) AS record_type
+		FROM (
+			SELECT
+				COALESCE(inserimenti_modifiche.project_name, commesse.project_name)                            AS project_name,
+				COALESCE(inserimenti_modifiche.commessa, commesse.commessa)                                    AS commessa,
+				COALESCE(inserimenti_modifiche.negozio, commesse.negozio)                                      AS negozio,
+				CAST(NULL AS STRING)                                                                           AS negozio_secondario,
+				CAST(NULL AS STRING)                                                                           AS codice_commessa,
+				COALESCE(inserimenti_modifiche.nome, commesse.nome)                                            AS nome,
+				COALESCE(inserimenti_modifiche.cognome, commesse.cognome)                                      AS cognome,
+				CAST(COALESCE(inserimenti_modifiche.data_nascita, commesse.data_nascita)  AS DATE)             AS data_nascita,
+				COALESCE(inserimenti_modifiche.matricola, commesse.matricola)                                  AS matricola,
+				CAST(NULL AS STRING)                                                                           AS sesso,
+				CAST(NULL AS STRING)                                                                           AS nazionalita,
+				CAST(NULL AS STRING)                                                                           AS tipo_periodo_scadenza_pt_ft,
+				CAST(NULL AS STRING)                                                                           AS tipo_periodo_scadenza_mt_ma,
+				CAST(NULL AS DATE)                                                                             AS data_inizio_contratto,
+				CAST(NULL AS DATE)                                                                             AS data_cessazione,
+				CAST(NULL AS STRING)                                                                           AS inquadramento,
+				CAST(NULL AS STRING)                                                                           AS ruolo,
+				CAST(NULL AS DATE)                                                                             AS data_scadenza_td_ins,
+				CAST(NULL AS STRING)                                                                           AS nazione_nascita,
+				CAST(NULL AS STRING)                                                                           AS tipo_contratto,
+				CAST(NULL AS STRING)                                                                           AS fte,
+				CAST(NULL AS DATE)                                                                             AS data_fine_contratto,
+				CAST(NULL AS DATE)                                                                             AS data_scadenza_mt_ma_ad,
+				CAST(NULL AS DATE)                                                                             AS data_scadenza_pt_ft,
+				CAST(NULL AS STRUCT <
+					da STRING,
+					de STRING,
+					en STRING,
+					es STRING,
+					fr STRING,
+					it STRING,
+					ja STRING,
+					nl STRING,
+					pl STRING,
+					pt STRING,
+					ru STRING,
+					sa STRING,
+					tr STRING,
+					ua STRING,
+					zh STRING
+					>
+				)                                                                                              AS lingue_parlate,
+				CAST(NULL AS STRING)                                                                           AS codice_contratto,
+				CAST(NULL AS STRING)                                                                           AS sostituzione,
+				CAST(COALESCE(inserimenti_modifiche.data_assunzione, commesse.data_assunzione) AS DATE)        AS data_assunzione,
+				CAST(NULL AS STRING)                                                                           AS desc_contratto,
+				CAST(NULL AS ARRAY < STRUCT <
+					lingua_parlata STRING,
+					livello STRING,
+					madrelingua BOOL,
+					per_pianificazione BOOL
+					>>
+				)                                                                                              AS livello_lingue,
+				CAST(NULL AS STRING)                                                                           AS desc_inquadramento,
+				CAST(NULL AS STRING)                                                                           AS desc_ruolo,
+				COALESCE(inserimenti_modifiche.ts_inserimento, commesse.ts_inserimento)                        AS ts_inserimento,
+				COALESCE(inserimenti_modifiche.ts_modifica, commesse.ts_inserimento)                           AS ts_modifica,
+				COALESCE(inserimenti_modifiche.ts_creazione, commesse.ts_creazione)                            AS ts_creazione,
+				COALESCE(inserimenti_modifiche.record_type, commesse.record_type)                              AS record_type,
+				COALESCE(inserimenti_modifiche.attiva, commesse.attiva)                                        AS attiva,
+				COALESCE(inserimenti_modifiche.stato, commesse.stato)                                          AS stato,
+				COALESCE(inserimenti_modifiche.codice_proprietario, commesse.codice_proprietario)              AS codice_proprietario,
+				COALESCE(inserimenti_modifiche.commessa_new, commesse.commessa_new)                            AS commessa_new,
+				CAST(COALESCE(inserimenti_modifiche.data_cancellazione, commesse.data_cancellazione) AS DATE)  AS data_cancellazione,
+				COALESCE(inserimenti_modifiche.data_licenziamento, commesse.data_licenziamento)                AS data_licenziamento,
+				COALESCE(inserimenti_modifiche.descrizione, commesse.descrizione)                              AS descrizione,
+				COALESCE(inserimenti_modifiche.input_filename, commesse.input_filename)                        AS input_filename,
+			FROM COMMESSE_RETAIL commesse
+			FULL OUTER JOIN COMMESSE_RETAIL_MODIFICHE inserimenti_modifiche USING (negozio, commessa)
+		) commesse_retail 
+		LEFT JOIN COMMESSE_RETAIL_CANCELLAZIONI cancellazioni USING (negozio, commessa)
+	)
+	SELECT * EXCEPT(attiva, RK), IF(data_cessazione IS NOT NULL, CAST(data_cessazione > CURRENT_DATE AS INT64), 1) AS attiva
+	FROM (
+			SELECT *, RANK() OVER (PARTITION BY negozio, commessa ORDER BY record_type IN ('BMS', 'AUTO_from_bms') DESC, ts_inserimento DESC, IF(negozio = '', NULL, negozio) IS NOT NULL DESC) AS RK
+			FROM (
+					SELECT project_name,
+							commessa,
+							negozio,
+							negozio_secondario,
+							codice_commessa,
+							nome,
+							cognome,
+							data_nascita,
+							matricola,
+							sesso,
+							nazionalita,
+							tipo_periodo_scadenza_pt_ft,
+							tipo_periodo_scadenza_mt_ma,
+							data_inizio_contratto,
+							data_cessazione,
+							inquadramento,
+							ruolo,
+							data_scadenza_td_ins,
+							nazione_nascita,
+							tipo_contratto,
+							fte,
+							data_fine_contratto,
+							data_scadenza_mt_ma_ad,
+							data_scadenza_pt_ft,
+							lingue_parlate,
+							codice_contratto,
+							sostituzione,
+							data_assunzione,
+							desc_contratto,
+							livello_lingue,
+							desc_inquadramento,
+							desc_ruolo,
+							ts_inserimento,
+							ts_modifica,
+							ts_creazione,
+							record_type,
+							attiva,
+							stato,
+							codice_proprietario,
+							commessa_new,
+							data_cancellazione,
+							data_licenziamento,
+							descrizione,
+							input_filename
+					FROM from_bms
+					UNION ALL
+					SELECT project_name,
+							commessa,
+							negozio,
+							negozio_secondario,
+							codice_commessa,
+							nome,
+							cognome,
+							data_nascita,
+							matricola,
+							sesso,
+							nazionalita,
+							tipo_periodo_scadenza_pt_ft,
+							tipo_periodo_scadenza_mt_ma,
+							data_inizio_contratto,
+							data_cessazione,
+							inquadramento,
+							ruolo,
+							data_scadenza_td_ins,
+							nazione_nascita,
+							tipo_contratto,
+							fte,
+							data_fine_contratto,
+							data_scadenza_mt_ma_ad,
+							data_scadenza_pt_ft,
+							lingue_parlate,
+							codice_contratto,
+							sostituzione,
+							data_assunzione,
+							desc_contratto,
+							livello_lingue,
+							desc_inquadramento,
+							desc_ruolo,
+							ts_inserimento,
+							ts_modifica,
+							ts_creazione,
+							record_type,
+							attiva,
+							stato,
+							codice_proprietario,
+							commessa_new,
+							data_cancellazione,
+							data_licenziamento,
+							descrizione,
+							input_filename
+					FROM from_retail
+				) d_commessa
+		)
+	WHERE RK = 1
+		

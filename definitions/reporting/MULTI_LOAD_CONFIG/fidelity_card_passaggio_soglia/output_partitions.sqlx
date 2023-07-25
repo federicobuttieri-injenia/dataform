@@ -1,0 +1,8 @@
+config {
+    type: "view",
+    schema: "DM_SELLOUT",
+    name: "fidelity_card_passaggio_soglia_output_partitions"
+}
+
+SELECT CURRENT_DATE() AS value
+		

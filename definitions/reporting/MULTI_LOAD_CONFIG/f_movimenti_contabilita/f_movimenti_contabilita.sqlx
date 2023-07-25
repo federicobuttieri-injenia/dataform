@@ -1,0 +1,180 @@
+config {
+    type: "table",
+    schema: "DM_SELLOUT",
+    name: "F_MOVIMENTO_CONTABILITA_{int}0101"
+}
+
+WITH file_xml_per_negozio_data AS (
+	SELECT
+		negozio,
+		data_vendita,
+		-- true se esistono XML non di pregresso per la coppia negozio-data_vendita
+		COUNTIF(input_filename LIKE '%xml') AS n_xml_per_data,
+		COUNTIF(input_filename LIKE '%xml' AND LOWER(input_filename) NOT LIKE '%runit%') AS n_xml_non_runit_per_data
+	FROM ${ref("DM_SELLOUT_STAGING", "S_MOVIMENTO_CONTABILITA_*")}
+	WHERE EXTRACT(YEAR FROM data_pagamento) IN (SELECT * FROM ${ref("f_movimenti_contabilita_input_output_partitions")})
+	GROUP BY negozio, data_vendita
+),
+consumer_local AS (
+	SELECT consumer_local, negozio, anno_validita, ANY_VALUE(pk_consumer) AS pk_consumer
+	FROM ${ref("DM_SELLOUT_STAGING", "D_CONSUMER_LOCAL")} 
+	GROUP BY 1,2,3
+),
+consumer_anonime AS (
+	SELECT DISTINCT pk_consumer
+	FROM DM_SELLOUT_STAGING.V_CONSUMER_ANONIMA
+),
+anonimissima AS (
+	SELECT DISTINCT pk_consumer
+	FROM DM_SELLOUT_STAGING.V_CONSUMER_ANONIMA
+	WHERE nazione IS NULL
+)
+SELECT
+	negozio,
+	tipo_negozio_retail,
+	nazione_negozio,
+	id,
+	data_vendita,
+	id_transazione,
+	data_pagamento,
+	ora_pagamento,
+	tipo_movimento,
+	tipo_pagamento,
+	token_pagamento,
+	gruppo_tipo_pagamento,
+	numero_documento,
+	movimento,
+	descrizione,
+	descrizione_compagnia,
+	desc_tipo_movimento,
+	project_name,
+	pk_consumer,
+	codice_carta,
+	commessa,
+	cliente_finale,
+	tipo_movimento_secondario,
+	codice_pagamento,
+	operation_code,
+	percentuale_tassa,
+	importo_tassato,
+	divisa,
+	zona,
+	prezzo_negozio,
+	cod_consumer,
+	record_type,
+	acconto,
+	input_filename,
+	ts_creazione,
+	ts_inserimento,
+	ts_modifica
+FROM (
+	SELECT
+		CONTAB.* EXCEPT(cliente_finale, zona, tipo_negozio_retail),
+		IFNULL(CONTAB.zona, PORTE.zona) AS zona,
+		-- fallback sul cliente_finale
+		IF(
+			CONTAB.cliente_finale IN (SELECT CAST(pk_consumer AS STRING) FROM consumer_anonime),
+			CONCAT('NW', LPAD(CONTAB.cliente_finale, 11, '0')),
+			COALESCE(
+				CF.cliente_finale,
+				CONTAB.cod_consumer
+			)
+		) AS cliente_finale,
+		COALESCE(PORTE.tipo_negozio_retail, CONTAB.tipo_negozio_retail) as tipo_negozio_retail,
+		
+		IF(
+			nazione_negozio IN ('US', 'CA', 'ES', 'PT', 'IT', 'BE', 'LU', 'NL')
+			AND COUNTIF(input_filename LIKE '%edi%xml') OVER(PARTITION BY CONTAB.negozio, CONTAB.data_pagamento, CONTAB.numero_documento) > 0 -- il numero di xml "EDI" per PK deve essere > 0
+			AND COUNTIF(input_filename LIKE '%xml' AND input_filename NOT LIKE '%edi%') OVER(PARTITION BY CONTAB.negozio, CONTAB.data_pagamento, CONTAB.numero_documento) > 0, -- il numero di xml NON "EDI" per PK deve essere > 0
+			-- applico il filtro solo se ho righe duplicate da EDI e non
+			RANK() OVER(
+				PARTITION BY CONTAB.negozio, CONTAB.data_pagamento, CONTAB.numero_documento
+				ORDER BY input_filename LIKE '%edi%xml' -- prima i file non EDI
+			) = 1,
+			TRUE -- altrimenti passa tutto
+		) AS _filtro_file_edi,
+		
+		LOWER(input_filename) NOT LIKE '%runit%xml%' OR file_xml_per_negozio_data.n_xml_non_runit_per_data = 0 AS _filtro_xml_runit,
+		
+		(input_filename NOT LIKE 'EDI%' OR n_xml_per_data <= 0) AS _filtro_edi_xml,
+		
+		ROW_NUMBER() OVER(
+			PARTITION BY CONTAB.negozio, CONTAB.data_pagamento, CONTAB.id_transazione, CONTAB.numero_documento, CONTAB.id
+			ORDER BY input_filename LIKE '%xml%' DESC, input_filename LIKE '%edi%xml%', CONTAB.ts_creazione DESC, CONTAB.ts_inserimento DESC, CONTAB.ts_modifica DESC
+		) = 1 AS _rank_most_recent,
+
+		
+		RANK() OVER (
+			PARTITION BY CONTAB.negozio, CONTAB.data_pagamento, CONTAB.id_transazione, CONTAB.id
+			ORDER BY consumer_local.anno_validita IS NULL, CONTAB.data_pagamento >= consumer_local.anno_validita, consumer_local.anno_validita DESC
+		) = 1 AS _rank_consumer_local,
+		
+		(file_espliciti.codice_stato IS NOT NULL AND file_espliciti.codice_stato = 'CLOSED') AS _filtro_file_ammessi, -- se TRUE il file viene preso (se anche il piu recente)
+		
+		(file_espliciti.codice_stato IS NOT NULL AND file_espliciti.codice_stato IN ('REFUSED', 'CANCELLED')) AS _filtro_file_esclusi -- se TRUE il file va scartato
+	FROM ( -- correzione di eventuale codice consumer locale
+		SELECT
+			CONTAB.* EXCEPT(pk_consumer),
+			COALESCE(
+				SAFE_CAST(map_c.pk_consumer_new AS INT64),
+				c_anon.pk_consumer,
+				(SELECT * FROM anonimissima)
+			) AS pk_consumer
+		FROM ${ref("DM_SELLOUT_STAGING", "S_MOVIMENTO_CONTABILITA_*")} CONTAB
+		LEFT JOIN consumer_local ON (
+			CONTAB.cod_consumer = consumer_local.consumer_local 
+			AND CONTAB.negozio = consumer_local.negozio
+		)
+		LEFT JOIN (
+			SELECT DISTINCT
+				pk_consumer_old,
+				pk_consumer_new,
+				ROW_NUMBER() OVER (PARTITION BY pk_consumer_old ORDER BY timestamp_fine IS NULL DESC, timestamp_fine DESC) AS rank
+			FROM DM_SELLOUT_STAGING.V_MAPPING_CONSUMER
+			WHERE f_anagrafica
+		) map_c ON (
+			-- codice consumatrice preso dal mapping con i locali, se la vendita ha un codice locale
+			COALESCE(CAST(consumer_local.pk_consumer AS STRING), CONTAB.cod_consumer) = map_c.pk_consumer_old
+			AND rank = 1
+		)
+		LEFT JOIN DM_SELLOUT_STAGING.V_CONSUMER_ANONIMA c_anon ON (CONTAB.nazione_negozio = c_anon.nazione)
+		WHERE CASE project_name
+WHEN "bmsmmj" THEN CONTAB.data_pagamento>="2021-08-24"
+ELSE True
+END
+	) AS CONTAB
+	LEFT JOIN (
+		SELECT *
+		FROM (
+			SELECT
+				pk_consumer,
+				cliente_finale,
+				ROW_NUMBER() OVER (
+					PARTITION BY pk_consumer
+					ORDER BY timestamp_fine IS NULL DESC, pk_consumer = SAFE_CAST(SUBSTR(cliente_finale, 3) AS INT64) DESC
+				) AS rk
+			FROM ${ref("DM_SELLOUT_STAGING", "D_CONSUMER_CLIENTE_FINALE")} 
+		)
+		WHERE rk = 1
+	) CF USING (pk_consumer)
+	LEFT JOIN (
+		SELECT porta, zona, tipo_negozio_retail
+		FROM ${ref("DM_SELLOUT", "D_PORTA")}
+	) PORTE ON (CONTAB.negozio = PORTE.porta)
+	LEFT JOIN DM_SELLOUT_STAGING.V_CONSUMER_ANONIMA CONS_ANON USING(pk_consumer)
+	LEFT JOIN file_xml_per_negozio_data USING (negozio, data_vendita)
+	LEFT JOIN consumer_local ON (CONTAB.cod_consumer = consumer_local.consumer_local AND CONTAB.negozio = consumer_local.negozio)
+	LEFT JOIN ${ref("DM_SELLOUT_STAGING", "V_FILE_VENDITE_ESPLICITI")} file_espliciti ON (CONTAB.input_filename = file_espliciti.file_name)
+	WHERE EXTRACT(YEAR FROM data_vendita) IN (SELECT * FROM ${ref("f_movimenti_contabilita_input_output_partitions")})
+	AND PORTE.porta IS NOT NULL # filtro per record con negozi non esistenti, ne teniamo traccia solo sulla S_MOV
+)
+WHERE (
+	_filtro_file_edi
+	AND _filtro_xml_runit
+	AND _filtro_edi_xml
+	AND _rank_most_recent
+	AND _rank_consumer_local
+	AND NOT _filtro_file_esclusi
+)
+OR (_rank_most_recent AND _filtro_file_ammessi)
+		

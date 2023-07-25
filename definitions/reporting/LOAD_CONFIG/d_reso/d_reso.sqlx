@@ -1,0 +1,42 @@
+config {
+    type: "table",
+    schema: "DM_CRM",
+    name: "D_RESO"
+}
+
+WITH righe_numerate AS (
+	SELECT 
+		id_transazione, 
+		id, 
+		negozio, 
+		data_transazione, 
+		societa, 
+		anno, 
+		stagione, 
+		barcode_negozio, 
+		pk_consumer, 
+		pezzi,
+		ROW_NUMBER() OVER(PARTITION BY pezzi > 0, societa, anno, stagione, barcode_negozio, pk_consumer ORDER BY data_transazione ASC, ora ASC) AS rn
+	FROM ${ref("DM_SELLOUT", "RIGA_SCONTRINO_*")}
+	WHERE 
+		pk_consumer IS NOT NULL 
+	AND grado_anonimato NOT IN ('40', '50') 
+	AND pezzi != 0
+), resi AS (
+	SELECT * FROM righe_numerate WHERE pezzi < 0
+), vendite AS (
+	SELECT * FROM righe_numerate WHERE pezzi > 0
+)
+SELECT 
+	vendite.negozio AS negozio, 
+	vendite.data_transazione AS data_transazione, 
+	vendite.id_transazione AS id_transazione, 
+	vendite.id AS id, 
+	resi.negozio AS reso_negozio, 
+	resi.data_transazione AS reso_data_transazione, 
+	resi.id_transazione AS reso_id_transazione, 
+	resi.id AS reso_id
+FROM vendite 
+JOIN resi USING (societa, anno, stagione, barcode_negozio, pk_consumer, rn)
+WHERE resi.data_transazione >= vendite.data_transazione
+		

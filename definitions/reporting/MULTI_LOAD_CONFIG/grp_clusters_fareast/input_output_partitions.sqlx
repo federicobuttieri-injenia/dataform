@@ -1,0 +1,12 @@
+config {
+    type: "view",
+    schema: "GRP_FAREAST",
+    name: "grp_clusters_fareast_input_output_partitions"
+}
+SELECT DISTINCT CONCAT(anno, stagione)  AS value
+FROM ${ref("DM_SELLOUT_STAGING", "D_CLIENTELA_CLUSTER")}
+WHERE ts_inserimento >= TIMESTAMP_SUB(CURRENT_TIMESTAMP, INTERVAL 1 DAY)
+UNION DISTINCT
+SELECT DISTINCT CONCAT(anno, stagione)  AS value
+FROM ${ref("DM_SELLOUT_STAGING", "D_VARIANTE_CLUSTER")}
+WHERE ts_inserimento >= TIMESTAMP_SUB(CURRENT_TIMESTAMP, INTERVAL 1 DAY)

@@ -1,0 +1,82 @@
+config {
+    type: "table",
+    schema: "GRP",
+    name: "stock_full"
+}
+
+SELECT
+	societa, 
+	CAST(anno AS STRING) AS anno, 
+	CAST(stagione AS STRING) AS stagione, 
+	codice_item_planning, 
+	barcode_negozio AS barcode, 
+	SUM(qta) as qta
+FROM (
+	SELECT
+		societa, 
+		anno, 
+		stagione, 
+		codice_item_planning, 
+		barcode_negozio, 
+		SUM(qta + qta_impegnata) AS qta
+	FROM (
+		SELECT
+			g.barcode_negozio,
+			g.giorno,
+			g.negozio,
+			g.dislocazione_fisica,
+			g.qta,
+			g.qta_transito,
+			ANY_VALUE(g.societa) AS societa, 
+			ANY_VALUE(g.anno) AS anno, 
+			ANY_VALUE(g.stagione) AS stagione, 
+			ANY_VALUE(codice_item_planning) AS codice_item_planning, 
+			SUM(IFNULL(imp_b2b.qta_impegnata, 0)) AS qta_impegnata
+		FROM ${ref("DM_SELLOUT", "F_GIACENZA_*")} AS g
+		LEFT JOIN (
+			SELECT
+				barcode_negozio,
+				giorno,
+				negozio,
+				dislocazione_fisica,
+				SUM(imp.qta_impegnata) AS qta_impegnata
+			FROM ${ref("DM_SELLOUT", "F_GIACENZA_*")}, UNNEST(impegnato) AS imp
+			WHERE 
+				giorno IN (SELECT * FROM ${ref("grp_stock_input_partitions")})
+			AND imp.causale = "B2B"
+			GROUP BY 1,2,3,4
+		) AS imp_b2b ON(
+			g.barcode_negozio = imp_b2b.barcode_negozio
+		AND g.giorno = imp_b2b.giorno
+		AND IFNULL(g.negozio, "") = IFNULL(imp_b2b.negozio, "")
+		AND IFNULL(g.dislocazione_fisica, "") = IFNULL(imp_b2b.dislocazione_fisica, "")
+		)
+		JOIN ${ref("DM_SELLOUT_STAGING", "D_BOX_BULK")} AS dbb ON (
+			g.societa = dbb.societa AND g.dislocazione_logica = dbb.codice_industria
+		)
+		WHERE 
+			g.giorno IN (SELECT * FROM ${ref("grp_stock_input_partitions")})
+		GROUP BY 1,2,3,4,5,6
+		QUALIFY RANK() OVER(PARTITION BY g.dislocazione_fisica ORDER BY g.giorno DESC) = 1
+	) AS input
+	GROUP BY 1,2,3,4,5
+		
+	UNION DISTINCT
+	
+	SELECT 
+		g.societa, 
+		anno, 
+		stagione, 
+		codice_item_planning, 
+		barcode_negozio, 
+		qta
+	FROM ${ref("DM_SELLOUT", "F_GIACENZA_*")} AS g 
+	JOIN ${ref("DM_SELLOUT_STAGING", "D_BOX_BULK")} AS dbb ON (
+		g.negozio = dbb.codice_bms AND dbb.tipologia = "BULK"
+	)
+	WHERE 
+		giorno IN (SELECT * FROM ${ref("grp_stock_input_partitions")})
+	QUALIFY RANK() OVER(PARTITION BY codice_board ORDER BY giorno DESC) = 1 
+)
+GROUP BY 1,2,3,4,5
+		

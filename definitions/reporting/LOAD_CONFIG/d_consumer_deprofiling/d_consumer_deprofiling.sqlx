@@ -1,0 +1,44 @@
+config {
+    type: "table",
+    schema: "DM_CRM",
+    name: "D_CONSUMER_DEPROFILING"
+}
+
+WITH ultime_cancellazioni AS (
+	SELECT pk_consumer, brand, MAX(timestamp_anonimizzazione) ultima_anon
+	FROM ${ref("DM_SELLOUT_STAGING", "S_CONSUMER_DEPROFILING")}
+	WHERE timestamp_anonimizzazione IS NOT NULL
+	GROUP BY 1, 2
+)
+SELECT
+	pk_consumer,
+	brand,
+	IF(timestamp_anonimizzazione IS NULL, 'riprofilazione', 'anonimizzazione') AS tipo_operazione,
+	-- i record con questo ts NULLO sono di riprofilazione
+	timestamp_anonimizzazione,
+	timestamp_selezione,
+	IF(timestamp_anonimizzazione IS NULL, resource_timestamp, timestamp_anonimizzazione) AS timestamp_operazione,
+	ts_inserimento,
+	-- viene tenuto il ts_mod di staging, dato che il CURRENT puo essere letto dall'ultima modifica della tabella (scritta in TRUNCATE)
+	ts_modifica
+FROM (
+	SELECT *
+	FROM ${ref("DM_SELLOUT_STAGING", "S_CONSUMER_DEPROFILING")}
+	LEFT JOIN ultime_cancellazioni USING (pk_consumer, brand)
+	WHERE resource_timestamp > ultima_anon
+	AND ultima_anon IS NOT NULL
+	AND timestamp_anonimizzazione IS NULL AND timestamp_selezione IS NULL -- filtrate solo le riprofilazioni
+	-- selezionata la prima riprofilazione
+	QUALIFY ROW_NUMBER() OVER(PARTITION BY pk_consumer, brand ORDER BY resource_timestamp, ts_inserimento, ts_modifica) = 1
+	
+	UNION ALL
+	
+	SELECT *
+	FROM ${ref("DM_SELLOUT_STAGING", "S_CONSUMER_DEPROFILING")}
+	LEFT JOIN ultime_cancellazioni USING (pk_consumer, brand)
+	WHERE timestamp_anonimizzazione = ultima_anon -- filtrate solo le deprofilazioni
+	-- selezionata l'ultima deprofilazione
+	QUALIFY ROW_NUMBER() OVER(PARTITION BY pk_consumer, brand ORDER BY resource_timestamp DESC, ts_inserimento DESC, ts_modifica DESC) = 1
+)
+QUALIFY ROW_NUMBER() OVER(PARTITION BY pk_consumer, brand ORDER BY resource_timestamp DESC, ts_inserimento DESC, ts_modifica DESC) = 1
+		

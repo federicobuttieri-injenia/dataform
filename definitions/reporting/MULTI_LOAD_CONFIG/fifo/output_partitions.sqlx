@@ -1,0 +1,10 @@
+config {
+    type: "view",
+    schema: "DM_SELLOUT",
+    name: "fifo_output_partitions"
+}
+
+SELECT DISTINCT data_carico AS value
+FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_FIFO")}
+WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("fifo_input_partitions")})
+		

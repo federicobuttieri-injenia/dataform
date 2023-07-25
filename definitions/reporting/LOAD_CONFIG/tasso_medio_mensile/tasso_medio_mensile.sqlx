@@ -1,0 +1,10 @@
+config {
+    type: "table",
+    schema: "DM_SELLOUT",
+    name: "F_TASSO_MEDIO_MENSILE"
+}
+
+SELECT *
+FROM DM_SELLOUT_STAGING.S_TASSO_MEDIO_MENSILE
+QUALIFY ROW_NUMBER() OVER(PARTITION BY iso_code, year, month ORDER BY _partitiontime DESC, ts_inserimento DESC) = 1
+		

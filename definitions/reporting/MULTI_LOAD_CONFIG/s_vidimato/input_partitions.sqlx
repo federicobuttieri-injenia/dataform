@@ -1,0 +1,11 @@
+config {
+    type: "view",
+    schema: "DM_SELLOUT_STAGING",
+    name: "s_vidimato_input_partitions"
+}
+
+SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`) AS value
+FROM TEMP_LOCATION.PARTIZIONI_LOADJOB
+WHERE DATE(ts_lancio) = CURRENT_DATE
+AND table_name = 'S_LOG_APPROVAZIONE_ORDINE'
+		

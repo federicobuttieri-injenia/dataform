@@ -1,0 +1,173 @@
+config {
+    type: "table",
+    schema: "DM_CRM",
+    name: "CLUSTER_COMPORTAMENTALE"
+}
+
+SELECT
+	storicizzazione,
+	trimestre_inizio_storicizzazione,
+	trimestre_fine_storicizzazione,
+	data_inizio_storicizzazione,
+	data_fine_storicizzazione,
+	cluster_periodo.pk_consumer,
+	cluster_periodo.brand brand,
+	cluster_periodo.f_insegna f_insegna,
+	IF(data_sposa IS NOT NULL AND data_sposa >= data_ultimo_acquisto, 'BRIDAL', desc_cluster) desc_cluster,
+	data_sposa,
+	data_ultimo_acquisto,
+	maxprice,
+	frequenza,
+	scontrino_medio,
+	upt,
+	tot_capi,
+	fatturato_euro,
+	CASE
+		WHEN data_ultimo_acquisto > DATE_ADD(data_fine_storicizzazione, INTERVAL -1 YEAR) THEN 'Active'
+		WHEN data_ultimo_acquisto > DATE_ADD(data_fine_storicizzazione, INTERVAL -2 YEAR) THEN 'Sleeper'
+		ELSE 'Inactive'
+	END segmento_loyalty,
+	data_primo_acquisto > DATE_ADD(data_fine_storicizzazione, INTERVAL -1 YEAR) AND (data_ultimo_acquisto_stor IS NULL or data_ultimo_acquisto_stor < DATE_ADD(data_primo_acquisto, INTERVAL -3 YEAR)) AS f_nuova,
+	segmento_monetary,
+	segmento_monetary_regional,
+	NOT(maxprice BETWEEN o.min_maxprice AND o.max_maxprice AND scontrino_medio BETWEEN o.min_scontrino_medio AND o.max_scontrino_medio
+		AND frequenza BETWEEN o.min_frequenza AND o.max_frequenza AND upt BETWEEN o.min_upt AND o.max_upt) f_outlier,
+	frequenza = 1 f_one_shot,
+	frequenza > 1 f_repeater,
+	CASE
+		WHEN frequenza = 1 THEN 'One Shooter'
+		WHEN frequenza <= 3 THEN 'Yearly'
+		WHEN frequenza <= 6 THEN 'Low Repeater'
+		WHEN frequenza <= 12 THEN 'Highly Repeater'
+		WHEN frequenza > 12 THEN 'TOP Repeater'
+	END segmento_frequency,
+	nazione_consumatrice IS NULL or n.area_geo_a IS NULL f_turista_sconosciuto,
+	(vendite_local >= frequenza * 0.5) AND NOT (nazione_consumatrice IS NULL or n.area_geo_a IS NULL) f_locale,
+	vendite_local < frequenza * 0.5 AND NOT (nazione_consumatrice IS NULL or n.area_geo_a IS NULL) f_turista,
+	vendite_local < frequenza * 0.5 AND CAST(n.f_europa AS bool) AND NOT (nazione_consumatrice IS NULL or n.area_geo_a IS NULL) f_turista_europeo,
+	vendite_local < frequenza * 0.5 AND not CAST(n.f_europa AS bool) AND NOT (nazione_consumatrice IS NULL or n.area_geo_a IS NULL) f_turista_extra_europeo,
+	vendite_ecommerce nr_vendite_ecommerce,
+	frequenza - vendite_ecommerce nr_vendite_negozio_fisico,
+	vendite_ecommerce / frequenza * 100 incidenza_vendite_ecommerce,
+	100 - vendite_ecommerce / frequenza * 100 incidenza_vendite_negozio_fisico,
+	vendite_ecommerce = frequenza f_esclusivista_ecommerce,
+	vendite_ecommerce = 0 f_esclusivista_negozi_fisici,
+	vendite_multiitem nr_vendite_multiple_item,
+	vendite_multiitem / frequenza * 100 incidenza_vendite_multiple_item,
+	100 - vendite_multiitem / frequenza * 100 incidenza_transazioni_mono_item,
+	vendite_multidepartment nr_vendite_multiple_department,
+	vendite_multidepartment / frequenza * 100 incidenza_vendite_multiple_department,
+	fatturato_CO,
+	fatturato_SS,
+	fatturato_euro - fatturato_SS - fatturato_CO fatturato_FW,
+	fatturato_CO / fatturato_euro * 100 incidenza_fatturato_CO,
+	fatturato_SS / fatturato_euro * 100 incidenza_fatturato_SS,
+	100 - (fatturato_SS + fatturato_CO) / fatturato_euro * 100 incidenza_fatturato_FW,
+	tot_capi_CO,
+	tot_capi_SS,
+	tot_capi - tot_capi_SS - tot_capi_CO tot_capi_FW,
+	tot_capi_CO / tot_capi * 100 incidenza_capi_CO,
+	tot_capi_SS / tot_capi * 100 incidenza_capi_SS,
+	100 - (tot_capi_CO + tot_capi_SS) / tot_capi * 100 incidenza_capi_FW,
+	fatturato_fascia_alta,
+	fatturato_fascia_media,
+	fatturato_fascia_bassa,
+	fatturato_fascia_alta / fatturato_euro * 100 incidenza_fatturato_fascia_alta,
+	fatturato_fascia_media / fatturato_euro * 100 incidenza_fatturato_fascia_media,
+	fatturato_fascia_bassa / fatturato_euro * 100 incidenza_fatturato_fascia_bassa,
+	tot_capi_fascia_alta,
+	tot_capi_fascia_media,
+	tot_capi_fascia_bassa,
+	tot_capi_fascia_alta / tot_capi * 100 incidenza_capi_fascia_alta,
+	tot_capi_fascia_media / tot_capi * 100 incidenza_capi_fascia_media,
+	tot_capi_fascia_bassa / tot_capi * 100 incidenza_capi_fascia_bassa,
+	COUNT(DISTINCT cluster_periodo.brand) OVER (PARTITION BY cluster_periodo.pk_consumer, cluster_periodo.f_insegna) = 1 f_esclusivista,
+	fatturato_euro / tot_capi prezzo_medio,
+	collezioni,
+	department
+FROM ${ref("DM_CRM", "DATI_CLUSTER")} cluster_periodo
+LEFT JOIN (
+	SELECT
+		pk_consumer,
+		brand,
+		f_insegna,
+		data_ultimo_acquisto AS data_ultimo_acquisto_stor,
+		storShiftata storicizzazione,
+	FROM ${ref("DM_CRM", "DATI_CLUSTER")} dc
+	JOIN (
+		SELECT
+			storicizzazione storShiftata,
+			IF(
+				storicizzazione = CURRENT_DATE,
+				LAG(storicizzazione, -5) OVER (ORDER BY storicizzazione DESC),
+				LAG(storicizzazione, -4) OVER (ORDER BY storicizzazione DESC)
+			) AS stor1
+		FROM ${ref("DM_CRM", "STORICIZZAZIONI")}
+		ORDER BY storicizzazione
+	) ON (stor1=dc.storicizzazione)
+) AS stor USING (pk_consumer, brand, f_insegna, storicizzazione)
+LEFT JOIN (
+	SELECT
+		storicizzazione,
+		pk_consumer,
+		brand,
+		f_insegna,
+		desc_cluster
+	FROM (
+		SELECT
+			storicizzazione,
+			pk_consumer,
+			brand,
+			f_insegna,
+			desc_cluster,
+			ROW_NUMBER() OVER (PARTITION BY storicizzazione, pk_consumer, brand, f_insegna
+				ORDER BY
+					-- distanza della consumatrice dal centro del cluster
+					POWER((maxprice_std - c.maxprice), 2) +
+					POWER((frequenza_std - c.frequenza), 2) +
+					POWER((scontrino_medio_std - c.scontrino_medio), 2) +
+					POWER((upt_std - c.upt), 2) ASC
+			) r
+		FROM (
+			--normalizzo i kpi della consumatrice rispetto a quelli del brand/insegna
+			SELECT
+				storicizzazione, pk_consumer, brand, f_insegna,
+				IF(std.stddev_maxprice = 0, 0, (b.maxprice - std.avg_maxprice) / std.stddev_maxprice) AS maxprice_std,
+				IF(std.stddev_frequenza = 0, 0, (b.frequenza - std.avg_frequenza) / std.stddev_frequenza) AS frequenza_std,
+				IF(std.stddev_scontrino_medio = 0, 0, (b.scontrino_medio - std.avg_scontrino_medio) / std.stddev_scontrino_medio) AS scontrino_medio_std,
+				IF(std.stddev_upt = 0, 0, (b.upt - std.avg_upt) / std.stddev_upt) AS upt_std
+			FROM ${ref("DM_CRM", "DATI_CLUSTER")} b
+			JOIN (
+				--calcolo media e deviazione standard dei 4 kpi per brand/insegna
+				SELECT
+					storicizzazione, brand, f_insegna, AVG(maxprice) AS avg_maxprice, AVG(frequenza) AS avg_frequenza, AVG(scontrino_medio) AS avg_scontrino_medio, AVG(upt) AS avg_upt,
+					STDDEV(maxprice) AS stddev_maxprice, STDDEV(frequenza) AS stddev_frequenza, STDDEV(scontrino_medio) AS stddev_scontrino_medio, STDDEV(upt) AS stddev_upt
+				FROM ${ref("DM_CRM", "DATI_CLUSTER")}
+				JOIN ${ref("DM_CRM", "CLUSTER_OUTLIERS")} o USING (brand, f_insegna)
+				WHERE maxprice BETWEEN o.min_maxprice AND o.max_maxprice
+				AND scontrino_medio BETWEEN o.min_scontrino_medio AND o.max_scontrino_medio
+				AND frequenza BETWEEN o.min_frequenza AND o.max_frequenza AND upt BETWEEN o.min_upt AND o.max_upt
+				GROUP BY storicizzazione, brand, f_insegna
+			) std USING (storicizzazione, brand, f_insegna)
+		) cluster_periodo_std
+		JOIN ${ref("DM_CRM", "CLUSTER_CENTERS")} c USING (brand, f_insegna)
+	)
+	WHERE r = 1	-- prendo il cluster di rank 1, cioe' piu' vicino
+) comp USING (storicizzazione, pk_consumer, brand, f_insegna)
+JOIN ${ref("DM_CRM", "STORICIZZAZIONI")} s USING (storicizzazione)
+LEFT JOIN ${ref("DM_SELLOUT", "D_NAZIONE")} n ON (n.nazione_mmfg = nazione_consumatrice)
+LEFT JOIN ${ref("DM_CRM", "CLUSTER_OUTLIERS")} o USING (brand, f_insegna)
+LEFT JOIN ${ref("DM_CRM", "CLUSTER_MONETARY")} cm ON (
+	cluster_periodo.brand = cm.brand
+	AND cluster_periodo.f_insegna = cm.f_insegna
+	AND (cluster_periodo.fatturato_euro > cm.min_fatturato_euro OR cm.min_fatturato_euro IS NULL)
+	AND (cluster_periodo.fatturato_euro <= cm.max_fatturato_euro or cm.max_fatturato_euro IS NULL)
+)
+LEFT JOIN ${ref("DM_CRM", "CLUSTER_MONETARY_REGIONAL")} cmr ON (
+	cluster_periodo.brand = cmr.brand
+	AND cluster_periodo.f_insegna = cmr.f_insegna
+	AND n.area_geo_a = cmr.area_geo_a
+	AND (cluster_periodo.fatturato_euro > cmr.min_fatturato_euro OR cmr.min_fatturato_euro is NULL)
+	AND (cluster_periodo.fatturato_euro <= cmr.max_fatturato_euro OR cmr.max_fatturato_euro IS NULL)
+)
+		

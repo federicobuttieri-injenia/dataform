@@ -1,0 +1,32 @@
+config {
+    type: "incremental",
+    schema: "DM_DIGITAL_STAGING",
+    name: "S_DISPONIBILITA_20230101"
+}
+
+SELECT
+	REPLACE(REPLACE(sku, 'SP', ''), 'WE', '') AS sku,
+	warehouse,
+	brand,
+	onHandQuantity AS quantity,
+	date,
+	_PARTITIONTIME AS ts_inserimento,
+	CURRENT_TIMESTAMP() AS ts_modifica,
+	'bms' AS source
+FROM ${ref("DM_DIGITAL_STAGING", "S_LOG_DISPONIBILITA")}
+WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("s_disponibilita_input_output_partitions")})
+
+UNION ALL
+
+SELECT
+	REPLACE(REPLACE(sku, 'SP', ''), 'WE', '') AS sku,
+	warehouse,
+	brand,
+	onHandQuantity AS quantity,
+	date,
+	_PARTITIONTIME AS ts_inserimento,
+	CURRENT_TIMESTAMP() AS ts_modifica,
+	'om' AS source
+FROM ${ref("DM_DIGITAL_STAGING", "S_LOG_DISPONIBILITA_OM")}
+WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("s_disponibilita_input_output_partitions")})
+		

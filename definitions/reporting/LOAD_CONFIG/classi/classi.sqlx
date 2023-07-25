@@ -1,0 +1,18 @@
+config {
+    type: "table",
+    schema: "None",
+    name: "D_CLASSE"
+}
+
+SELECT * EXCEPT (action)
+FROM (
+	SELECT
+		id,
+		attributes.*,
+		timestamp AS ts_inserimento,
+	FROM ${ref("DM_SELLOUT_STAGING", "S_CLASSE")}
+	WHERE True
+	QUALIFY ROW_NUMBER() OVER(PARTITION BY id ORDER BY timestamp DESC) = 1
+)
+WHERE action != 'DELETE' 
+		

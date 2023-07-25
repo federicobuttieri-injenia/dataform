@@ -1,0 +1,12 @@
+config {
+    type: "view",
+    schema: "DM_SELLOUT",
+    name: "fidelity_card_passaggio_soglia_input_partitions"
+}
+
+SELECT DATE( AS value
+	EXTRACT(YEAR FROM DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)), 
+	EXTRACT(MONTH FROM DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)),
+	1     
+)
+		

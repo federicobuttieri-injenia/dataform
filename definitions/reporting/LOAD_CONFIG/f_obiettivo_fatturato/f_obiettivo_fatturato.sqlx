@@ -1,0 +1,100 @@
+config {
+    type: "table",
+    schema: "None",
+    name: "F_OBIETTIVO_FATTURATO"
+}
+
+SELECT * EXCEPT(rk, tabella_origine)
+FROM
+(
+	SELECT *, RANK() OVER(PARTITION BY negozio, annostagione ORDER BY tabella_origine="store_plan_fatturati" DESC, tabella_origine="giornaliero" DESC) AS rk
+	FROM (
+		SELECT 
+			b.negozio, 
+			CAST(b.annostag AS STRING) AS annostagione, 
+			t.data AS giorno,
+			0.0 AS fatturato_netto_obiettivi_definitivi_euro,
+			0.0 AS fatturato_netto_obiettivi_definitivi_valuta,
+			0.0 AS fatturato_netto_obiettivi_acquisti_euro,
+			0.0 AS fatturato_netto_obiettivi_acquisti_valuta,
+			0.0 AS fatturato_netto_obiettivi_preliminari_euro,
+			0.0 AS fatturato_netto_obiettivi_preliminari_valuta,
+			IF(
+				cambio > 0, 
+				IF(prima_seconda = '1',  b.fatturato_quindicinale / conta_1, b.fatturato_quindicinale / conta_2) / cambio,
+				0
+			) AS fatturato_lordo_obiettivi_definitivi_euro,
+			if(prima_seconda = '1',  b.fatturato_quindicinale / conta_1, b.fatturato_quindicinale / conta_2) AS fatturato_lordo_obiettivi_definitivi_valuta,
+			0.0 AS fatturato_lordo_obiettivi_acquisti_euro,
+			0.0 AS fatturato_lordo_obiettivi_acquisti_valuta,
+			0.0 AS fatturato_lordo_obiettivi_preliminari_euro,
+			0.0 AS fatturato_lordo_obiettivi_preliminari_valuta,
+			sbs.utente, 
+			"quindicinale" AS tabella_origine,
+		FROM (
+			SELECT *, ROW_NUMBER() OVER(PARTITION BY negozio, annostag, annomese, prima_seconda ORDER BY divisa="EUR" DESC) AS rk
+			FROM ${ref("DM_SELLOUT_STAGING", "S_BUDGET_QUINDICINALE")}
+		) AS b
+		JOIN ${ref("DM_SELLOUT", "D_TEMPO")} t ON (substr(b.annomese, 1, 4) = t.anno AND substr(b.annomese, 5, 2) = t.mese AND IF(prima_seconda = '1', CAST(t.giorno AS int64) <= 15, CAST(t.giorno AS int64) > 15))
+		JOIN (
+			SELECT anno, mese, sum(if (CAST(giorno AS int64) <= 15, 1, 0)) AS conta_1, sum(if (CAST(giorno AS int64) > 15, 1, 0)) AS conta_2,
+			FROM ${ref("DM_SELLOUT", "D_TEMPO")}
+			GROUP BY 1,2
+		) AS conta_t ON (substr(b.annomese, 1, 4) = conta_t.anno AND substr(b.annomese, 5, 2) = conta_t.mese)
+		LEFT JOIN ${ref("DM_SELLOUT_STAGING", "S_BUDGET_SALDI")} AS sbs ON (sbs.negozio = b.negozio AND sbs.annostag = b.annostag)
+		WHERE
+			fatturato_quindicinale > 0
+		AND sbs.utente != "importa_dw"
+		AND b.rk = 1
+		
+		UNION ALL 
+		
+		SELECT 
+			bg.negozio, 
+			CAST(bg.annostag AS STRING) AS annostagione, 
+			PARSE_DATE('%Y%m%d', bg.data) AS giorno,
+			0.0 AS fatturato_netto_obiettivi_definitivi_euro,
+			0.0 AS fatturato_netto_obiettivi_definitivi_valuta,
+			0.0 AS fatturato_netto_obiettivi_acquisti_euro,
+			0.0 AS fatturato_netto_obiettivi_acquisti_valuta,
+			0.0 AS fatturato_netto_obiettivi_preliminari_euro,
+			0.0 AS fatturato_netto_obiettivi_preliminari_valuta,
+			IF(SAFE_DIVIDE(bg.fatturato_giornaliero, cambio) IS NOT NULL, bg.fatturato_giornaliero / cambio, 0) AS fatturato_lordo_obiettivi_definitivi_euro, 
+			bg.fatturato_giornaliero AS fatturato_lordo_obiettivi_definitivi_valuta, 
+			0.0 AS fatturato_lordo_obiettivi_acquisti_euro,
+			0.0 AS fatturato_lordo_obiettivi_acquisti_valuta,
+			0.0 AS fatturato_lordo_obiettivi_preliminari_euro,
+			0.0 AS fatturato_lordo_obiettivi_preliminari_valuta,
+			sbs.utente, 
+			"giornaliero" AS tabella_origine
+		FROM ${ref("DM_SELLOUT_STAGING", "S_BUDGET_GIORNALIERO")} bg
+		LEFT JOIN ${ref("DM_SELLOUT_STAGING", "S_BUDGET_SALDI")} AS sbs ON (sbs.negozio = bg.negozio AND sbs.annostag = bg.annostag)
+		WHERE
+			fatturato_giornaliero > 0
+			and sbs.utente != "importa_dw"
+		
+		UNION ALL
+		
+		SELECT
+			negozio,
+			annostagione,
+			giorno,
+			fatturato_netto_obiettivi_definitivi_euro,
+			fatturato_netto_obiettivi_definitivi_valuta,
+			fatturato_netto_obiettivi_acquisti_euro,
+			fatturato_netto_obiettivi_acquisti_valuta,
+			fatturato_netto_obiettivi_preliminari_euro,
+			fatturato_netto_obiettivi_preliminari_valuta,
+			fatturato_lordo_obiettivi_definitivi_euro,
+			fatturato_lordo_obiettivi_definitivi_valuta,
+			fatturato_lordo_obiettivi_acquisti_euro,
+			fatturato_lordo_obiettivi_acquisti_valuta,
+			fatturato_lordo_obiettivi_preliminari_euro,
+			fatturato_lordo_obiettivi_preliminari_valuta, 
+			"importa_dw" AS utente,
+			"store_plan_fatturati" AS tabella_origine,
+		FROM ${ref("DM_SELLOUT_STAGING", "F_STORE_PLAN_FATTURATI")}
+	)
+)
+WHERE rk = 1
+		

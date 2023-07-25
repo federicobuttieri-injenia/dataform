@@ -1,0 +1,62 @@
+config {
+    type: "table",
+    schema: "DM_CRM",
+    name: "STORICIZZAZIONI"
+}
+
+WITH trimestri AS (
+	SELECT
+		trimestre_retail,
+		MIN(data) mindata,
+		MAX(data) maxdata,
+		MIN(DATE(CAST(SUBSTR(mese_retail, 1, 4) AS INT64), CAST(SUBSTR(mese_retail, 5, 2) AS INT64), 1)) data_riferimento
+	FROM ${ref("DM_SELLOUT", "D_TEMPO")}
+	WHERE anno_retail >= '2014'
+	AND data < CURRENT_DATE
+	GROUP BY 1
+	HAVING data_riferimento < CURRENT_DATE
+),
+s AS (
+	SELECT
+		ANY_VALUE(trimestri.data_riferimento) AS storicizzazione,
+		trimestre_retail,
+		CONCAT(CAST(CAST(SUBSTR(trimestre_retail, 1, 4) AS INT64) - 3 AS string), SUBSTR(trimestre_retail, 5, 3)) trimestre_inizio_storicizzazione,
+		IF(
+			ANY_VALUE(desc_trimestre_retail) = '1 Trimestre',
+			CONCAT(CAST(CAST(SUBSTR(trimestre_retail, 1, 4) AS INT64) - 1 AS STRING), '_Q4'),
+			CONCAT(SUBSTR(trimestre_retail, 1, 6), CAST(CAST(SUBSTR(trimestre_retail, 7, 1) AS INT64) - 1 AS STRING))
+		) trimestre_fine_storicizzazione
+	FROM ${ref("DM_SELLOUT", "D_TEMPO")}
+	JOIN trimestri USING (trimestre_retail)
+	WHERE anno_retail >= '2017'
+	AND data < CURRENT_DATE
+	GROUP BY trimestre_retail
+)
+SELECT * 
+FROM (
+	SELECT
+		s.*,
+		t_start.mindata data_inizio_storicizzazione,
+		t_stop.maxdata data_fine_storicizzazione,
+		CONCAT(CAST(extract(year FROM t_start.mindata) AS string), '0101') minshard,
+		CONCAT(CAST(extract(year FROM t_stop.maxdata) AS string), '0101') maxshard,
+		DATE(extract(year FROM t_start.mindata), extract(month FROM t_start.mindata), 1) minpartition,
+		DATE(extract(year FROM t_stop.maxdata), extract(month FROM t_stop.maxdata), 1) maxpartition
+	FROM s
+	JOIN trimestri t_start on (s.trimestre_inizio_storicizzazione = t_start.trimestre_retail)
+	JOIN trimestri t_stop on (s.trimestre_fine_storicizzazione = t_stop.trimestre_retail)
+	UNION ALL
+	SELECT
+		CURRENT_DATE storicizzazione,
+		'actual' trimestre_retail,
+		'actual' trimestre_inizio_storicizzazione,
+		'actual' trimestre_fine_storicizzazione,
+		DATE_ADD(CURRENT_DATE, INTERVAL -3 YEAR) mindata,
+		DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY) maxdata,
+		CONCAT(CAST(EXTRACT(YEAR FROM CURRENT_DATE) -3 AS STRING), '0101') minshard,
+		CONCAT(CAST(EXTRACT(YEAR FROM CURRENT_DATE) AS STRING), '0101') maxshard,
+		DATE(EXTRACT(YEAR FROM CURRENT_DATE) -3, EXTRACT(MONTH FROM CURRENT_DATE), 1) minpartition,
+		DATE(EXTRACT(YEAR FROM CURRENT_DATE), EXTRACT(MONTH FROM CURRENT_DATE), 1) maxpartition
+)
+WHERE EXTRACT (YEAR FROM storicizzazione) >= EXTRACT(YEAR FROM CURRENT_DATE())-3
+		

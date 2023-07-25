@@ -1,0 +1,70 @@
+config {
+    type: "incremental",
+    schema: "None",
+    name: "F_ORDINE_B2X"
+}
+
+SELECT
+	pk_ordine,
+	ANY_VALUE(order_type) AS order_type,
+	ANY_VALUE(document_number) AS document_number,
+	ANY_VALUE(channel) AS channel,
+	ANY_VALUE(activity_name) AS activity_name,
+	ANY_VALUE(start_timestamp) AS start_timestamp,
+	ANY_VALUE(end_timestamp) AS end_timestamp,
+	ANY_VALUE(execution_type) AS execution_type,
+	ANY_VALUE(user_performer) AS user_performer,
+	ANY_VALUE(user_platform) AS user_platform,
+	ANY_VALUE(user_group) AS user_group,
+	ANY_VALUE(document_date) AS document_date,
+	ANY_VALUE(order_ref_number) AS order_ref_number,
+	ANY_VALUE(order_ref_date) AS order_ref_date,
+	ANY_VALUE(company) AS company,
+	ANY_VALUE(brand) AS brand,
+	ANY_VALUE(area) AS area,
+	ANY_VALUE(country) AS country,
+	ANY_VALUE(state) AS state,
+	ANY_VALUE(merchant) AS merchant,
+	ANY_VALUE(return_type) AS return_type,
+	ANY_VALUE(return_mode) AS return_mode,
+	ANY_VALUE(return_charge) AS return_charge,
+	ANY_VALUE(customer_id) AS customer_id,
+	ANY_VALUE(ts_inserimento) AS ts_inserimento,
+	ANY_VALUE(ingestion_time) AS ingestion_time,
+	ANY_VALUE(cancelled_reason) AS cancelled_reason,
+	ARRAY_AGG(STRUCT(amount, currency, qty, sku)) AS items
+FROM (
+	SELECT
+		CAST(TO_BASE64(SHA512(CONCAT(document_number, order_type, channel, activity_name, CAST(start_timestamp AS STRING)))) AS STRING) AS pk_ordine,
+		*,
+		-- Eliminazione duplicati
+		ROW_NUMBER() OVER(
+			PARTITION BY document_number, order_type, channel, activity_name, start_timestamp, sku
+			ORDER BY ingestion_time DESC
+		) AS rk_dup
+	FROM (
+		SELECT
+			actv.*,
+			attributes.* EXCEPT(activity, order_ref_date, items),
+			item_row.*,
+			-- parsing del campo di tipo STRING, che potrebbe contenere un DATE o un TIMESTAMP
+			COALESCE(
+				SAFE_CAST(attributes.order_ref_date AS TIMESTAMP),
+				CAST(SAFE_CAST(attributes.order_ref_date AS DATE) AS TIMESTAMP)
+			) AS order_ref_date,
+			CURRENT_TIMESTAMP AS ts_inserimento,
+			_PARTITIONTIME AS ingestion_time
+		FROM DM_SELLOUT_STAGING.S_ORDINE_B2X, UNNEST(attributes.activity) AS actv
+		LEFT JOIN UNNEST(attributes.items) AS item_row
+		WHERE DATE(_PARTITIONTIME) = CURRENT_DATE
+		-- da togliere con flusso di file corretti. i piu vecchi in test lo hanno nullo
+		AND attributes.channel IS NOT NULL
+	)
+)
+WHERE pk_ordine NOT IN (
+	SELECT DISTINCT pk_ordine
+	FROM DM_MYINVENIO.F_ORDINE_B2X
+)
+AND rk_dup = 1
+GROUP BY pk_ordine
+		

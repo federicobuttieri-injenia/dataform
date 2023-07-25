@@ -1,0 +1,171 @@
+config {
+    type: "table",
+    schema: "DM_CRM",
+    name: "F_PREFERRED_RDV"
+}
+WITH base_query AS (
+SELECT
+	pk_consumer,
+	v.negozio,
+	s.brand,
+	s.f_insegna,
+	data_vendita,
+	v.commessa,
+	pezzi,
+	canale,
+	data_chiusura_pdv,
+	importo,
+	tipo_movimento,
+	grado_anonimato,
+	COALESCE(v.project_name, n.project_name) AS project_name
+FROM (
+	SELECT
+		societa,
+		pk_consumer,
+		negozio,
+		commessa,
+		prodotto_brand.brand,
+		data_vendita,
+		pezzi,
+		grado_anonimato,
+		IF(controvalore_euro != 0, controvalore_euro, fatturato_tasso_mensile) AS importo,
+		canale,
+		tipo_movimento,
+		project_name
+	FROM ${ref("DM_SELLOUT", "RIGA_SCONTRINO_*")}
+	JOIN (
+		SELECT societa, anno, stagione, modello, ANY_VALUE(brand) AS brand
+		FROM ${ref("DM_PRODOTTO", "D_PRODOTTO")}
+		GROUP BY 1, 2, 3, 4
+	) AS prodotto_brand USING (societa, anno, stagione, modello)
+) AS v
+JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS n ON (v.negozio = n.porta)
+JOIN ${ref("DM_CRM", "D_MAPPING_INSEGNA_BRAND")} MIB ON (n.insegna=MIB.insegna)
+JOIN ${ref("DM_CRM", "D_SEGMENTO")} s ON (s.brand = IF(s.f_insegna, MIB.brand, IF(v.societa = 'DT', 'DT', v.brand)))
+WHERE
+	importo > 0
+AND data_vendita >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 year)
+AND grado_anonimato NOT IN ('40', '50')
+AND pk_consumer is not null
+AND v.negozio != '0100550' /* unidispo */
+AND (s.f_insegna OR n.tipo_negozio_retail NOT LIKE '__O_')
+		),
+average_transaction_sales AS (
+	SELECT
+		pk_consumer,
+		s.brand,
+		s.f_insegna,
+		SUM(IF(controvalore_euro != 0, controvalore_euro, fatturato_tasso_mensile))
+			/ COUNT(DISTINCT CONCAT(consumer_univoca, data_vendita)) AS avg_sale
+	FROM ${ref("DM_SELLOUT", "RIGA_SCONTRINO_*")} AS v
+	JOIN (
+		SELECT societa, anno, stagione, modello, ANY_VALUE(brand) AS brand
+		FROM ${ref("DM_PRODOTTO", "D_PRODOTTO")}
+		GROUP BY 1, 2, 3, 4
+	) AS prodotto_brand USING (societa, anno, stagione, modello)
+	JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS n ON (v.negozio = n.porta)
+	JOIN ${ref("DM_CRM", "D_MAPPING_INSEGNA_BRAND")} MIB ON (n.insegna=MIB.insegna)
+	JOIN ${ref("DM_CRM", "D_SEGMENTO")} s ON (s.brand = IF(s.f_insegna, MIB.brand, IF(v.societa = 'DT', 'DT', prodotto_brand.brand)))
+	WHERE data_vendita >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 year)
+		AND tipo_movimento = "VENDITA"
+		AND _TABLE_SUFFIX >= CONCAT(CAST (EXTRACT (YEAR FROM CURRENT_DATE) - 6 AS STRING), '0101')
+	GROUP BY 1, 2, 3
+),
+B2S_prep AS (
+	SELECT DISTINCT
+		CAST(con.pk_consumer AS INT64) AS pk_consumer,
+		con.insegna,
+		m.status,
+		con.store_code,
+		code_cashier,
+		DATE(start_timestamp) AS date_b2s,
+		key_conversation,
+		key_message
+	FROM ${ref("DM_CRM", "V_B2S_MESSAGE")} m
+	JOIN ${ref("DM_CRM", "V_B2S_CONVERSATION")} con USING (key_conversation)
+	JOIN ${ref("DM_CRM", "D_CONSUMATRICE")} c
+		ON c.pk_consumer = CAST(con.pk_consumer AS INT64)
+	WHERE c.grado_anonimato NOT IN ('40', '50')
+),
+B2S AS (
+	SELECT
+		bq.pk_consumer,
+		store_code   AS negozio,
+		code_cashier AS commessa,
+		bq.brand,
+		bq.f_insegna,
+		date_b2s     AS data,
+		bq.project_name,
+		5 * COUNT(DISTINCT key_conversation) *
+		(
+			POWER(DATE_DIFF(date_b2s, DATE_SUB(CURRENT_DATE(), INTERVAL 6 YEAR), DAY), 2) /
+			POWER(DATE_DIFF(CURRENT_DATE(), DATE_SUB(CURRENT_DATE(), INTERVAL 6 YEAR), DAY), 2)
+		) * IF(MAX(COALESCE(c_neg.attiva, c_project.attiva) = 1), 1, 0.001) AS score
+	FROM base_query bq
+	JOIN B2S_prep ON B2S_prep.pk_consumer = bq.pk_consumer AND B2S_prep.store_code = bq.negozio
+	LEFT JOIN ${ref("DM_SELLOUT", "D_COMMESSA")} AS c_neg ON (B2S_prep.code_cashier = c_neg.commessa AND B2S_prep.store_code = c_neg.negozio)
+	LEFT JOIN (
+		SELECT project_name, commessa, MAX(attiva) AS attiva
+		FROM ${ref("DM_SELLOUT", "D_COMMESSA")}
+		GROUP BY 1,2
+	) AS c_project ON (B2S_prep.code_cashier = c_project.commessa AND bq.project_name = c_project.project_name)
+	WHERE status = "received"
+		AND code_cashier IS NOT NULL
+		AND code_cashier != ''
+		AND date_b2s >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 year)
+		AND COALESCE(c_neg.commessa, c_project.commessa) IS NOT NULL
+	GROUP BY 1, 2, 3, 4, 5, 6, 7
+	HAVING COUNT(DISTINCT key_message) >= 2
+),
+sellout AS (
+	SELECT
+		bq.pk_consumer,
+		bq.negozio,
+		bq.commessa,
+		bq.brand,
+		bq.f_insegna,
+		data_vendita as data,
+		bq.project_name,
+		(
+			IF(MAX(canale = 'REMOTE_SALE'), 120, IF(MAX(canale = 'B2E'), 110, 100)) + 
+			5 * SUM(pezzi) + 
+			5 * SAFE_DIVIDE(SUM(importo), MAX(ats.avg_sale))
+		) * (
+			POWER(DATE_DIFF(data_vendita, DATE_SUB(CURRENT_DATE(), INTERVAL 6 year), day), 2) /
+			POWER(DATE_DIFF(CURRENT_DATE(), DATE_SUB(CURRENT_DATE(), INTERVAL 6 year), day), 2)
+		) * IF(MAX(COALESCE(c_neg.attiva, c_project.attiva) = 1), 1, 0.001) AS score
+	FROM base_query bq
+	LEFT JOIN ${ref("DM_SELLOUT", "D_COMMESSA")} AS c_neg ON (bq.commessa = c_neg.commessa AND bq.negozio = c_neg.negozio)
+	LEFT JOIN (
+		SELECT project_name, commessa, MAX(attiva) AS attiva
+		FROM ${ref("DM_SELLOUT", "D_COMMESSA")}
+		GROUP BY 1,2
+	) AS c_project ON (bq.commessa = c_project.commessa AND bq.project_name = c_project.project_name)
+	INNER JOIN average_transaction_sales ats
+		ON (ats.brand = bq.brand AND ats.pk_consumer = bq.pk_consumer AND ats.f_insegna = bq.f_insegna)
+	WHERE data_vendita >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 year)
+		AND tipo_movimento = "VENDITA"
+		AND COALESCE(c_neg.commessa, c_project.commessa) IS NOT NULL
+		AND grado_anonimato NOT IN ('40', '50')
+		AND bq.pk_consumer IS NOT NULL
+	GROUP BY 1, 2, 3, 4, 5, 6, 7
+),
+total_commessa as (
+	SELECT *
+	FROM sellout
+	UNION ALL
+	SELECT *
+	FROM B2S
+)
+
+SELECT
+	pk_consumer,
+	negozio,
+	commessa,
+	brand AS brand_preferred_store,
+	f_insegna,
+	ROW_NUMBER() OVER (PARTITION BY pk_consumer, negozio, brand, f_insegna ORDER BY SUM(score) DESC, commessa) AS rank,
+	SUM(score) AS score,
+	project_name
+FROM total_commessa
+GROUP BY 1, 2, 3, 4, 5, 8

@@ -1,0 +1,57 @@
+config {
+    type: "table",
+    schema: "DM_SELLOUT",
+    name: "F_ORARIO_NEGOZIO"
+}
+
+SELECT
+	negozio,
+	data_orario,
+	ora_apertura_fascia_1,
+	ora_chiusura_fascia_1,
+	ora_apertura_fascia_2,
+	ora_chiusura_fascia_2,
+	ora_apertura_fascia_3,
+	ora_chiusura_fascia_3,
+	ora_apertura_fascia_4,
+	ora_chiusura_fascia_4,
+	f_chiuso,
+	f_approvazione,
+	f_diverso,
+	minuti_apertura,
+	note,
+	file_origine,
+	utente,
+	utente_modifica,
+	data_creazione,
+	ts_modifica,
+	CURRENT_TIMESTAMP() ts_inserimento
+FROM (
+	SELECT
+		negozio,
+		PARSE_DATE('%Y-%m-%d', data) AS data_orario,
+		PARSE_TIME("%H%M", IF(apertura_1 IS NULL OR NOT REGEXP_CONTAINS(apertura_1, r"[0-2][0-9][0-5][0-9]"), NULL, apertura_1)) AS ora_apertura_fascia_1,
+		PARSE_TIME("%H%M", IF(chiusura_1 IS NULL OR NOT REGEXP_CONTAINS(chiusura_1, r"[0-2][0-9][0-5][0-9]"), NULL, chiusura_1)) AS ora_chiusura_fascia_1,
+		PARSE_TIME("%H%M", IF(apertura_2 IS NULL OR NOT REGEXP_CONTAINS(apertura_2, r"[0-2][0-9][0-5][0-9]"), NULL, apertura_2)) AS ora_apertura_fascia_2,
+		PARSE_TIME("%H%M", IF(chiusura_2 IS NULL OR NOT REGEXP_CONTAINS(chiusura_2, r"[0-2][0-9][0-5][0-9]"), NULL, chiusura_2)) AS ora_chiusura_fascia_2,
+		PARSE_TIME("%H%M", IF(apertura_3 IS NULL OR NOT REGEXP_CONTAINS(apertura_3, r"[0-2][0-9][0-5][0-9]"), NULL, apertura_3)) AS ora_apertura_fascia_3,
+		PARSE_TIME("%H%M", IF(chiusura_3 IS NULL OR NOT REGEXP_CONTAINS(chiusura_3, r"[0-2][0-9][0-5][0-9]"), NULL, chiusura_3)) AS ora_chiusura_fascia_3,
+		PARSE_TIME("%H%M", IF(apertura_4 IS NULL OR NOT REGEXP_CONTAINS(apertura_4, r"[0-2][0-9][0-5][0-9]"), NULL, apertura_4)) AS ora_apertura_fascia_4,
+		PARSE_TIME("%H%M", IF(chiusura_4 IS NULL OR NOT REGEXP_CONTAINS(chiusura_4, r"[0-2][0-9][0-5][0-9]"), NULL, chiusura_4)) AS ora_chiusura_fascia_4,
+		flag_chiuso AS f_chiuso,
+		flag_approvazione AS f_approvazione,
+		flag_diverso AS f_diverso,
+		minuti_apertura,
+		note,
+		file AS file_origine,
+		utente,
+		utente_modifica,
+		modificato AS ts_modifica,
+		data_creazione,
+		ROW_NUMBER() OVER(PARTITION BY negozio, data ORDER BY input_filename DESC, ts_inserimento DESC) AS rk
+	FROM
+		${ref("DM_SELLOUT_STAGING", "S_ORARIO_NEGOZIO")}
+)
+WHERE
+	rk = 1
+		

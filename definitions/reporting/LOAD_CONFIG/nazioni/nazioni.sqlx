@@ -1,0 +1,50 @@
+config {
+    type: "table",
+    schema: "DM_SELLOUT",
+    name: "D_NAZIONE"
+}
+
+SELECT
+	nazioni.nazione AS nazione_mmfg,
+	nazioni.desc_nazione,
+	nazioni.nazione_iso,
+	CASE
+		WHEN area_geo_a IN ("Europa", "Italia") THEN true
+		ELSE false
+	END AS f_europa,
+	NULL AS cps_area,
+	NULL AS business_area,
+	raggr.region AS region,
+	raggr.area_geo_a,
+	raggr.area_geo_b,
+	raggr.area_geo_c,
+	raggr.area_grp,
+	CURRENT_TIMESTAMP() AS ts_inserimento,
+	raggr_region.region AS region_dd,
+	diciture_eng.desc_nazione_eng,
+	s_naz_iso.alpha_3 AS nazione_iso_alpha_3
+FROM (
+	SELECT
+		id,
+		attributes.*,
+		timestamp AS ts_inserimento,
+		RANK() OVER(PARTITION BY id ORDER BY timestamp DESC, GENERATE_UUID()) AS rk
+	FROM ${ref("DM_SELLOUT_STAGING", "S_NAZIONE")}
+) nazioni
+LEFT JOIN ${ref("DM_SELLOUT_STAGING", "D_RAGGRUPPAMENTO_GEOGRAFICO")} raggr USING (nazione)
+LEFT JOIN (
+	SELECT nazione, ANY_VALUE(region) AS region
+	FROM ${ref("DM_SELLOUT_STAGING", "D_RAGGRUPPAMENTO_REGION")}
+	GROUP BY nazione
+) raggr_region USING (nazione)
+LEFT JOIN (
+	SELECT cod_dicitura AS nazione, ANY_VALUE(dicitura) AS desc_nazione_eng
+	FROM ${ref("DM_SELLOUT_STAGING", "D_DICITURA")}
+	WHERE tipo_dicitura = 'nazione'
+	AND lingua = 'en_GB'
+	GROUP BY 1 -- per evitare duplicati
+) diciture_eng USING (nazione)
+LEFT JOIN ${ref("DM_SELLOUT_STAGING", "S_NAZIONE_MAP_ISO_3166")} AS s_naz_iso ON(nazioni.nazione_iso = s_naz_iso.alpha_2)
+WHERE rk = 1
+AND action != 'DELETE'
+		

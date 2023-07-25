@@ -1,0 +1,177 @@
+config {
+    type: "view",
+    schema: "DM_SELLOUT",
+    name: "righe_scontrino_post_input_output_partitions"
+}
+
+WITH PREZZI AS (
+	SELECT 
+		PR.anno,
+		PR.stagione,
+		PR.societa,
+		PR.listino,
+		PR.modello,
+		PR.prezzo,
+		PR.progr_periodo,
+		PR.tipo_prezzo,
+		PR.controvalore,
+		PR.divisa,
+		ts_inserimento
+	FROM (
+		SELECT *
+		FROM ${ref("DM_PREZZO_LISTINO", "D_PREZZO")}
+		WHERE tipo_prezzo IN ('A', 'V')
+		QUALIFY ROW_NUMBER() OVER(PARTITION BY societa, modello, listino, anno, stagione, tipo_prezzo, progr_periodo ORDER BY ts_inserimento DESC, prezzo IS NULL) = 1
+	) PR
+),
+TIPI_PREZZO_CLIENTE AS (
+	SELECT 
+		PC.anno,
+		PC.stagione,
+		PC.societa,
+		PC.cliente,
+		PC.tipo_prezzo,
+		PC.progr_periodo,
+		PC.data_inizio,
+		PC.data_fine,
+		IF(PC.data_inizio=PC.temp_data_fine_calcolata, CURRENT_DATE(), temp_data_fine_calcolata) AS data_fine_calcolata
+	FROM (
+		SELECT *, FIRST_VALUE(data_inizio) OVER(PARTITION BY societa, anno, stagione, cliente, tipo_prezzo ORDER BY progr_periodo DESC ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) AS temp_data_fine_calcolata
+		FROM (
+			SELECT *
+			FROM ${ref("DM_SELLOUT_STAGING", "D_TIPO_PREZZO_CLIENTE")} 
+			WHERE tipo_prezzo IN ('A', 'V')
+			QUALIFY ROW_NUMBER() OVER(PARTITION BY societa, anno, stagione, cliente, tipo_prezzo, data_inizio ORDER BY ts_inserimento DESC) = 1
+		)
+	) PC
+)
+-- date vendita con prezzi o modelli modificati nella data di oggi
+SELECT DISTINCT EXTRACT(YEAR FROM data_vendita) AS value
+FROM (
+	SELECT codice_cliente, societa, negozio, nazione_negozio, anno, stagione, modello, uscita_collezione, barcode_negozio, valuta_pagamento, data_vendita, tipo_negozio_retail, anno_transazione,listino_acquisto, listino_vendita, ts_creazione
+	FROM ${ref("DM_SELLOUT", "RIGA_SCONTRINO_*")}
+) AS R
+LEFT JOIN (
+	SELECT
+		IF(barcode_negozio IS NOT NULL AND barcode_negozio != '', barcode_negozio, NULL) AS barcode_negozio,
+		IF(modello_retail IS NOT NULL AND modello_retail != '', modello_retail, NULL) AS modello_retail,
+		IF(ean IS NOT NULL AND ean != '', ean, NULL) AS ean,
+		IF(societa IS NOT NULL AND societa !='', societa, NULL) AS societa,
+		IF(anno IS NOT NULL AND anno > 0, anno, NULL) AS anno,
+		IF(stagione IS NOT NULL AND stagione != 0, stagione, NULL) AS stagione,
+		IF(uscita_collezione IS NOT NULL AND uscita_collezione !='', uscita_collezione, NULL) AS  uscita_collezione,
+		IF(modello IS NOT NULL AND modello !='', modello, NULL) AS modello,
+		IF(variante IS NOT NULL AND variante !='', variante, NULL) AS variante,
+		IF(stagionale IS NOT NULL AND stagionale !='', stagionale, NULL) AS stagionale,
+		IF(tipo_taglia IS NOT NULL AND tipo_taglia !='', tipo_taglia, NULL) AS tipo_taglia,
+		IF(consegna IS NOT NULL AND consegna !='', consegna, NULL) AS consegna,
+		IF(classe IS NOT NULL AND classe !='', classe, NULL) as classe,
+		IF(tema IS NOT NULL AND tema !='', tema, NULL) as tema,
+		ts_modifica,
+		indice_taglia
+	FROM ${ref("DM_PRODOTTO", "D_PRODOTTO")}
+) AS BACKUP_PRODOTTI ON (
+	BACKUP_PRODOTTI.barcode_negozio = R.barcode_negozio
+	AND BACKUP_PRODOTTI.societa = R.societa
+	AND BACKUP_PRODOTTI.anno BETWEEN (CAST(anno_transazione AS INT64) - 8) AND (CAST(anno_transazione AS INT64) + 1)
+)
+LEFT JOIN ${ref("DM_SELLOUT", "D_NEGOZIO_LISTINO_EXT")} LISTINI_MANUALI ON(
+	R.negozio = LISTINI_MANUALI.negozio
+	AND r.societa = LISTINI_MANUALI.societa
+	AND r.anno = LISTINI_MANUALI.anno
+	AND r.stagione = LISTINI_MANUALI.stagione
+	AND (LISTINI_MANUALI.data_inizio IS NULL OR LISTINI_MANUALI.data_inizio <= DATE(R.ts_creazione))
+	AND (LISTINI_MANUALI.data_fine IS NULL OR LISTINI_MANUALI.data_fine >= DATE(R.ts_creazione))
+)
+LEFT JOIN (
+	SELECT * EXCEPT(rk)
+	FROM (
+		SELECT
+			societa,
+			anno,
+			stagione,
+			cliente,
+			uscita_collezione,
+			listino_acquisto,
+			listino_vendita,
+			f_tipo_ordine_riferimento,
+			tipo_ordine_cliente,
+			mercato_statistica,
+			mercato_vendita,
+			ts_modifica,
+			ROW_NUMBER() OVER(PARTITION BY societa, anno, stagione, cliente, uscita_collezione ORDER BY f_tipo_ordine_riferimento IS NOT NULL DESC, f_tipo_ordine_riferimento = '1' DESC, tipo_ordine_cliente = 'CV' DESC, listino_vendita IS NOT NULL DESC, listino_acquisto IS NOT NULL DESC) rk
+		FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTELA")}
+		WHERE validita IN ('V', '')
+	)
+	WHERE rk = 1
+) AS CLIENTELE ON (
+	R.societa = CLIENTELE.societa
+	AND R.anno = CLIENTELE.anno
+	AND R.stagione = CLIENTELE.stagione
+	AND R.uscita_collezione = CLIENTELE.uscita_collezione
+	AND R.codice_cliente = CLIENTELE.cliente
+)
+LEFT JOIN ${ref("DM_SELLOUT_STAGING", "D_LISTINO")} LISTINI ON (
+	R.societa = LISTINI.societa
+	AND R.anno = LISTINI.anno
+	AND R.stagione = LISTINI.stagione
+	AND COALESCE(CLIENTELE.listino_vendita, R.listino_vendita) = LISTINI.listino
+)
+LEFT JOIN (
+	SELECT 
+		societa,
+		anno,
+		stagione,
+		listino,
+		modello,
+		prezzo,
+		controvalore,
+		divisa,
+		tipo_prezzo,
+		NULL AS progr_periodo,
+		NULL AS cliente,
+		ts_inserimento
+	FROM PREZZI 
+	WHERE societa != 'DT'
+	UNION DISTINCT
+	SELECT 
+		societa,
+		anno,
+		stagione,
+		listino,
+		modello,
+		prezzo,
+		controvalore,
+		divisa,
+		tipo_prezzo,
+		progr_periodo,
+		cliente,
+		ts_inserimento
+	FROM PREZZI 
+	LEFT JOIN TIPI_PREZZO_CLIENTE USING (societa,anno,stagione,tipo_prezzo,progr_periodo)
+	WHERE societa = 'DT'
+) AS PREZZI_VALIDI ON (
+		R.societa = PREZZI_VALIDI.societa
+	AND R.modello = PREZZI_VALIDI.modello
+	AND (
+		COALESCE(CLIENTELE.listino_acquisto, R.listino_acquisto) = PREZZI_VALIDI.listino
+		OR COALESCE(LISTINI_MANUALI.listino, CLIENTELE.listino_vendita, R.listino_vendita) = PREZZI_VALIDI.listino
+	)
+	AND R.anno = PREZZI_VALIDI.anno
+	AND R.stagione = PREZZI_VALIDI.stagione
+)
+LEFT JOIN ${ref("DM_PREZZO_LISTINO", "D_PREZZO_EXT")} AS D ON (
+		D.societa = R.societa 
+	AND D.annostagione = CAST(CONCAT(R.anno, R.stagione) AS INT64)
+	AND D.negozio = R.negozio
+	AND D.tipo_negozio_retail = R.tipo_negozio_retail
+	AND D.nazione_negozio = R.nazione_negozio
+	AND D.modello = R.modello
+	AND D.divisa = COALESCE(LISTINI_MANUALI.listino, LISTINI.divisa, R.valuta_pagamento)
+)
+WHERE DATE(BACKUP_PRODOTTI.ts_modifica) = CURRENT_DATE
+OR DATE(D.ts_modifica) = CURRENT_DATE
+OR DATE(PREZZI_VALIDI.ts_inserimento) = CURRENT_DATE
+OR DATE(CLIENTELE.ts_modifica) = CURRENT_DATE
+OR DATE(LISTINI_MANUALI.ts_inserimento) = CURRENT_DATE
+		

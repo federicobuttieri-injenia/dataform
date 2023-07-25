@@ -1,0 +1,19 @@
+config {
+    type: "table",
+    schema: "None",
+    name: "D_PORTA"
+}
+
+SELECT
+	sp.* EXCEPT(contesto_manuale, desc_contesto_manuale),
+	COALESCE(vcn.contesto, sp.contesto_manuale) AS contesto,
+	COALESCE(vcn.desc_contesto, sp.desc_contesto_manuale) AS desc_contesto,
+	project_name
+FROM ${ref("DM_SELLOUT_STAGING", "S_PORTA")} AS sp
+LEFT JOIN ${ref("DM_SELLOUT_STAGING", "V_CONTESTO_NEGOZIO")} AS vcn ON (
+	vcn.negozio = sp.porta
+)
+LEFT JOIN (
+	SELECT * FROM ${ref("DM_SELLOUT_STAGING", "S_GESTIONE_PORTA")} QUALIFY ROW_NUMBER() OVER(PARTITION BY porta) = 1
+) AS gst USING (porta)
+		

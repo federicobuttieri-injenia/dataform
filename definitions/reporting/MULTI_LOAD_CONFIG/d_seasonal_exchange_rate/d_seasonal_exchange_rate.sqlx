@@ -1,0 +1,14 @@
+config {
+    type: "table",
+    schema: "DM_DIGITAL",
+    name: "D_SEASONAL_EXCHANGE_RATE"
+}
+
+SELECT
+	anno,
+	stagione,
+	currency_iso_code,
+	exchange_convention,
+	seasonal_exchange_rate
+FROM ${ref("DM_DIGITAL_STAGING", "S_SEASONAL_EXCHANGE_RATE")} 
+		

@@ -1,0 +1,10 @@
+config {
+    type: "view",
+    schema: "DM_SELLOUT_STAGING",
+    name: "s_vidimato_output_partitions"
+}
+
+SELECT DISTINCT DATE(attributes.dataora_vidimazione) AS value
+FROM DM_SELLOUT_STAGING.S_LOG_APPROVAZIONE_ORDINE
+WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("s_vidimato_input_partitions")})
+		

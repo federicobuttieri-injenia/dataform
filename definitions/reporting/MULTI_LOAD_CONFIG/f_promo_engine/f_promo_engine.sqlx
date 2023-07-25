@@ -1,0 +1,12 @@
+config {
+    type: "table",
+    schema: "DM_SELLOUT",
+    name: "F_PROMO_ENGINE_20230101"
+}
+
+		select * EXCEPT(ts_modifica),
+		CURRENT_TIMESTAMP() AS ts_modifica 
+		from ${ref("DM_SELLOUT_STAGING", "S_PROMO_ENGINE_*")}
+		where data_vendita IN (SELECT * FROM ${ref("f_promo_engine_input_output_partitions")})
+		QUALIFY ROW_NUMBER() OVER (PARTITION BY input_filename, ts_creazione, id, codice_promo ORDER BY  ts_inserimento DESC, ts_modifica DESC) = 1
+		

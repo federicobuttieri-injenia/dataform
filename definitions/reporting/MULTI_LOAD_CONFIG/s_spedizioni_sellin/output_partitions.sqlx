@@ -1,0 +1,11 @@
+config {
+    type: "view",
+    schema: "DM_SELLOUT_STAGING",
+    name: "s_spedizioni_sellin_output_partitions"
+}
+
+SELECT DISTINCT attributes.data_bolla AS value
+FROM DM_SELLOUT_STAGING.S_LOG_SPEDIZIONE
+WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("s_spedizioni_sellin_input_partitions")})
+AND attributes.data_bolla IS NOT NULL
+		

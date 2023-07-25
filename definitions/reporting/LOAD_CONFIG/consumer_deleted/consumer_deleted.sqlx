@@ -1,0 +1,40 @@
+config {
+    type: "table",
+    schema: "DM_SELLOUT_STAGING",
+    name: "D_CONSUMER_DELETED"
+}
+
+WITH data AS (
+	SELECT *
+	FROM ${ref("DM_SELLOUT_STAGING", "S_CONSUMER_DELETED")}
+	WHERE TRUE
+	QUALIFY _PARTITIONDATE = max(_PARTITIONDATE) OVER()
+	UNION DISTINCT
+	SELECT *
+	FROM ${ref("DM_SELLOUT_STAGING", "D_CONSUMER_DELETED")}
+	WHERE TRUE
+),
+ready_data AS (
+	SELECT *
+	FROM data
+	WHERE consumer_attivo NOT IN (SELECT pk_consumer FROM data)
+),
+rec_data AS (
+	SELECT main.* EXCEPT(consumer_attivo, ts_modifica), next.consumer_attivo, next.ts_modifica
+	FROM data main
+	JOIN data next ON (main.consumer_attivo = next.pk_consumer)
+)
+SELECT * EXCEPT(rk)
+FROM (
+	-- Calcolo del rank per eliminazione duplicati
+	SELECT *, ROW_NUMBER() OVER(PARTITION BY pk_consumer, new_consumer ORDER BY timestamp_cancellazione DESC, ts_modifica DESC, ts_inserimento DESC) AS rk
+	FROM (
+		SELECT pk_consumer, new_consumer, id_cancellazione, consumer_attivo, causa_cancellazione, timestamp_cancellazione, ts_inserimento, ts_modifica, ts_creazione
+		FROM ready_data
+		UNION ALL
+		SELECT pk_consumer, new_consumer, id_cancellazione, consumer_attivo, causa_cancellazione, timestamp_cancellazione, ts_inserimento, ts_modifica, ts_creazione
+		FROM rec_data
+	)
+)
+WHERE rk = 1
+		

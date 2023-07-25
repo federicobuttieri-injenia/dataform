@@ -1,0 +1,73 @@
+config {
+    type: "table",
+    schema: "DM_CRM",
+    name: "D_INIZIATIVA"
+}
+
+with output_partitions as (
+    SELECT value AS partition_start,
+        value + 99 AS partition_end
+    FROM ${ref("d_iniziativa_input_output_partitions")}
+)
+
+WITH testata AS (
+	SELECT * EXCEPT(rk, action)
+	FROM (
+		SELECT 
+			*,
+			ROW_NUMBER() OVER(PARTITION BY id_iniziativa ORDER BY ts_inserimento DESC, ts_modifica DESC, ts_creazione DESC) AS rk
+		FROM ${ref("DM_SELLOUT_STAGING", "S_INIZIATIVA")}
+		WHERE CAST(id_iniziativa AS INT64) BETWEEN op.partition_start AND op.partition_end
+	) AS subquery
+	WHERE 
+		rk = 1 
+	AND action != 'DELETE'
+	AND stato NOT IN ('NUOVO', 'ELIMINATO')
+),
+dettaglio AS (
+	SELECT * EXCEPT(rk, action)
+	FROM (
+		SELECT 
+			*,
+			ROW_NUMBER() OVER(PARTITION BY id_iniziativa, negozio ORDER BY ts_inserimento DESC, ts_modifica DESC, ts_creazione DESC) AS rk
+		FROM ${ref("DM_SELLOUT_STAGING", "S_INIZIATIVA_NEGOZIO")}
+		WHERE CAST(id_iniziativa AS INT64) BETWEEN op.partition_start AND op.partition_end
+	) AS subquery
+	WHERE 
+		rk = 1 
+	AND action != 'DELETE'
+	AND stato NOT IN ('NUOVO', 'ELIMINATO') 
+)
+SELECT
+	id_iniziativa,
+	categoria,
+	tipologia,
+	descrizione,
+	anno,
+	stagione,
+	brand,
+	t.stato,
+	t.data_inizio_iniziativa,
+	t.data_fine_iniziativa,
+	t.tipo_lista_invitati,
+	data_invio_liste,
+	data_convalida_liste,
+	dataora_modifica,
+	t.ts_inserimento,
+	t.ts_modifica,
+	t.ts_creazione,
+	array_agg(struct(
+		d.id_iniziativa,
+		d.negozio,
+		d.data_inizio_iniziativa,
+		d.data_fine_iniziativa,
+		d.tipo_lista_invitati,
+		d.stato,
+		data_inizio_osservazione,
+		data_fine_osservazione,
+		d.budget
+	)) AS negozi
+FROM testata AS t
+LEFT JOIN dettaglio AS d USING(id_iniziativa)
+GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17
+		

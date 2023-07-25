@@ -1,0 +1,59 @@
+config {
+    type: "incremental",
+    schema: "None",
+    name: "F_DELIVERY_B2X"
+}
+
+SELECT * EXCEPT(rk_dup)
+FROM (
+	SELECT
+		activity_name,
+carrier,
+channel,
+document_number,
+end_timestamp,
+execution_type,
+id_delivery,
+ingestion_time,
+items,
+order_type,
+payment_code,
+payment_method,
+payment_type,
+pk_delivery,
+pop,
+pop_type,
+shipping_doc_date,
+shipping_doc_number,
+shipping_type,
+start_timestamp,
+tracking_number,
+ts_inserimento,
+user_group,
+user_performer,
+user_platform,
+cancelled_reason,
+		ROW_NUMBER() OVER(PARTITION BY pk_delivery ORDER BY ingestion_time DESC) AS rk_dup
+	FROM (
+		SELECT
+			CAST(TO_BASE64(SHA512(CONCAT(document_number, order_type, channel, id_delivery, activity_name, CAST(start_timestamp AS STRING)))) AS STRING) AS pk_delivery,
+			*
+		FROM (
+			SELECT
+				actv.*,
+				attributes.* EXCEPT(activity),
+				CURRENT_TIMESTAMP AS ts_inserimento,
+				_PARTITIONTIME AS ingestion_time
+			FROM ${ref("DM_SELLOUT_STAGING", "S_DELIVERY_B2X")}, UNNEST(attributes.activity) AS actv
+			WHERE DATE(_PARTITIONTIME) = CURRENT_DATE
+			-- da togliere con flusso di file corretti. i piu vecchi in test lo hanno nullo
+			AND attributes.channel IS NOT NULL
+		)
+	)
+	WHERE pk_delivery NOT IN (
+		SELECT DISTINCT pk_delivery
+		FROM ${ref("DM_MYINVENIO", "F_DELIVERY_B2X")}
+	)
+)
+WHERE rk_dup = 1
+		

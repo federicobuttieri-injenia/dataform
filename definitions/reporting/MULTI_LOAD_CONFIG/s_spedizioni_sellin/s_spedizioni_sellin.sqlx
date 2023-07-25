@@ -1,0 +1,28 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_SPEDITO_20230101"
+}
+
+SELECT
+	attributes.* EXCEPT(
+		anagrafica_concessionario, barcode_bolla_spedizione, righe_spedizione_cliente, data_fattura, magazzino,
+		numero_documento_fattura, serie_fattura, numero_fattura, dataora_attivazione_id_spedizione, f_bolla_b2e,
+		f_bolla_omaggio, f_bolla_service, f_dettaglio_matricola
+	),
+	riga.* EXCEPT(cliente_reso, materiale, punto_vendita_retail_reso, variante_materiale, f_applica_sconto_commerciale, f_divisa, numero_documento_fattura),
+	CAST(attributes.dataora_attivazione_id_spedizione AS DATETIME) AS dataora_attivazione_id_spedizione,
+	CAST(CAST(attributes.f_bolla_b2e AS INT64) AS BOOL) AS f_bolla_b2e,
+	CAST(CAST(attributes.f_bolla_omaggio AS INT64) AS BOOL) AS f_bolla_omaggio,
+	CASE attributes.f_bolla_service WHEN 'S' THEN TRUE WHEN 'N' THEN FALSE ELSE NULL END AS f_bolla_service,
+	CAST(CAST(attributes.f_dettaglio_matricola AS INT64) AS BOOL) AS f_dettaglio_matricola,
+	CAST(CAST(riga.f_applica_sconto_commerciale AS INT64) AS BOOL) AS f_applica_sconto_commerciale,
+	CASE riga.f_divisa WHEN 'S' THEN TRUE WHEN 'N' THEN FALSE ELSE NULL END AS f_divisa,
+	CAST(riga.numero_documento_fattura AS INT64) AS numero_documento_fattura,
+	_PARTITIONTIME AS ts_inserimento,
+	timestamp AS ts_creazione,
+	CURRENT_TIMESTAMP AS ts_modifica
+FROM DM_SELLOUT_STAGING.S_LOG_SPEDIZIONE, UNNEST(attributes.righe_spedizione_cliente) AS riga
+WHERE _PARTITIONDATE IN ({partitions})
+AND attributes.data_bolla IN ({where_partitions_current_table})
+		

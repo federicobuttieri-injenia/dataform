@@ -1,0 +1,10 @@
+config {
+    type: "view",
+    schema: "DM_SELLOUT",
+    name: "f_promo_engine_input_output_partitions"
+}
+
+select distinct data_vendita 
+from ${ref("DM_SELLOUT_STAGING", "S_PROMO_ENGINE_*")}
+WHERE DATE(CAST(ts_modifica AS TIMESTAMP)) = CURRENT_DATE
+		

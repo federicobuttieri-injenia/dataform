@@ -1,0 +1,39 @@
+config {
+    type: "table",
+    schema: "DM_DIGITAL",
+    name: "F_TARGET"
+}
+
+SELECT
+	brand,
+	region,
+	season,
+	year,
+	month,
+	currency_iso_code,
+	budget,
+	budget_forecast_LINR,
+	budget_forecast_LILR
+FROM ${ref("DM_DIGITAL_STAGING", "S_TARGET_DT_FM")} UNION ALL 
+	SELECT
+	brand,
+	region,
+	season,
+	year,
+	month,
+	currency_iso_code,
+	budget,
+	budget_forecast_LINR,
+	budget_forecast_LILR
+FROM ${ref("DM_DIGITAL_STAGING", "S_TARGET_MA_IB_MC_PB")} UNION ALL
+	SELECT
+	brand,
+	region,
+	season,
+	year,
+	month,
+	currency_iso_code,
+	budget,
+	budget_forecast_LINR,
+	budget_forecast_LILR
+FROM ${ref("DM_DIGITAL_STAGING", "S_TARGET_MM_SP_WE_MR")}
