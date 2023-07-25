@@ -4,7 +4,7 @@ config {
     name: "fidelity_card_passaggio_soglia_input_partitions"
 }
 
-SELECT DATE( AS value
+SELECT DATE(
 	EXTRACT(YEAR FROM DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)), 
 	EXTRACT(MONTH FROM DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)),
 	1     

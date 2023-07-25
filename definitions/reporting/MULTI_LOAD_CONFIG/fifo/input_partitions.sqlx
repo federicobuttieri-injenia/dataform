@@ -4,7 +4,7 @@ config {
     name: "fifo_input_partitions"
 }
 
-SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`) AS value
+SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
 FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")} 
 WHERE 
 	DATE(ts_lancio) = CURRENT_DATE 

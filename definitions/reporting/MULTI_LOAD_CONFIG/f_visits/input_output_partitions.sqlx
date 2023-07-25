@@ -65,5 +65,5 @@ walkin_part as (
 )
 select distinct Date from ga_part
 UNION DISTINCT 
-SELECT data AS Date from walkin_part AS value
+SELECT data AS Date from walkin_part
 		

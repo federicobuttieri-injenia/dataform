@@ -4,7 +4,7 @@ config {
     name: "ga_kpi_prodotto_basic_input_output_partitions"
 }
 
-SELECT DISTINCT PARSE_DATE('%Y%m%d', event_date) AS value
+SELECT DISTINCT PARSE_DATE('%Y%m%d', event_date)
 FROM ${ref("analytics_260123046", "events_*")}
 WHERE _TABLE_SUFFIX = (SELECT * FROM ${ref("ga_kpi_prodotto_basic_get_last_shard")})
 AND PARSE_DATE('%Y%m%d', event_date) NOT IN (

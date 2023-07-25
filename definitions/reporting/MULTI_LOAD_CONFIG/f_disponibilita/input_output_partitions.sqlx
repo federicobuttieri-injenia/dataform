@@ -4,6 +4,6 @@ config {
     name: "f_disponibilita_input_output_partitions"
 }
 
-SELECT DISTINCT date AS value
+SELECT DISTINCT date
 FROM ${ref("DM_DIGITAL_STAGING", "S_DISPONIBILITA_*")}
 WHERE CAST(ts_inserimento AS DATE) = DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)

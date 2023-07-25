@@ -5,7 +5,7 @@ config {
 }
 
 -- selezione delle partizioni da elaborare con spedizione_to_transform
-SELECT DISTINCT _PARTITIONDATE part AS value
+SELECT DISTINCT _PARTITIONDATE part
 FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_SPEDIZIONE")}
 WHERE _PARTITIONDATE >= ( -- viene presa l'ultima partizione arrivata
 	-- il campo ts_creazione corrisponde a S_LOG_SPED.timestamp e la parte data e uguale al _PARTITIONDATE

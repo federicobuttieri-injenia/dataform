@@ -4,5 +4,5 @@ config {
     name: "f_giacenza_usa_input_output_partitions"
 }
 
-SELECT CURRENT_DATE() - 1 AS giorno AS value
+SELECT CURRENT_DATE() - 1 AS giorno
 		

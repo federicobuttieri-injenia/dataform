@@ -71,6 +71,6 @@ WITH days_output AS (
 	JOIN days_output AS d_o ON (d_o.giorno = t.data)
 	GROUP BY 1
 )
-SELECT distinct max_pdate AS value
+SELECT distinct max_pdate
 FROM all_partitions_per_date
 		

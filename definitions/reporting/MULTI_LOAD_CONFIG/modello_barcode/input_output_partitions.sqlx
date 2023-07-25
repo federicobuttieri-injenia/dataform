@@ -4,7 +4,7 @@ config {
     name: "modello_barcode_input_output_partitions"
 }
 
-SELECT * AS value
+SELECT *
 FROM (
 	SELECT DISTINCT annostagione
 	FROM DM_SELLOUT_STAGING.D_MODELLO_PRODUZIONE

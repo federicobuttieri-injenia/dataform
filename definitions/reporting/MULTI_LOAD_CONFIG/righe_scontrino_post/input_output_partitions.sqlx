@@ -46,7 +46,7 @@ TIPI_PREZZO_CLIENTE AS (
 	) PC
 )
 -- date vendita con prezzi o modelli modificati nella data di oggi
-SELECT DISTINCT EXTRACT(YEAR FROM data_vendita) AS value
+SELECT DISTINCT EXTRACT(YEAR FROM data_vendita)
 FROM (
 	SELECT codice_cliente, societa, negozio, nazione_negozio, anno, stagione, modello, uscita_collezione, barcode_negozio, valuta_pagamento, data_vendita, tipo_negozio_retail, anno_transazione,listino_acquisto, listino_vendita, ts_creazione
 	FROM ${ref("DM_SELLOUT", "RIGA_SCONTRINO_*")}

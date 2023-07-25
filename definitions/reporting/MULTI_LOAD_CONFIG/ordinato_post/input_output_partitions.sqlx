@@ -5,7 +5,7 @@ config {
 }
 
 -- date vendita con prezzi o modelli modificati nella data di oggi
-SELECT DISTINCT EXTRACT(YEAR FROM data_ordine) AS value
+SELECT DISTINCT EXTRACT(YEAR FROM data_ordine)
 FROM (
 	SELECT societa, negozio, anno, stagione, modello, barcode_negozio, data_ordine, listino_acquisto, listino_vendita, cliente, tipo_ordine_cliente
 	FROM ${ref("DM_SELLOUT", "F_ORDINATO_*")}

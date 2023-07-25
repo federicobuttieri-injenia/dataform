@@ -4,7 +4,7 @@ config {
     name: "f_spedizioni_sellin_input_output_partitions"
 }
 
-SELECT DISTINCT data_bolla AS value
+SELECT DISTINCT data_bolla
 FROM ${ref("DM_SELLOUT_STAGING", "S_SPEDITO_*")}
 WHERE DATE(ts_modifica) = CURRENT_DATE
 		

@@ -4,7 +4,7 @@ config {
     name: "f_contabilita_congelata_input_partitions"
 }
 
-SELECT DISTINCT creation_date AS data_creazione, AS value
+SELECT DISTINCT creation_date AS data_creazione,
 FROM ${ref("TEMP_LOCATION", "MOV_MODIFIED_DATE")}
 WHERE DATE(ts_lancio) >= CURRENT_DATE() - 1
 	AND record_type IN ('BMS')
