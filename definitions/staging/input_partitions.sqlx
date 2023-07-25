@@ -3,7 +3,7 @@ config {
     name: "input_partitions"
 }
 
-SELECT     DISTINCT PARSE_DATE("%Y%m%d", `partition`) AS date
+SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`) AS value
 FROM ${ref("PARTIZIONI_LOADJOB")}
 WHERE 
     DATE(ts_lancio) >= CURRENT_DATE
