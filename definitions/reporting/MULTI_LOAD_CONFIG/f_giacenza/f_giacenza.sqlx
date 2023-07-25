@@ -1,7 +1,7 @@
 config {
     type: "incremental",
     schema: "injenia",
-    name: "F_GIACENZA_20230101"
+    name: "F_GIACENZA_202301011"
 }
 
 SELECT

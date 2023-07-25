@@ -1,7 +1,7 @@
 config {
     type: "table",
     schema: "injenia",
-    name: "clusters_full"
+    name: "clusters_fulla"
 }
 
 SELECT

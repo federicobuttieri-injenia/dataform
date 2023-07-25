@@ -1,7 +1,7 @@
 config {
     type: "table",
     schema: "injenia",
-    name: "F_DISPONIBILITA_20230101"
+    name: "F_DISPONIBILITA_202301011"
 }
 
 SELECT
