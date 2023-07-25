@@ -37,7 +37,7 @@ WITH transactions AS (
                             )
                         END
                     ) AS ecommerce_revenue
-                FROM ${ref("analytics_248931566", "events_*")}
+                FROM ${ref("events_*")}
                     LEFT JOIN UNNEST(event_params) AS ep
                 WHERE event_name = 'purchase'
                     AND _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_intrend_app_input_output_partitions")}))), GREATEST("20220401", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
@@ -63,7 +63,7 @@ WITH transactions AS (
                             NULL
                         )
                     ) AS sessions
-                FROM ${ref("analytics_248931566", "events_*")}
+                FROM ${ref("events_*")}
                     LEFT JOIN UNNEST(event_params) AS ep
                     INNER JOIN (
                         SELECT user_pseudo_id,
@@ -75,7 +75,7 @@ WITH transactions AS (
                                     NULL
                                 )
                             ) country
-                        FROM ${ref("analytics_248931566", "events_*")},
+                        FROM ${ref("events_*")},
                             unnest(event_params)
                         WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_intrend_app_input_output_partitions")}))), GREATEST("20220401", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
                         GROUP BY 1

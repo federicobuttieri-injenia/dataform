@@ -34,7 +34,7 @@ FROM (
 		attributes.event.serial AS serial,
 		ROW_NUMBER() OVER(PARTITION BY id ORDER BY input_filename DESC, ts_inserimento DESC) AS rk
 	FROM
-		${ref("DM_EVENTI_STAGING", "S_RFID")}
+		${ref("S_RFID")}
 )
 WHERE rk = 1
 		

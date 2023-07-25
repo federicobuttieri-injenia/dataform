@@ -5,6 +5,6 @@ config {
 }
 
         SELECT DISTINCT DATE(daily_sales_date) AS daily_sales_date
-        FROM ${ref("DM_DIGITAL_STAGING", "S_LOG_FATTURATO_CONTABILIZZATO")}
+        FROM ${ref("S_LOG_FATTURATO_CONTABILIZZATO")}
         WHERE EXTRACT(DATE FROM _PARTITIONTIME) = CURRENT_DATE()
         

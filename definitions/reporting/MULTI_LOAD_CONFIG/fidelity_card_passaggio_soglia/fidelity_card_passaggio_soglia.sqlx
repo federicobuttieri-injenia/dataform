@@ -17,7 +17,7 @@ WITH S_FIDELITY_CARD_HISTORY AS (
 				EXTRACT(YEAR FROM CAST(DATA.timestamp_operazione AS timestamp)),
 				SPLIT(id,',')[SAFE_OFFSET(1)] 
 			ORDER BY _PARTITIONTIME DESC, CAST(SPLIT(id,',')[SAFE_OFFSET(3)] AS INT64) DESC) AS rank
-		FROM ${ref("DM_SELLOUT_STAGING", "S_FIDELITY_CARD_HISTORY")}F
+		FROM ${ref("S_FIDELITY_CARD_HISTORY")}F
 		LEFT JOIN UNNEST(attributes) AS attributes
 		LEFT JOIN UNNEST(attributes.DATA) AS DATA
 		WHERE
@@ -76,10 +76,10 @@ raw_report_fidelity AS (
 	LEFT JOIN UNNEST(DATA.custom_data.operazioni) AS data_operazioni
 	LEFT JOIN UNNEST(DATA.custom_data.data_calcolo_punti) AS data_calcolo_punti
 	LEFT JOIN UNNEST(data_calcolo_punti.split) AS split_fields
-	LEFT JOIN ${ref("DM_SELLOUT", "D_PORTA")} N ON(
+	LEFT JOIN ${ref("D_PORTA")} N ON(
 			COALESCE(DATA.cod_negozio, DATA.custom_data.cod_negozio_ref) = N.porta
 	)
-	LEFT JOIN ${ref("DM_SELLOUT_STAGING", "V_MAPPING_CONSUMER")} C ON(
+	LEFT JOIN ${ref("V_MAPPING_CONSUMER")} C ON(
 			SPLIT(F.id,',')[SAFE_OFFSET(0)] = C.pk_consumer_old
 		AND C.f_anagrafica = TRUE
 	)
@@ -117,18 +117,18 @@ report_fidelity_resi_post AS(
 ),
 calcolo_soglie AS (
 	SELECT tipo, st.*
-	FROM ${ref("DM_SELLOUT_STAGING", "D_SOGLIE_FIDELITY")}, UNNEST(status) AS st
+	FROM ${ref("D_SOGLIE_FIDELITY")}, UNNEST(status) AS st
 	WHERE tipo IN ("LOYALTY_PB_IT", "LOYALTY_MC_IT")
 ),
 calcolo_valore AS (
 	SELECT tipo, ps.*
-	FROM ${ref("DM_SELLOUT_STAGING", "D_SOGLIE_FIDELITY")}, UNNEST(passaggio_soglia) AS ps
+	FROM ${ref("D_SOGLIE_FIDELITY")}, UNNEST(passaggio_soglia) AS ps
 	WHERE tipo IN ("LOYALTY_PB_IT", "LOYALTY_MC_IT")
 ),
 max_soglia_finale AS (
 	SELECT pk_consumer, st.description, sf.tipo, IFNULL(st.to, st.from) AS soglia_max
-	FROM ${ref("DM_SELLOUT", "F_FIDELITY_PASSAGGIO_SOGLIA")} AS fps
-	JOIN ${ref("DM_SELLOUT_STAGING", "D_SOGLIE_FIDELITY")}AS sf ON (
+	FROM ${ref("F_FIDELITY_PASSAGGIO_SOGLIA")} AS fps
+	JOIN ${ref("D_SOGLIE_FIDELITY")}AS sf ON (
 		sf.tipo IN ("LOYALTY_PB_IT", "LOYALTY_MC_IT")
 		AND fps.tipo_fidelity=sf.tipo
 	)
@@ -142,8 +142,8 @@ max_soglia_finale AS (
 ),
 preferred_store_per_consumer AS (
 	SELECT pk_consumer, soglie.tipo, negozio AS preferred_store
-	FROM ${ref("DM_SELLOUT_STAGING", "D_SOGLIE_FIDELITY")} soglie
-	JOIN ${ref("DM_CRM", "F_PREFERRED_STORE_SEGMENTO")} ps ON (soglie.insegna_tableau = ps.brand_preferred_store)
+	FROM ${ref("D_SOGLIE_FIDELITY")} soglie
+	JOIN ${ref("F_PREFERRED_STORE_SEGMENTO")} ps ON (soglie.insegna_tableau = ps.brand_preferred_store)
 	WHERE soglie.tipo IN ("LOYALTY_PB_IT", "LOYALTY_MC_IT")
 	AND ps.rank = 1
 	QUALIFY RANK() OVER(PARTITION BY pk_consumer, soglie.tipo, brand_preferred_store ORDER BY f_insegna DESC) = 1

@@ -125,7 +125,7 @@ FROM UNNEST(GRP.getAstList(GRP.getCurrentAst(), 8)) AS ast
 				stagione 
 			FROM 
 				clienti_b2c AS cb 
-				JOIN ${ref("DM_PREZZO_LISTINO", "D_CLIENTELA")} clientela USING(
+				JOIN ${ref("D_CLIENTELA")} clientela USING(
 					societa, cliente, anno, stagione, uscita_collezione
 				) 
 			WHERE 
@@ -155,7 +155,7 @@ FROM UNNEST(GRP.getAstList(GRP.getCurrentAst(), 8)) AS ast
 				clientela.stagione 
 			FROM 
 				clienti_b2c AS cb 
-				LEFT JOIN ${ref("DM_PREZZO_LISTINO", "D_CLIENTELA")} clientela USING(societa, cliente, anno, stagione) 
+				LEFT JOIN ${ref("D_CLIENTELA")} clientela USING(societa, cliente, anno, stagione) 
 			WHERE 
 				cb.uscita_collezione = 'default' 
 				AND cb.anno IS NOT NULL 
@@ -183,7 +183,7 @@ FROM UNNEST(GRP.getAstList(GRP.getCurrentAst(), 8)) AS ast
 				clientela.stagione 
 			FROM 
 				clienti_b2c AS cb 
-				LEFT JOIN ${ref("DM_PREZZO_LISTINO", "D_CLIENTELA")} clientela USING(societa, cliente) 
+				LEFT JOIN ${ref("D_CLIENTELA")} clientela USING(societa, cliente) 
 			WHERE 
 				(
 					cb.anno IS NULL 
@@ -243,8 +243,8 @@ SELECT DISTINCT
 	p.prezzo,
 	p.divisa_controvalore,
 	p.controvalore
-FROM ${ref("DM_PREZZO_LISTINO", "D_PREZZO")} AS p
-JOIN ${ref("DM_SELLOUT_STAGING", "D_MODELLO_PRODUZIONE")} AS mp USING (societa, anno, stagione, modello)
+FROM ${ref("D_PREZZO")} AS p
+JOIN ${ref("D_MODELLO_PRODUZIONE")} AS mp USING (societa, anno, stagione, modello)
 WHERE CONCAT(CAST(anno AS STRING), CAST(stagione AS STRING)) >= (
 SELECT MIN(ast)
 FROM UNNEST(GRP.getAstList(GRP.getCurrentAst(), 8)) AS ast
@@ -317,7 +317,7 @@ prezzi_negozi_contesto_listino_base AS (
 			AND pv.uscita_collezione = nl.uscita_collezione 
 			AND pv.modello_grp = ASp.modello_grp
 		) 
-		LEFT JOIN ${ref("DM_PREZZO_LISTINO", "D_VAT")} AS vat ON (nl.nazione = vat.nazione_mmfg) 
+		LEFT JOIN ${ref("D_VAT")} AS vat ON (nl.nazione = vat.nazione_mmfg) 
 	WHERE 
 		(
 			pa.modello_grp IS NOT NULL 
@@ -382,7 +382,7 @@ prezzi_negozi_contesto_listino_base_fallback_societa AS (
 			AND pv.uscita_collezione = nl.uscita_collezione 
 			AND pv.modello_grp = ASp.modello_grp
 		) 
-		LEFT JOIN ${ref("DM_PREZZO_LISTINO", "D_VAT")} AS vat ON (nl.nazione = vat.nazione_mmfg) 
+		LEFT JOIN ${ref("D_VAT")} AS vat ON (nl.nazione = vat.nazione_mmfg) 
 	WHERE 
 		(
 			pa.modello_grp IS NOT NULL 
@@ -485,7 +485,7 @@ FROM
 		AND pnclbfs.modello = COALESCE(pa.modello_grp, pv.modello_grp) 
 		AND pnclbfs.uscita_collezione = nl.uscita_collezione
 	) 
-	LEFT JOIN ${ref("DM_PREZZO_LISTINO", "D_VAT")} AS vat ON (nl.nazione = vat.nazione_mmfg) 
+	LEFT JOIN ${ref("D_VAT")} AS vat ON (nl.nazione = vat.nazione_mmfg) 
 WHERE 
 	(
 		pa.modello_grp IS NOT NULL 

@@ -71,10 +71,10 @@ config {
             SUM(distinct ecommerce.purchase_revenue) as local_revenue,
             SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
             MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
-            FROM ${ref("analytics_260123046", "events_*")} ,unnest(event_params)
+            FROM ${ref("events_*")} ,unnest(event_params)
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
-            FROM ${ref("analytics_260123046", "events_*")},unnest(event_params)
+            FROM ${ref("events_*")},unnest(event_params)
             WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
@@ -150,10 +150,10 @@ config {
             SUM(distinct ecommerce.purchase_revenue) as local_revenue,
             SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
             MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
-            FROM ${ref("analytics_260031029", "events_*")} ,unnest(event_params)
+            FROM ${ref("events_*")} ,unnest(event_params)
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
-            FROM ${ref("analytics_260031029", "events_*")},unnest(event_params)
+            FROM ${ref("events_*")},unnest(event_params)
             WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
@@ -229,10 +229,10 @@ config {
             SUM(distinct ecommerce.purchase_revenue) as local_revenue,
             SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
             MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
-            FROM ${ref("analytics_260112979", "events_*")} ,unnest(event_params)
+            FROM ${ref("events_*")} ,unnest(event_params)
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
-            FROM ${ref("analytics_260112979", "events_*")},unnest(event_params)
+            FROM ${ref("events_*")},unnest(event_params)
             WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
@@ -308,10 +308,10 @@ config {
             SUM(distinct ecommerce.purchase_revenue) as local_revenue,
             SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
             MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
-            FROM ${ref("analytics_260115782", "events_*")} ,unnest(event_params)
+            FROM ${ref("events_*")} ,unnest(event_params)
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
-            FROM ${ref("analytics_260115782", "events_*")},unnest(event_params)
+            FROM ${ref("events_*")},unnest(event_params)
             WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
@@ -390,10 +390,10 @@ config {
             SUM(distinct ecommerce.purchase_revenue) as local_revenue,
             SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
             MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
-            FROM ${ref("analytics_260088170", "events_*")} ,unnest(event_params)
+            FROM ${ref("events_*")} ,unnest(event_params)
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
-            FROM ${ref("analytics_260088170", "events_*")},unnest(event_params)
+            FROM ${ref("events_*")},unnest(event_params)
             WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
@@ -469,10 +469,10 @@ config {
             SUM(distinct ecommerce.purchase_revenue) as local_revenue,
             SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
             MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
-            FROM ${ref("analytics_260106982", "events_*")},unnest(event_params)
+            FROM ${ref("events_*")},unnest(event_params)
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
-            FROM ${ref("analytics_260106982", "events_*")},unnest(event_params)
+            FROM ${ref("events_*")},unnest(event_params)
             WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
@@ -549,10 +549,10 @@ config {
             SUM(distinct ecommerce.purchase_revenue) as local_revenue,
             SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
             MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
-            FROM ${ref("analytics_260108762", "events_*")} ,unnest(event_params)
+            FROM ${ref("events_*")} ,unnest(event_params)
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
-            FROM ${ref("analytics_260108762", "events_*")},unnest(event_params)
+            FROM ${ref("events_*")},unnest(event_params)
             WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
@@ -628,10 +628,10 @@ config {
             SUM(distinct ecommerce.purchase_revenue) as local_revenue,
             SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
             MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
-            FROM ${ref("analytics_260107564", "events_*")} ,unnest(event_params)
+            FROM ${ref("events_*")} ,unnest(event_params)
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
-            FROM ${ref("analytics_260107564", "events_*")},unnest(event_params)
+            FROM ${ref("events_*")},unnest(event_params)
             WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
@@ -707,10 +707,10 @@ config {
             SUM(distinct ecommerce.purchase_revenue) as local_revenue,
             SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
             MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
-            FROM ${ref("analytics_260115140", "events_*")},unnest(event_params)
+            FROM ${ref("events_*")},unnest(event_params)
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
-            FROM ${ref("analytics_260115140", "events_*")},unnest(event_params)
+            FROM ${ref("events_*")},unnest(event_params)
             WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
@@ -785,10 +785,10 @@ config {
             SUM(distinct ecommerce.purchase_revenue) as local_revenue,
             SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
             MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
-            FROM ${ref("analytics_248931566", "events_*")} ,unnest(event_params)
+            FROM ${ref("events_*")} ,unnest(event_params)
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
-            FROM ${ref("analytics_248931566", "events_*")},unnest(event_params)
+            FROM ${ref("events_*")},unnest(event_params)
             WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
@@ -800,9 +800,9 @@ config {
             SELECT DISTINCT reference_date, iso_code, avg_rate
             FROM (
                 SELECT DISTINCT data reference_date, iso_code
-                FROM ${ref("DM_SELLOUT", "D_TEMPO")}, ${ref("DM_SELLOUT", "F_TASSO_QUOTIDIANO")}
+                FROM ${ref("D_TEMPO")}, ${ref("F_TASSO_QUOTIDIANO")}
             )
-            LEFT JOIN ${ref("DM_SELLOUT", "F_TASSO_QUOTIDIANO")} USING (reference_date, iso_code)
+            LEFT JOIN ${ref("F_TASSO_QUOTIDIANO")} USING (reference_date, iso_code)
             WHERE reference_date <= CURRENT_DATE() AND iso_code = 'USD'
         ),
         usd_rate AS (
@@ -838,7 +838,7 @@ config {
            reg.negozio as Shop_code,
            CURRENT_TIMESTAMP() AS ts_modifica
            from KPI
-           LEFT JOIN ${ref("DM_DIGITAL_STAGING", "S_REGION")} reg 
+           LEFT JOIN ${ref("S_REGION")} reg 
            ON (KPI.Brand = reg.webanalytics_brand AND KPI.Country = reg.webanalytics_country)
         )
         SELECT pre_conversione.* EXCEPT(Local_revenue_in_usd),

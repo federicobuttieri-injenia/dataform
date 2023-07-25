@@ -10,7 +10,7 @@ FROM (
 		id,
 		attributes.*,
 		timestamp AS ts_inserimento,
-	FROM ${ref("DM_SELLOUT_STAGING", "S_RAGGR_COLORE")}
+	FROM ${ref("S_RAGGR_COLORE")}
 	WHERE True
 	QUALIFY ROW_NUMBER() OVER(PARTITION BY id ORDER BY timestamp DESC) = 1
 )

@@ -34,13 +34,13 @@ SELECT
 	-- questo e' fatto per modello anziche' per barcode_negozio, in modo da non considerare vendite eventuali cambi taglia/colore di acquisti fatti prima dell'inizio della finestra
 	p.stagionale = "PERMANENTE" f_co,
 	p.stagione = 1 f_ss
-FROM ${ref("DM_SELLOUT", "RIGA_SCONTRINO_*")} r
-JOIN ${ref("DM_CRM", "STORICIZZAZIONI")} s ON (
+FROM ${ref("RIGA_SCONTRINO_*")} r
+JOIN ${ref("STORICIZZAZIONI")} s ON (
 	_TABLE_SUFFIX BETWEEN s.minshard AND s.maxshard
 	AND data_vendita BETWEEN s.data_inizio_storicizzazione AND s.data_fine_storicizzazione
 )
-JOIN ${ref("DM_PRODOTTO", "D_PRODOTTO")} p USING (barcode_negozio, societa, anno)
-JOIN ${ref("DM_SELLOUT", "D_PORTA")} n ON (r.negozio = n.porta)
+JOIN ${ref("D_PRODOTTO")} p USING (barcode_negozio, societa, anno)
+JOIN ${ref("D_PORTA")} n ON (r.negozio = n.porta)
 WHERE 
 	r.tipo_negozio_retail NOT LIKE '__O_'
 AND grado_anonimato NOT IN ('40', '50') 
@@ -63,7 +63,7 @@ AND pk_consumer IS NOT NULL
 			seg.brand,
 			seg.f_insegna
 		FROM vendite
-		LEFT JOIN ${ref("DM_CRM", "D_SEGMENTO")} seg ON (
+		LEFT JOIN ${ref("D_SEGMENTO")} seg ON (
 			seg.brand = CASE IF(seg.f_insegna, vendite.insegna, vendite.brand)
 WHEN "MM" THEN "MM"
 WHEN "WE" THEN "WE"

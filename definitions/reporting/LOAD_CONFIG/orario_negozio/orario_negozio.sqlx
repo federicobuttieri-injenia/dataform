@@ -50,7 +50,7 @@ FROM (
 		data_creazione,
 		ROW_NUMBER() OVER(PARTITION BY negozio, data ORDER BY input_filename DESC, ts_inserimento DESC) AS rk
 	FROM
-		${ref("DM_SELLOUT_STAGING", "S_ORARIO_NEGOZIO")}
+		${ref("S_ORARIO_NEGOZIO")}
 )
 WHERE
 	rk = 1

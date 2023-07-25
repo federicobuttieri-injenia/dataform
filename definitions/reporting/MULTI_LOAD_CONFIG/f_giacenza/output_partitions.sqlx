@@ -5,6 +5,6 @@ config {
 }
 
 SELECT DISTINCT giorno AS value
-FROM ${ref("DM_SELLOUT_STAGING", "S_GIACENZA")}
+FROM ${ref("S_GIACENZA")}
 WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("f_giacenza_input_partitions")})
 		

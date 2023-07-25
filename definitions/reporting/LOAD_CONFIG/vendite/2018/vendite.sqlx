@@ -65,7 +65,7 @@ SELECT
 	CAST(ANY_VALUE(valuta_pagamento) AS STRING) AS valuta_pagamento,
 	ANY_VALUE(f_local_di_confine) AS f_local_di_confine,
 	ANY_VALUE(f_local_tourist) AS f_local_tourist
-FROM ${ref("DM_SELLOUT", "RIGA_SCONTRINO_20180101")}
+FROM ${ref("RIGA_SCONTRINO_20180101")}
 GROUP BY
 	data_vendita,
 	negozio,

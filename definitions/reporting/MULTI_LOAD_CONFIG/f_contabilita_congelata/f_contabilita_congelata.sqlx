@@ -7,15 +7,15 @@ config {
 SELECT r.project_name, r.mittente, r.destinatario, r.dislocazione_finale, r.tipo_movimento, r.data_documento, TIMESTAMP(r.orario_evento) as orario_evento,
 	r.barcode_negozio AS sku, r.numero_documento, r.id_testata, IFNULL(f.qta, 0) AS qta_capi, r.prezzo_import,
 	r.prezzo_sell_in AS prezzo_landed, "NEW" AS stato, "REPLACE" as action, r.ts_modifica, DATE(r.ts_modifica) AS data_modifica
-FROM ${ref("DM_SELLOUT_STAGING", "S_MOVIMENTAZIONE_2*")}r
-	LEFT JOIN ${ref("DM_SELLOUT", "F_MOVIMENTAZIONE_2*")} f USING (input_filename, data_creazione, project_name, barcode_negozio)
-	LEFT JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS PORTA_MITT ON (r.mittente = PORTA_MITT.porta)
-	LEFT JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS PORTA_DEST ON (r.destinatario = PORTA_DEST.porta)
+FROM ${ref("S_MOVIMENTAZIONE_2*")}r
+	LEFT JOIN ${ref("F_MOVIMENTAZIONE_2*")} f USING (input_filename, data_creazione, project_name, barcode_negozio)
+	LEFT JOIN ${ref("D_PORTA")} AS PORTA_MITT ON (r.mittente = PORTA_MITT.porta)
+	LEFT JOIN ${ref("D_PORTA")} AS PORTA_DEST ON (r.destinatario = PORTA_DEST.porta)
 	JOIN (
 		SELECT DISTINCT tipo_movimento, IFNULL(causale, '') AS causale, IFNULL(modalita_creazione, '') AS modalita_creazione, record_type
-		FROM ${ref("DM_SELLOUT", "D_MAPPING_MOVIMENTAZIONE")}
+		FROM ${ref("D_MAPPING_MOVIMENTAZIONE")}
 	) map_movimento ON (r.tipo_movimento = map_movimento.tipo_movimento AND IFNULL(r.modalita_creazione, '') = map_movimento.modalita_creazione AND IFNULL(r.causale, '') = map_movimento.causale AND r.record_type=map_movimento.record_type)
-	LEFT JOIN ${ref("DM_SELLOUT", "D_MAPPING_MOVIMENTAZIONE")} map ON (r.tipo_movimento = map.tipo_movimento AND IFNULL(r.modalita_creazione, '') = IFNULL(map.modalita_creazione, '') AND IFNULL(r.causale, '') = IFNULL(map.causale, '') AND r.stato = map.stato AND r.f_pregresso = map.f_pregresso AND r.record_type=map.record_type)
+	LEFT JOIN ${ref("D_MAPPING_MOVIMENTAZIONE")} map ON (r.tipo_movimento = map.tipo_movimento AND IFNULL(r.modalita_creazione, '') = IFNULL(map.modalita_creazione, '') AND IFNULL(r.causale, '') = IFNULL(map.causale, '') AND r.stato = map.stato AND r.f_pregresso = map.f_pregresso AND r.record_type=map.record_type)
 WHERE r.record_type = 'BMS' and DATE(r.orario_evento) >= CURRENT_DATE() - 1
 	AND data_creazione IN ({partitions})
 	AND IF(r.project_name IN ("bmsfr", "mmltd", "linmara", "bmsfranchising"), (

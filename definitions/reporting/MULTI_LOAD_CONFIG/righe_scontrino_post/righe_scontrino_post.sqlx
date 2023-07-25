@@ -21,7 +21,7 @@ WITH BACKUP_PRODOTTI AS (
 		IF(classe IS NOT NULL AND classe !='', classe, NULL) as classe,
 		IF(tema IS NOT NULL AND tema !='', tema, NULL) as tema,
 		indice_taglia
-	FROM ${ref("DM_PRODOTTO", "D_PRODOTTO")}
+	FROM ${ref("D_PRODOTTO")}
 ),
 CLIENTELE AS (
 	SELECT * EXCEPT(rk)
@@ -39,7 +39,7 @@ CLIENTELE AS (
 			mercato_statistica,
 			mercato_vendita,
 			ROW_NUMBER() OVER(PARTITION BY societa, anno, stagione, cliente, uscita_collezione ORDER BY f_tipo_ordine_riferimento IS NOT NULL DESC, f_tipo_ordine_riferimento = '1' DESC, tipo_ordine_cliente = 'CV' DESC, listino_vendita IS NOT NULL DESC, listino_acquisto IS NOT NULL DESC) rk
-		FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTELA")}
+		FROM ${ref("D_CLIENTELA")}
 		WHERE validita IN ('V', '')
 	)
 	where rk = 1
@@ -64,7 +64,7 @@ CLIENTELE_IT AS (
 				ELSE cliente
 				END
 				AS cliente
-			FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTE_STAGIONE")}
+			FROM ${ref("D_CLIENTE_STAGIONE")}
 			WHERE punto_vendita_retail IN (
 				'0100019',  # MM
 				'0100517',  # DT
@@ -89,7 +89,7 @@ D_PREZZO_EXT AS (
 		annostagione,
 		prezzo,
 		controvalore
-	FROM ${ref("DM_PREZZO_LISTINO", "D_PREZZO_EXT")}
+	FROM ${ref("D_PREZZO_EXT")}
 	WHERE tipo_prezzo = 'V'
 ),
 D_PREZZO_EXT_PREZZI_NEGOZI AS (
@@ -111,7 +111,7 @@ D_PREZZO_EXT_A AS (
 		annostagione,
 		prezzo,
 		controvalore
-	FROM ${ref("DM_PREZZO_LISTINO", "D_PREZZO_EXT")}
+	FROM ${ref("D_PREZZO_EXT")}
 	WHERE negozio IS NOT NULL
 	AND tipo_prezzo = 'A'
 	QUALIFY ROW_NUMBER() OVER(
@@ -129,7 +129,7 @@ D_PREZZO_EXT_A_NAZIONE AS (
 		annostagione,
 		prezzo,
 		controvalore
-	FROM ${ref("DM_PREZZO_LISTINO", "D_PREZZO_EXT")}
+	FROM ${ref("D_PREZZO_EXT")}
 	WHERE negozio IS NULL
 	AND tipo_prezzo = 'A'
 	QUALIFY ROW_NUMBER() OVER(
@@ -151,7 +151,7 @@ PREZZI AS (
 		PR.divisa
 	FROM (
 		SELECT *
-		FROM ${ref("DM_PREZZO_LISTINO", "D_PREZZO")}
+		FROM ${ref("D_PREZZO")}
 		WHERE tipo_prezzo IN ('A', 'V')
 		QUALIFY ROW_NUMBER() OVER(PARTITION BY societa, modello, listino, anno, stagione, tipo_prezzo, progr_periodo ORDER BY ts_inserimento DESC, prezzo IS NULL) = 1
 	) PR
@@ -171,7 +171,7 @@ TIPI_PREZZO_CLIENTE AS (
 		SELECT *, FIRST_VALUE(data_inizio) OVER(PARTITION BY societa, anno, stagione, cliente, tipo_prezzo ORDER BY progr_periodo DESC ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) AS temp_data_fine_calcolata
 		FROM (
 			SELECT *
-			FROM ${ref("DM_SELLOUT_STAGING", "D_TIPO_PREZZO_CLIENTE")} 
+			FROM ${ref("D_TIPO_PREZZO_CLIENTE")} 
 			WHERE tipo_prezzo IN ('A', 'V')
 			QUALIFY ROW_NUMBER() OVER(PARTITION BY societa, anno, stagione, cliente, tipo_prezzo, data_inizio ORDER BY ts_inserimento DESC) = 1
 		)
@@ -459,7 +459,7 @@ FROM (
 				-- modello_retail per JOIN successiva
 				SUBSTR(R.barcode_negozio, 1, 10) AS modello_barcode_negozio,
 				BACKUP_PRODOTTI.indice_taglia AS indice_taglia
-				FROM ${ref("DM_SELLOUT", "{from_table}")} AS R
+				FROM ${ref("{from_table}")} AS R
 				LEFT JOIN BACKUP_PRODOTTI ON (
 					BACKUP_PRODOTTI.barcode_negozio = R.barcode_negozio
 					AND BACKUP_PRODOTTI.societa = R.societa
@@ -467,7 +467,7 @@ FROM (
 					AND BACKUP_PRODOTTI.anno BETWEEN (CAST(anno_transazione AS INT64) - 8) AND (CAST(anno_transazione AS INT64) + 1)
 				)
 			) riga
-			LEFT JOIN ${ref("DM_PRODOTTO", "V_MODELLO_BARCODE_NEGOZIO")} mod_ret_var ON (
+			LEFT JOIN ${ref("V_MODELLO_BARCODE_NEGOZIO")} mod_ret_var ON (
 				riga.societa = mod_ret_var.societa
 				AND riga.modello_barcode_negozio = mod_ret_var.modello_barcode_negozio
 				AND riga.variante = mod_ret_var.variante
@@ -490,7 +490,7 @@ FROM (
 					ANY_VALUE(uscita_collezione) AS uscita_collezione,
 					ANY_VALUE(tema) AS tema,
 					CAST(NULL AS STRING) AS stagionale -- non definito per mod-societa
-				FROM ${ref("DM_PRODOTTO", "V_MODELLO_BARCODE_NEGOZIO")}
+				FROM ${ref("V_MODELLO_BARCODE_NEGOZIO")}
 				GROUP BY modello_barcode_negozio, societa, anno, stagione
 			) mod_var ON (
 				COALESCE(riga.societa, mod_ret_var.societa) = mod_var.societa
@@ -502,14 +502,14 @@ FROM (
 		) R
 		LEFT JOIN (
 			SELECT tipo_taglia_nazione.societa, taglie_nazione.indice_taglia, taglie_nazione.taglia, tipo_taglia_nazione.tipo_taglia, tipo_taglia_nazione.nazione
-			FROM ${ref("DM_SELLOUT_STAGING", "D_TIPO_TAGLIA_NAZIONE")} tipo_taglia_nazione, UNNEST(taglie_nazione) AS taglie_nazione
+			FROM ${ref("D_TIPO_TAGLIA_NAZIONE")} tipo_taglia_nazione, UNNEST(taglie_nazione) AS taglie_nazione
 		) AS tipo_taglia_nazione ON (
 				R.societa = tipo_taglia_nazione.societa
 			AND R.tipo_taglia = tipo_taglia_nazione.tipo_taglia
 			AND R.indice_taglia = tipo_taglia_nazione.indice_taglia
 			AND R.nazione_negozio = tipo_taglia_nazione.nazione
 		)
-		LEFT JOIN ${ref("DM_SELLOUT", "D_NEGOZIO_LISTINO_EXT")} LISTINI_MANUALI ON(
+		LEFT JOIN ${ref("D_NEGOZIO_LISTINO_EXT")} LISTINI_MANUALI ON(
 			R.negozio = LISTINI_MANUALI.negozio
 			AND R.societa = LISTINI_MANUALI.societa
 			AND R.anno = LISTINI_MANUALI.anno
@@ -524,13 +524,13 @@ FROM (
 			AND R.uscita_collezione = CLIENTELE.uscita_collezione
 			AND R.codice_cliente = CLIENTELE.cliente
 		)
-		LEFT JOIN ${ref("DM_SELLOUT_STAGING", "D_LISTINO")} LISTINI ON (
+		LEFT JOIN ${ref("D_LISTINO")} LISTINI ON (
 			R.societa = LISTINI.societa
 			AND R.anno = LISTINI.anno
 			AND R.stagione = LISTINI.stagione
 			AND COALESCE(CLIENTELE.listino_vendita, R.listino_vendita) = LISTINI.listino
 		)
-		LEFT JOIN ${ref("DM_PREZZO_LISTINO", "D_RICARICHI")} ricarichi ON ( -- JOIN per fallback di valuta_pagamento
+		LEFT JOIN ${ref("D_RICARICHI")} ricarichi ON ( -- JOIN per fallback di valuta_pagamento
 			R.negozio = ricarichi.negozio
 			AND CONCAT(R.anno, R.stagione) = ricarichi.annostag
 		)

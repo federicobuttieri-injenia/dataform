@@ -5,6 +5,6 @@ config {
 }
 
 SELECT DISTINCT data_bolla
-FROM ${ref("DM_SELLOUT_STAGING", "S_SPEDITO_*")}
+FROM ${ref("S_SPEDITO_*")}
 WHERE DATE(ts_modifica) = CURRENT_DATE
 		

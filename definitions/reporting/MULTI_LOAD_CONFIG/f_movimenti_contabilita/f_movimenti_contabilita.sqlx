@@ -11,13 +11,13 @@ WITH file_xml_per_negozio_data AS (
 		-- true se esistono XML non di pregresso per la coppia negozio-data_vendita
 		COUNTIF(input_filename LIKE '%xml') AS n_xml_per_data,
 		COUNTIF(input_filename LIKE '%xml' AND LOWER(input_filename) NOT LIKE '%runit%') AS n_xml_non_runit_per_data
-	FROM ${ref("DM_SELLOUT_STAGING", "S_MOVIMENTO_CONTABILITA_*")}
+	FROM ${ref("S_MOVIMENTO_CONTABILITA_*")}
 	WHERE EXTRACT(YEAR FROM data_pagamento) IN (SELECT * FROM ${ref("f_movimenti_contabilita_input_output_partitions")})
 	GROUP BY negozio, data_vendita
 ),
 consumer_local AS (
 	SELECT consumer_local, negozio, anno_validita, ANY_VALUE(pk_consumer) AS pk_consumer
-	FROM ${ref("DM_SELLOUT_STAGING", "D_CONSUMER_LOCAL")} 
+	FROM ${ref("D_CONSUMER_LOCAL")} 
 	GROUP BY 1,2,3
 ),
 consumer_anonime AS (
@@ -120,7 +120,7 @@ FROM (
 				c_anon.pk_consumer,
 				(SELECT * FROM anonimissima)
 			) AS pk_consumer
-		FROM ${ref("DM_SELLOUT_STAGING", "S_MOVIMENTO_CONTABILITA_*")} CONTAB
+		FROM ${ref("S_MOVIMENTO_CONTABILITA_*")} CONTAB
 		LEFT JOIN consumer_local ON (
 			CONTAB.cod_consumer = consumer_local.consumer_local 
 			AND CONTAB.negozio = consumer_local.negozio
@@ -153,18 +153,18 @@ END
 					PARTITION BY pk_consumer
 					ORDER BY timestamp_fine IS NULL DESC, pk_consumer = SAFE_CAST(SUBSTR(cliente_finale, 3) AS INT64) DESC
 				) AS rk
-			FROM ${ref("DM_SELLOUT_STAGING", "D_CONSUMER_CLIENTE_FINALE")} 
+			FROM ${ref("D_CONSUMER_CLIENTE_FINALE")} 
 		)
 		WHERE rk = 1
 	) CF USING (pk_consumer)
 	LEFT JOIN (
 		SELECT porta, zona, tipo_negozio_retail
-		FROM ${ref("DM_SELLOUT", "D_PORTA")}
+		FROM ${ref("D_PORTA")}
 	) PORTE ON (CONTAB.negozio = PORTE.porta)
 	LEFT JOIN DM_SELLOUT_STAGING.V_CONSUMER_ANONIMA CONS_ANON USING(pk_consumer)
 	LEFT JOIN file_xml_per_negozio_data USING (negozio, data_vendita)
 	LEFT JOIN consumer_local ON (CONTAB.cod_consumer = consumer_local.consumer_local AND CONTAB.negozio = consumer_local.negozio)
-	LEFT JOIN ${ref("DM_SELLOUT_STAGING", "V_FILE_VENDITE_ESPLICITI")} file_espliciti ON (CONTAB.input_filename = file_espliciti.file_name)
+	LEFT JOIN ${ref("V_FILE_VENDITE_ESPLICITI")} file_espliciti ON (CONTAB.input_filename = file_espliciti.file_name)
 	WHERE EXTRACT(YEAR FROM data_vendita) IN (SELECT * FROM ${ref("f_movimenti_contabilita_input_output_partitions")})
 	AND PORTE.porta IS NOT NULL # filtro per record con negozi non esistenti, ne teniamo traccia solo sulla S_MOV
 )
