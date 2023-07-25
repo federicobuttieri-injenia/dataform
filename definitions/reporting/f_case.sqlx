@@ -7,8 +7,8 @@ config {
 }
 
 with output_partitions as (
-    SELECT number AS partition_start,
-        number + ${dataform.projectConfig.vars.interval} AS partition_end
+    SELECT value AS partition_start,
+        value + ${dataform.projectConfig.vars.interval} AS partition_end
     FROM ${ref("output_partitions")}
 )
 
