@@ -6,7 +6,7 @@ config {
 
 WITH ultime_cancellazioni AS (
 	SELECT pk_consumer, brand, MAX(timestamp_anonimizzazione) ultima_anon
-	FROM ${ref("DM_SELLOUT_STAGING", "S_CONSUMER_DEPROFILING")}
+	FROM ${ref("S_CONSUMER_DEPROFILING")}
 	WHERE timestamp_anonimizzazione IS NOT NULL
 	GROUP BY 1, 2
 )
@@ -23,7 +23,7 @@ SELECT
 	ts_modifica
 FROM (
 	SELECT *
-	FROM ${ref("DM_SELLOUT_STAGING", "S_CONSUMER_DEPROFILING")}
+	FROM ${ref("S_CONSUMER_DEPROFILING")}
 	LEFT JOIN ultime_cancellazioni USING (pk_consumer, brand)
 	WHERE resource_timestamp > ultima_anon
 	AND ultima_anon IS NOT NULL
@@ -34,7 +34,7 @@ FROM (
 	UNION ALL
 	
 	SELECT *
-	FROM ${ref("DM_SELLOUT_STAGING", "S_CONSUMER_DEPROFILING")}
+	FROM ${ref("S_CONSUMER_DEPROFILING")}
 	LEFT JOIN ultime_cancellazioni USING (pk_consumer, brand)
 	WHERE timestamp_anonimizzazione = ultima_anon -- filtrate solo le deprofilazioni
 	-- selezionata l'ultima deprofilazione

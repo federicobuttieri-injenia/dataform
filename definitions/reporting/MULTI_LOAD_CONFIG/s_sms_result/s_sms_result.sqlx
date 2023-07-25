@@ -20,7 +20,7 @@ SELECT
 	TIMESTAMP(_PARTITIONTIME) AS ts_inserimento,
 	CURRENT_TIMESTAMP AS ts_modifica,
 	SAFE_CAST(resource_timestamp AS TIMESTAMP) AS ts_creazione
-FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_SMS_RESULT")} 
+FROM ${ref("S_LOG_SMS_RESULT")} 
 JOIN UNNEST (attributes) AS a
 WHERE
 	_PARTITIONTIME IN ({partitions})  

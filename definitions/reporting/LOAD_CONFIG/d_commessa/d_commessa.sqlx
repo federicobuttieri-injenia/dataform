@@ -19,7 +19,7 @@ WITH s_commesse_from_bms AS (
 										_PARTITIONTIME                                                                                                            AS ts_inserimento,
 										_PARTITIONTIME                                                                                                            AS ts_creazione,
 										ROW_NUMBER() OVER (PARTITION BY project_name, negozio, commessa ORDER BY project_name, negozio, commessa, _PARTITIONTIME DESC) AS RK # RANKING per leggere le commesse più recenti (anche le modifiche)
-								FROM ${ref("DM_SELLOUT_STAGING", "S_COMMESSA_BMS")}
+								FROM ${ref("S_COMMESSA_BMS")}
 							) AS S_COMMESSE_BMS
 						WHERE RK = 1
 					)
@@ -76,7 +76,7 @@ WITH s_commesse_from_bms AS (
 		SELECT *
 		FROM (
 				SELECT *, ROW_NUMBER() OVER (PARTITION BY project_name, negozio, commessa, record_type ORDER BY _PARTITIONTIME DESC, ts_creazione DESC) AS RK_RETAIL
-				FROM ${ref("DM_SELLOUT_STAGING", "S_COMMESSA_RETAIL")}
+				FROM ${ref("S_COMMESSA_RETAIL")}
 			)
 		WHERE RK_RETAIL = 1
 	),

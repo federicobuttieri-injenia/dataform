@@ -5,7 +5,7 @@ config {
 }
 
 SELECT * EXCEPT(action, ts_modifica), CURRENT_TIMESTAMP AS ts_modifica
-FROM ${ref("DM_SELLOUT_STAGING", "S_APPROVAZIONE_ORDINE_*")} s
+FROM ${ref("S_APPROVAZIONE_ORDINE_*")} s
 WHERE data_vidimazione IN (SELECT * FROM ${ref("f_vidimato_input_output_partitions")})
 QUALIFY RANK() OVER(PARTITION BY societa, serie_ordine_b2b, numero_ordine_b2b ORDER BY ts_creazione DESC, ts_inserimento DESC, s.ts_modifica DESC) = 1
 AND action = 'REPLACE'

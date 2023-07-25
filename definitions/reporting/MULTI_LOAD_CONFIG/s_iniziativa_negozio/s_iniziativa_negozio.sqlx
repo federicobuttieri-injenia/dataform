@@ -47,7 +47,7 @@ FROM (
 		TIMESTAMP(_PARTITIONTIME) AS ts_inserimento,
 		CURRENT_TIMESTAMP AS ts_modifica,
 		SAFE_CAST(resource_timestamp AS TIMESTAMP) AS ts_creazione,
-	FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_INIZIATIVA_NEGOZIO")}, unnest(attributes) AS iniziativa_negozio
+	FROM ${ref("S_LOG_INIZIATIVA_NEGOZIO")}, unnest(attributes) AS iniziativa_negozio
 	WHERE
 		_PARTITIONDATE IN (SELECT * FROM ${ref("s_iniziativa_negozio_input_partitions")})
 	AND CAST(SPLIT(id, ":::")[OFFSET(0)] AS INT64) BETWEEN op.partition_start AND op.partition_end

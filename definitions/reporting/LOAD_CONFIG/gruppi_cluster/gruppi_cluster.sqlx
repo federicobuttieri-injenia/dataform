@@ -11,7 +11,7 @@ FROM (
 		attributes.* EXCEPT(tipo_ordine_cliente),
 		IFNULL(attributes.tipo_ordine_cliente, 'CV') AS tipo_ordine_cliente,
 		timestamp AS ts_inserimento,
-	FROM ${ref("DM_SELLOUT_STAGING", "S_GRUPPO_CLUSTER")}
+	FROM ${ref("S_GRUPPO_CLUSTER")}
 	WHERE True 
 	QUALIFY ROW_NUMBER() OVER(PARTITION BY societa, anno, stagione, gruppo_cluster, tipo_ordine_cliente ORDER BY timestamp DESC) = 1
 )

@@ -32,16 +32,16 @@ FROM (
 		canale,
 		tipo_movimento,
 		project_name
-	FROM ${ref("DM_SELLOUT", "RIGA_SCONTRINO_*")}
+	FROM ${ref("RIGA_SCONTRINO_*")}
 	JOIN (
 		SELECT societa, anno, stagione, modello, ANY_VALUE(brand) AS brand
-		FROM ${ref("DM_PRODOTTO", "D_PRODOTTO")}
+		FROM ${ref("D_PRODOTTO")}
 		GROUP BY 1, 2, 3, 4
 	) AS prodotto_brand USING (societa, anno, stagione, modello)
 ) AS v
-JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS n ON (v.negozio = n.porta)
-JOIN ${ref("DM_CRM", "D_MAPPING_INSEGNA_BRAND")} MIB ON (n.insegna=MIB.insegna)
-JOIN ${ref("DM_CRM", "D_SEGMENTO")} s ON (s.brand = IF(s.f_insegna, MIB.brand, IF(v.societa = 'DT', 'DT', v.brand)))
+JOIN ${ref("D_PORTA")} AS n ON (v.negozio = n.porta)
+JOIN ${ref("D_MAPPING_INSEGNA_BRAND")} MIB ON (n.insegna=MIB.insegna)
+JOIN ${ref("D_SEGMENTO")} s ON (s.brand = IF(s.f_insegna, MIB.brand, IF(v.societa = 'DT', 'DT', v.brand)))
 WHERE
 	importo > 0
 AND data_vendita >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 year)
@@ -57,15 +57,15 @@ average_transaction_sales AS (
 		s.f_insegna,
 		SUM(IF(controvalore_euro != 0, controvalore_euro, fatturato_tasso_mensile))
 			/ COUNT(DISTINCT CONCAT(consumer_univoca, data_vendita)) AS avg_sale
-	FROM ${ref("DM_SELLOUT", "RIGA_SCONTRINO_*")} AS v
+	FROM ${ref("RIGA_SCONTRINO_*")} AS v
 	JOIN (
 		SELECT societa, anno, stagione, modello, ANY_VALUE(brand) AS brand
-		FROM ${ref("DM_PRODOTTO", "D_PRODOTTO")}
+		FROM ${ref("D_PRODOTTO")}
 		GROUP BY 1, 2, 3, 4
 	) AS prodotto_brand USING (societa, anno, stagione, modello)
-	JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS n ON (v.negozio = n.porta)
-	JOIN ${ref("DM_CRM", "D_MAPPING_INSEGNA_BRAND")} MIB ON (n.insegna=MIB.insegna)
-	JOIN ${ref("DM_CRM", "D_SEGMENTO")} s ON (s.brand = IF(s.f_insegna, MIB.brand, IF(v.societa = 'DT', 'DT', prodotto_brand.brand)))
+	JOIN ${ref("D_PORTA")} AS n ON (v.negozio = n.porta)
+	JOIN ${ref("D_MAPPING_INSEGNA_BRAND")} MIB ON (n.insegna=MIB.insegna)
+	JOIN ${ref("D_SEGMENTO")} s ON (s.brand = IF(s.f_insegna, MIB.brand, IF(v.societa = 'DT', 'DT', prodotto_brand.brand)))
 	WHERE data_vendita >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 year)
 		AND tipo_movimento = "VENDITA"
 		AND _TABLE_SUFFIX >= CONCAT(CAST (EXTRACT (YEAR FROM CURRENT_DATE) - 6 AS STRING), '0101')
@@ -81,9 +81,9 @@ B2S_prep AS (
 		DATE(start_timestamp) AS date_b2s,
 		key_conversation,
 		key_message
-	FROM ${ref("DM_CRM", "V_B2S_MESSAGE")} m
-	JOIN ${ref("DM_CRM", "V_B2S_CONVERSATION")} con USING (key_conversation)
-	JOIN ${ref("DM_CRM", "D_CONSUMATRICE")} c
+	FROM ${ref("V_B2S_MESSAGE")} m
+	JOIN ${ref("V_B2S_CONVERSATION")} con USING (key_conversation)
+	JOIN ${ref("D_CONSUMATRICE")} c
 		ON c.pk_consumer = CAST(con.pk_consumer AS INT64)
 	WHERE c.grado_anonimato NOT IN ('40', '50')
 ),
@@ -103,10 +103,10 @@ B2S AS (
 		) * IF(MAX(COALESCE(c_neg.attiva, c_project.attiva) = 1), 1, 0.001) AS score
 	FROM base_query bq
 	JOIN B2S_prep ON B2S_prep.pk_consumer = bq.pk_consumer AND B2S_prep.store_code = bq.negozio
-	LEFT JOIN ${ref("DM_SELLOUT", "D_COMMESSA")} AS c_neg ON (B2S_prep.code_cashier = c_neg.commessa AND B2S_prep.store_code = c_neg.negozio)
+	LEFT JOIN ${ref("D_COMMESSA")} AS c_neg ON (B2S_prep.code_cashier = c_neg.commessa AND B2S_prep.store_code = c_neg.negozio)
 	LEFT JOIN (
 		SELECT project_name, commessa, MAX(attiva) AS attiva
-		FROM ${ref("DM_SELLOUT", "D_COMMESSA")}
+		FROM ${ref("D_COMMESSA")}
 		GROUP BY 1,2
 	) AS c_project ON (B2S_prep.code_cashier = c_project.commessa AND bq.project_name = c_project.project_name)
 	WHERE status = "received"
@@ -135,10 +135,10 @@ sellout AS (
 			POWER(DATE_DIFF(CURRENT_DATE(), DATE_SUB(CURRENT_DATE(), INTERVAL 6 year), day), 2)
 		) * IF(MAX(COALESCE(c_neg.attiva, c_project.attiva) = 1), 1, 0.001) AS score
 	FROM base_query bq
-	LEFT JOIN ${ref("DM_SELLOUT", "D_COMMESSA")} AS c_neg ON (bq.commessa = c_neg.commessa AND bq.negozio = c_neg.negozio)
+	LEFT JOIN ${ref("D_COMMESSA")} AS c_neg ON (bq.commessa = c_neg.commessa AND bq.negozio = c_neg.negozio)
 	LEFT JOIN (
 		SELECT project_name, commessa, MAX(attiva) AS attiva
-		FROM ${ref("DM_SELLOUT", "D_COMMESSA")}
+		FROM ${ref("D_COMMESSA")}
 		GROUP BY 1,2
 	) AS c_project ON (bq.commessa = c_project.commessa AND bq.project_name = c_project.project_name)
 	INNER JOIN average_transaction_sales ats

@@ -34,7 +34,7 @@ SELECT
 	CURRENT_TIMESTAMP AS ts_modifica,
 	SAFE_CAST(resource_timestamp AS TIMESTAMP) AS ts_creazione,
 	CAST(NULL AS STRING) AS cod_consumer
-FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_CASE")}, UNNEST (attributes) a
+FROM ${ref("S_LOG_CASE")}, UNNEST (attributes) a
 WHERE CAST(a.numero_case AS INT64) BETWEEN op.partition_start AND op.partition_end
 AND _PARTITIONDATE IN (SELECT * FROM ${ref("s_case_input_partitions")})
 		

@@ -14,7 +14,7 @@ FROM (
 		DATA AS Date,
 		SUM(ingressi) AS Tot_visits
 	FROM
-		${ref("DM_SELLOUT", "F_WALKIN_*")}
+		${ref("F_WALKIN_*")}
 	WHERE
 		negozio is not null
 		AND mese_contapersone = DATE_TRUNC(DATE SELECT * FROM ${ref("f_visits_input_output_partitions")}, MONTH)
@@ -35,7 +35,7 @@ FROM (
 		Date,
 		SUM(Sessions) AS Tot_visits
 	FROM
-		${ref("DM_DIGITAL", "F_GA_STAT_*")}
+		${ref("F_GA_STAT_*")}
 	WHERE
 		Date IN (SELECT * FROM ${ref("f_visits_input_output_partitions")})
 		AND Shop_code is not null

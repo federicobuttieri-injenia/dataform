@@ -48,7 +48,7 @@ FROM (
 			SELECT
 			rip.ripartizione_fisica AS ripartizione_fisica,
 			ARRAY_AGG(porta) AS porta
-			FROM ${ref("DM_SELLOUT", "D_PORTA")}, UNNEST(cliente_ripartizione) AS rip
+			FROM ${ref("D_PORTA")}, UNNEST(cliente_ripartizione) AS rip
 			GROUP BY 1
 		)
 		SELECT * REPLACE(
@@ -57,9 +57,9 @@ FROM (
 			)) AS porta
 		) FROM porte
 	) AS po_associato
-	RIGHT JOIN ${ref("DM_SELLOUT_STAGING", "S_GIACENZA")} giac on (giac.dislocazione_fisica = po_associato.ripartizione_fisica)
-	LEFT JOIN ${ref("DM_SELLOUT", "D_PORTA")} po ON (giac.negozio = po.porta)
-	LEFT OUTER JOIN ${ref("DM_SELLOUT", "F_GIACENZA_*")} f using(barcode_negozio, giorno, negozio)
+	RIGHT JOIN ${ref("S_GIACENZA")} giac on (giac.dislocazione_fisica = po_associato.ripartizione_fisica)
+	LEFT JOIN ${ref("D_PORTA")} po ON (giac.negozio = po.porta)
+	LEFT OUTER JOIN ${ref("F_GIACENZA_*")} f using(barcode_negozio, giorno, negozio)
 	WHERE _PARTITIONDATE IN ({partitions}) AND giorno in ({where_partitions_current_table})
 	and giac.negozio is not null
   				and (f.barcode_negozio is null and f.negozio is null and f.giorno is null and f.dislocazione_fisica is null)
@@ -88,7 +88,7 @@ FROM (
 			SELECT
 			rip.ripartizione_fisica AS ripartizione_fisica,
 			ARRAY_AGG(porta) AS porta
-			FROM ${ref("DM_SELLOUT", "D_PORTA")}, UNNEST(cliente_ripartizione) AS rip
+			FROM ${ref("D_PORTA")}, UNNEST(cliente_ripartizione) AS rip
 			GROUP BY 1
 		)
 		SELECT * REPLACE(
@@ -97,20 +97,20 @@ FROM (
 			)) AS porta
 		) FROM porte
 	) AS po_associato
-	RIGHT JOIN ${ref("DM_SELLOUT_STAGING", "S_GIACENZA")} giac on (giac.dislocazione_fisica = po_associato.ripartizione_fisica)
-	LEFT JOIN ${ref("DM_SELLOUT", "D_PORTA")} po ON (giac.negozio = po.porta)
-	LEFT OUTER JOIN ${ref("DM_SELLOUT", "F_GIACENZA_*")} f using(barcode_negozio, giorno, dislocazione_fisica)
+	RIGHT JOIN ${ref("S_GIACENZA")} giac on (giac.dislocazione_fisica = po_associato.ripartizione_fisica)
+	LEFT JOIN ${ref("D_PORTA")} po ON (giac.negozio = po.porta)
+	LEFT OUTER JOIN ${ref("F_GIACENZA_*")} f using(barcode_negozio, giorno, dislocazione_fisica)
 	WHERE _PARTITIONDATE IN ({partitions}) AND giorno in ({where_partitions_current_table})
 	and giac.dislocazione_fisica is not null
   				and (f.barcode_negozio is null and f.negozio is null and f.giorno is null and f.dislocazione_fisica is null)
 	
 ) giac
-LEFT JOIN ${ref("DM_PRODOTTO", "D_PRODOTTO")} pr ON (pr.barcode_negozio = giac.barcode_negozio and pr.societa = societa_calcolata)
-LEFT JOIN ${ref("DM_PRODOTTO", "D_PRODOTTO")} pr_fallback ON (
+LEFT JOIN ${ref("D_PRODOTTO")} pr ON (pr.barcode_negozio = giac.barcode_negozio and pr.societa = societa_calcolata)
+LEFT JOIN ${ref("D_PRODOTTO")} pr_fallback ON (
 	pr_fallback.barcode_negozio = giac.barcode_negozio 
 	AND (pr_fallback.societa != pr.societa OR pr.societa IS NULL)
 )
-LEFT JOIN ${ref("DM_SELLOUT_STAGING", "D_RIPARTIZIONE")} rip ON (
+LEFT JOIN ${ref("D_RIPARTIZIONE")} rip ON (
 	rip.codice_fisica = giac.dislocazione_fisica
 )
 WHERE rank_validita = 1

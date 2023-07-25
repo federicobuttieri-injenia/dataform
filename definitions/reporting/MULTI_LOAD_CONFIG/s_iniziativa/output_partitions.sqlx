@@ -7,13 +7,13 @@ config {
 SELECT DISTINCT CAST((FLOOR((id_iniziativa - 1) / 100) * 100) as INT64) + 1 AS value
 FROM (
 	SELECT DISTINCT CAST(SPLIT(id, ":::")[OFFSET(0)] AS INT64) AS id_iniziativa
-	FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_INIZIATIVA_NEGOZIO")}
+	FROM ${ref("S_LOG_INIZIATIVA_NEGOZIO")}
 	WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("s_iniziativa_input_partitions")})
 
 	UNION DISTINCT
 
 	SELECT DISTINCT CAST(id AS INT64)
-	FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_INIZIATIVA")}
+	FROM ${ref("S_LOG_INIZIATIVA")}
 	WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("s_iniziativa_input_partitions")})
 )
 		

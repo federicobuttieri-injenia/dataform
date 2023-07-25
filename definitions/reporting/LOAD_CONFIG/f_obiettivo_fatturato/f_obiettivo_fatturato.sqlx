@@ -33,15 +33,15 @@ FROM
 			"quindicinale" AS tabella_origine,
 		FROM (
 			SELECT *, ROW_NUMBER() OVER(PARTITION BY negozio, annostag, annomese, prima_seconda ORDER BY divisa="EUR" DESC) AS rk
-			FROM ${ref("DM_SELLOUT_STAGING", "S_BUDGET_QUINDICINALE")}
+			FROM ${ref("S_BUDGET_QUINDICINALE")}
 		) AS b
-		JOIN ${ref("DM_SELLOUT", "D_TEMPO")} t ON (substr(b.annomese, 1, 4) = t.anno AND substr(b.annomese, 5, 2) = t.mese AND IF(prima_seconda = '1', CAST(t.giorno AS int64) <= 15, CAST(t.giorno AS int64) > 15))
+		JOIN ${ref("D_TEMPO")} t ON (substr(b.annomese, 1, 4) = t.anno AND substr(b.annomese, 5, 2) = t.mese AND IF(prima_seconda = '1', CAST(t.giorno AS int64) <= 15, CAST(t.giorno AS int64) > 15))
 		JOIN (
 			SELECT anno, mese, sum(if (CAST(giorno AS int64) <= 15, 1, 0)) AS conta_1, sum(if (CAST(giorno AS int64) > 15, 1, 0)) AS conta_2,
-			FROM ${ref("DM_SELLOUT", "D_TEMPO")}
+			FROM ${ref("D_TEMPO")}
 			GROUP BY 1,2
 		) AS conta_t ON (substr(b.annomese, 1, 4) = conta_t.anno AND substr(b.annomese, 5, 2) = conta_t.mese)
-		LEFT JOIN ${ref("DM_SELLOUT_STAGING", "S_BUDGET_SALDI")} AS sbs ON (sbs.negozio = b.negozio AND sbs.annostag = b.annostag)
+		LEFT JOIN ${ref("S_BUDGET_SALDI")} AS sbs ON (sbs.negozio = b.negozio AND sbs.annostag = b.annostag)
 		WHERE
 			fatturato_quindicinale > 0
 		AND sbs.utente != "importa_dw"
@@ -67,8 +67,8 @@ FROM
 			0.0 AS fatturato_lordo_obiettivi_preliminari_valuta,
 			sbs.utente, 
 			"giornaliero" AS tabella_origine
-		FROM ${ref("DM_SELLOUT_STAGING", "S_BUDGET_GIORNALIERO")} bg
-		LEFT JOIN ${ref("DM_SELLOUT_STAGING", "S_BUDGET_SALDI")} AS sbs ON (sbs.negozio = bg.negozio AND sbs.annostag = bg.annostag)
+		FROM ${ref("S_BUDGET_GIORNALIERO")} bg
+		LEFT JOIN ${ref("S_BUDGET_SALDI")} AS sbs ON (sbs.negozio = bg.negozio AND sbs.annostag = bg.annostag)
 		WHERE
 			fatturato_giornaliero > 0
 			and sbs.utente != "importa_dw"
@@ -93,7 +93,7 @@ FROM
 			fatturato_lordo_obiettivi_preliminari_valuta, 
 			"importa_dw" AS utente,
 			"store_plan_fatturati" AS tabella_origine,
-		FROM ${ref("DM_SELLOUT_STAGING", "F_STORE_PLAN_FATTURATI")}
+		FROM ${ref("F_STORE_PLAN_FATTURATI")}
 	)
 )
 WHERE rk = 1

@@ -5,6 +5,6 @@ config {
 }
 
 select distinct data_vendita 
-from ${ref("DM_SELLOUT_STAGING", "S_PROMO_ENGINE_*")}
+from ${ref("S_PROMO_ENGINE_*")}
 WHERE DATE(CAST(ts_modifica AS TIMESTAMP)) = CURRENT_DATE
 		

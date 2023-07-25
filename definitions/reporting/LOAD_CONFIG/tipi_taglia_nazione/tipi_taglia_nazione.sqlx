@@ -12,8 +12,8 @@ FROM (
 		attributes.* EXCEPT (nazione),
 		timestamp AS ts_inserimento,
 		RANK() OVER(PARTITION BY id ORDER BY timestamp DESC, GENERATE_UUID()) AS rk
-	FROM ${ref("DM_SELLOUT_STAGING", "S_TIPO_TAGLIA_NAZIONE")} s
-	JOIN ${ref("DM_SELLOUT", "D_NAZIONE")} n ON (attributes.nazione_iso=nazione_iso)
+	FROM ${ref("S_TIPO_TAGLIA_NAZIONE")} s
+	JOIN ${ref("D_NAZIONE")} n ON (attributes.nazione_iso=nazione_iso)
 )
 WHERE rk = 1
 AND action != 'DELETE'

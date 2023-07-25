@@ -14,7 +14,7 @@ SELECT * EXCEPT (_R)
 FROM (
 	SELECT *,
 		ROW_NUMBER() OVER (PARTITION BY numero_case ORDER BY ts_inserimento desc, ts_modifica desc, ts_creazione desc) AS _R
-	FROM ${ref("DM_SELLOUT_STAGING", "S_CASE")}
+	FROM ${ref("S_CASE")}
 	WHERE CAST(numero_case AS INT64) BETWEEN op.partition_start AND op.partition_end
 ) WHERE _R = 1
 		

@@ -5,13 +5,13 @@ config {
 }
 SELECT 
 	fk_prodotto, id_negozio, qta
-FROM ${ref("DM_SELLOUT_STAGING", "{from_table}")} AS S_TSLR
+FROM ${ref("{from_table}")} AS S_TSLR
 WHERE 
 	_partitiontime IN ({partitions})
 AND qta IS NOT NULL
 AND (id_negozio, upd_datetime) IN (
 	SELECT AS STRUCT id_negozio, MAX(upd_datetime) AS upd_datetime
-	FROM ${ref("DM_SELLOUT_STAGING", "{from_table}")} AS S_TSLR
+	FROM ${ref("{from_table}")} AS S_TSLR
 	WHERE _partitiontime IN ({partitions})
 	GROUP BY id_negozio
 )

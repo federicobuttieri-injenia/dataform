@@ -5,5 +5,5 @@ config {
 }
 
 SELECT *
-FROM ${ref("DM_SELLOUT_STAGING", "D_TIPO_PAGAMENTO")}
+FROM ${ref("D_TIPO_PAGAMENTO")}
 		
