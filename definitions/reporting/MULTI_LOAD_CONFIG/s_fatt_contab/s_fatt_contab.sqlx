@@ -1,6 +1,6 @@
 config {
     type: "incremental",
-    schema: DM_DIGITAL_STAGING,
+    schema: "DM_DIGITAL_STAGING",
     name: "S_FATTURATO_CONTABILIZZATO_20230101"
 }
 

@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: GRP_FAREAST,
+    schema: "GRP_FAREAST",
     name: "prices_full"
 }
 

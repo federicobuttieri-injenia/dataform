@@ -1,6 +1,6 @@
 config {
     type: "incremental",
-    schema: DM_SELLOUT_STAGING,
+    schema: "DM_SELLOUT_STAGING",
     name: "S_APPROVAZIONE_ORDINE_20230101"
 }
 

@@ -1,6 +1,6 @@
 config {
     type: "view",
-    schema: DM_SELLOUT,
+    schema: "DM_SELLOUT",
     name: "f_giacenza_input_partitions"
 }
 

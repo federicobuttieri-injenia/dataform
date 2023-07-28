@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: DM_CRM,
+    schema: "DM_CRM",
     name: "D_CONSUMATRICE_ULTIMO_ACQUISTO"
 }
 

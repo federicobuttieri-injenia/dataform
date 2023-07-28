@@ -1,6 +1,6 @@
 config {
     type: "incremental",
-    schema: DM_SELLOUT_STAGING,
+    schema: "DM_SELLOUT_STAGING",
     name: "S_SMS_RESULT_20230101"
 }
 

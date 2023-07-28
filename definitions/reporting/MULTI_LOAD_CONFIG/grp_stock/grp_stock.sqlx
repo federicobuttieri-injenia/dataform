@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: GRP,
+    schema: "GRP",
     name: "stock_full"
 }
 

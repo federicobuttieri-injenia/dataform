@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: DM_PREZZO_LISTINO,
+    schema: "DM_PREZZO_LISTINO",
     name: "D_PREZZO_EXT"
 }
 

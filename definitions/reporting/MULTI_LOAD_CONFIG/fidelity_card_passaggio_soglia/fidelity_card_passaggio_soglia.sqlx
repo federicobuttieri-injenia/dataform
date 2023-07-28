@@ -1,6 +1,6 @@
 config {
     type: "incremental",
-    schema: DM_SELLOUT,
+    schema: "DM_SELLOUT",
     name: "F_FIDELITY_PASSAGGIO_SOGLIA"
 }
 

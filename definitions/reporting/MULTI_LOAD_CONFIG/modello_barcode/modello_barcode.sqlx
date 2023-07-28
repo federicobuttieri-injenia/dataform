@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: DM_PRODOTTO,
+    schema: "DM_PRODOTTO",
     name: "D_MODELLO_BARCODE"
 }
 

@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: DM_SELLOUT,
+    schema: "DM_SELLOUT",
     name: "F_MOVIMENTO_CONTABILITA_20230101"
 }
 

@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: DM_DIGITAL,
+    schema: "DM_DIGITAL",
     name: "F_GA_KPI_PRODOTTO_BASIC_20230101"
 }
 

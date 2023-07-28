@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: DM_DIGITAL,
+    schema: "DM_DIGITAL",
     name: "F_VISITS_20230101"
 }
 

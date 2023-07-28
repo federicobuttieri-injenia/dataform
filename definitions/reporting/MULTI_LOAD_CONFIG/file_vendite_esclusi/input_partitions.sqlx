@@ -1,6 +1,6 @@
 config {
     type: "view",
-    schema: DM_SELLOUT_STAGING,
+    schema: "DM_SELLOUT_STAGING",
     name: "file_vendite_esclusi_input_partitions"
 }
 

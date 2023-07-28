@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: STAGING_LOCATION,
+    schema: "STAGING_LOCATION",
     name: "D_TIPO_PAGAMENTO"
 }
 

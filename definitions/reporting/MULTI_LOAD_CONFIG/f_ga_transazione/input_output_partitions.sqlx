@@ -1,6 +1,6 @@
 config {
     type: "view",
-    schema: DM_DIGITAL,
+    schema: "DM_DIGITAL",
     name: "f_ga_transazione_input_output_partitions"
 }
 with ga_part as (

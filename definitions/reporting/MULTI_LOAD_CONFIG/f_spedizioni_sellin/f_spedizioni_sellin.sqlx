@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: DM_SELLIN,
+    schema: "DM_SELLIN",
     name: "F_SPEDITO_20230101"
 }
 

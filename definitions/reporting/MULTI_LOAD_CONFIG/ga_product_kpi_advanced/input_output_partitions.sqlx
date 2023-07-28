@@ -1,6 +1,6 @@
 config {
     type: "view",
-    schema: DM_DIGITAL,
+    schema: "DM_DIGITAL",
     name: "ga_product_kpi_advanced_input_output_partitions"
 }
 

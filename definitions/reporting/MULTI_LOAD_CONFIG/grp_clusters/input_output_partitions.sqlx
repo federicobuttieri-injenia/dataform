@@ -1,6 +1,6 @@
 config {
     type: "view",
-    schema: GRP,
+    schema: "GRP",
     name: "grp_clusters_input_output_partitions"
 }
 SELECT DISTINCT CONCAT(anno, stagione) 

@@ -1,6 +1,6 @@
 config {
     type: "view",
-    schema: DM_DIGITAL_STAGING,
+    schema: "DM_DIGITAL_STAGING",
     name: "s_fatt_contab_input_output_partitions"
 }
 

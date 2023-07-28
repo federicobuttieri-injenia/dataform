@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: DM_SELLIN,
+    schema: "DM_SELLIN",
     name: "D_CANALE_MMN"
 }
 

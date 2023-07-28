@@ -1,6 +1,6 @@
 config {
     type: "view",
-    schema: DM_SELLOUT_STAGING,
+    schema: "DM_SELLOUT_STAGING",
     name: "s_prezzi_ext_from_ricarichi_input_output_partitions"
 }
 

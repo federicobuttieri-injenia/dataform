@@ -1,6 +1,6 @@
 config {
     type: "view",
-    schema: GRP,
+    schema: "GRP",
     name: "grp_stock_input_partitions"
 }
 SELECT DISTINCT giorno

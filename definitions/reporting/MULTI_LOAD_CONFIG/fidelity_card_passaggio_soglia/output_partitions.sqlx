@@ -1,6 +1,6 @@
 config {
     type: "view",
-    schema: DM_SELLOUT,
+    schema: "DM_SELLOUT",
     name: "fidelity_card_passaggio_soglia_output_partitions"
 }
 

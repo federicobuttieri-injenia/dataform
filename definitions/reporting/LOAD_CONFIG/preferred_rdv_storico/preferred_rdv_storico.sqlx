@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: DM_CRM,
+    schema: "DM_CRM",
     name: "F_PREFERRED_RDV_STORICO"
 }
 WITH base_query AS (

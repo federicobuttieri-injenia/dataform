@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: DM_EVENTI,
+    schema: "DM_EVENTI",
     name: "F_RFID"
 }
 

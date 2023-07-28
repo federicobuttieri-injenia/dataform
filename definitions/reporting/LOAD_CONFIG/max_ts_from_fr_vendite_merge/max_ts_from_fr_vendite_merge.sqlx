@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: DM_SELLOUT_STAGING,
+    schema: "DM_SELLOUT_STAGING",
     name: "F_MAX_TS_FROM_FR_VENDITE_MERGE"
 }
 

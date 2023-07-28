@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: DM_CRM,
+    schema: "DM_CRM",
     name: "F_PREFERRED_STORE_SEGMENTO"
 }
 WITH pk_deprofilate AS (

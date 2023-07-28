@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: DM_RETAIL,
+    schema: "DM_RETAIL",
     name: "fr_budget_saldi"
 }
 

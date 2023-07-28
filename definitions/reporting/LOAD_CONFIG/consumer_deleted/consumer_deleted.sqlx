@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: DM_SELLOUT_STAGING,
+    schema: "DM_SELLOUT_STAGING",
     name: "D_CONSUMER_DELETED"
 }
 
