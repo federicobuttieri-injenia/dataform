@@ -1,9 +1,9 @@
 config {
     type: "table",
-    schema: "injenia",
+    schema: STAGING_LOCATION,
     name: "D_CODICE_COMPAGNIA"
 }
 
 SELECT *
-FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_CODICE_COMPAGNIA`
+FROM ${ref("DM_SELLOUT_STAGING", "D_CODICE_COMPAGNIA")}
 		

@@ -1,13 +1,13 @@
 config {
     type: "view",
-    schema: "injenia",
+    schema: DM_CRM,
     name: "f_case_output_partitions"
 }
 
 SELECT DISTINCT CAST((FLOOR((numero_case - 1) / 10000) * 10000) as INT64) + 1 AS value
 FROM (
 	SELECT DISTINCT a.numero_case AS numero_case
-	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.S_LOG_CASE`, UNNEST (attributes) a
+	FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_CASE")}, UNNEST (attributes) a
 	WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("f_case_input_partitions")})
 )
 		

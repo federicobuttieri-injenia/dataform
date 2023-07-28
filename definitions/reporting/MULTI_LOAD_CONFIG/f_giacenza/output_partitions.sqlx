@@ -1,10 +1,10 @@
 config {
     type: "view",
-    schema: "injenia",
+    schema: DM_SELLOUT,
     name: "f_giacenza_output_partitions"
 }
 
 SELECT DISTINCT giorno AS value
-FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.S_GIACENZA`
+FROM ${ref("DM_SELLOUT_STAGING", "S_GIACENZA")}
 WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("f_giacenza_input_partitions")})
 		

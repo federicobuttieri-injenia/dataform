@@ -1,9 +1,9 @@
 config {
     type: "table",
-    schema: "injenia",
+    schema: STAGING_LOCATION,
     name: "D_TIPO_PAGAMENTO"
 }
 
 SELECT *
-FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_TIPO_PAGAMENTO`
+FROM ${ref("DM_SELLOUT_STAGING", "D_TIPO_PAGAMENTO")}
 		

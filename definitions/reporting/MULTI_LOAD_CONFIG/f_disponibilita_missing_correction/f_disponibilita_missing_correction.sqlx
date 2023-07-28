@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "injenia",
+    schema: DM_DIGITAL,
     name: "F_DISPONIBILITA_20230101"
 }
 
@@ -13,10 +13,10 @@ WITH
 			MIN(date) OVER(PARTITION BY sku, warehouse, brand) AS min_date,
 			MAX(date) OVER(PARTITION BY sku, warehouse, brand) AS max_date,
 			data as `date`
-		FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL.F_DISPONIBILITA_20230101`
+		FROM ${ref("F_DISPONIBILITA_20230101")}
 			CROSS JOIN (
 				SELECT data
-				FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_TEMPO`
+				FROM ${ref("DM_SELLOUT", "D_TEMPO")}
 				WHERE data BETWEEN '2023-01-01' AND '2023-12-31'
 			)
 		QUALIFY date BETWEEN min_date AND max_date
@@ -29,7 +29,7 @@ WITH
 			date,
 			quantity,
 			(quantity IS NULL) != LAG((quantity IS NULL), 1, true) OVER (PARTITION BY sku, warehouse, brand ORDER BY date) as new_partition_signal,
-		FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL.F_DISPONIBILITA_20230101`
+		FROM ${ref("F_DISPONIBILITA_20230101")}
 			RIGHT JOIN f_disponbiilita_complete USING (sku, warehouse, brand, date)
 	),
 	f_disponibilita_with_partitions_over AS (

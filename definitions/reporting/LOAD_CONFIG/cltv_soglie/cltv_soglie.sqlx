@@ -1,6 +1,6 @@
 config {
     type: "incremental",
-    schema: "injenia",
+    schema: DM_SELLOUT_STAGING,
     name: "S_CLTV_SOGLIE_LOYALTY"
 }
 
@@ -12,7 +12,7 @@ WITH raggr_soglie AS (
 		SUM(STIMA_T_1) AS STIMA_T_1,
 		SUM(AMOUNT_SPENT_T_1) AS AMOUNT_SPENT_T_1,
 		(SUM(AMOUNT_SPENT_T_1) / SUM(STIMA_T_1)) - 1 AS soglia
-	FROM `mmfg-dwh-gruppo-prod.DM_CRM.CLTV_COMPUTE_ESTIMATES_TOTALS`
+	FROM ${ref("DM_CRM", "CLTV_COMPUTE_ESTIMATES_TOTALS")}
 	WHERE STIMA_T_1 IS NOT NULL
 	AND AMOUNT_SPENT_T_1 IS NOT NULL
 	GROUP BY 1, 2, 3

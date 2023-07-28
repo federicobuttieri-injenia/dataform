@@ -1,10 +1,10 @@
 config {
     type: "view",
-    schema: "injenia",
+    schema: DM_SELLIN,
     name: "f_vidimato_input_output_partitions"
 }
 
 SELECT DISTINCT data_vidimazione
-FROM `DM_SELLOUT_STAGING.S_APPROVAZIONE_ORDINE_*`
+FROM ${ref("DM_SELLOUT_STAGING", "S_APPROVAZIONE_ORDINE_*")}
 WHERE DATE(ts_modifica) = CURRENT_DATE
 		

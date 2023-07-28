@@ -1,11 +1,11 @@
 config {
     type: "incremental",
-    schema: "injenia",
+    schema: DM_SELLOUT_STAGING,
     name: "S_FIFO"
 }
 
 SELECT *
-FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.S_LOG_FIFO`
+FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_FIFO")}
 WHERE
 	_PARTITIONDATE IN ({partitions})
 AND data_carico IN ({where_partitions_current_table})

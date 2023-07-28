@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "injenia",
+    schema: DM_DIGITAL,
     name: "F_GA_KPI_PRODOTTO_BASIC_20230101"
 }
 
@@ -9,7 +9,7 @@ WITH regions AS (
 		CONCAT(brand, "-", country) AS key,
 		societa_v1, societa_v2, brand, region, country, warehouse_code, currency_trx, currency_fnc, (currency_fnc = 'EUR') AS fnc_eur, date_begin, date_end,
 		webanalytics_brand, webanalytics_country
-	FROM `DM_DIGITAL.D_REGION`
+	FROM ${ref("D_REGION")}
 ),
 prodotto AS (
 	SELECT DISTINCT
@@ -19,7 +19,7 @@ prodotto AS (
 		modello_barcode_negozio,
 		IF(variante IS NOT NULL AND LENGTH(variante) <=3, LPAD(variante, 3, '0'), variante)                                   AS variante, # [BIHD-1696, BIHD-1831]
 		CONCAT(modello_barcode_negozio, IF(variante IS NOT NULL AND LENGTH(variante) <=3, LPAD(variante, 3, '0'), variante))  AS modello_variante
-	FROM `DM_PRODOTTO.D_PRODOTTO`
+	FROM ${ref("D_PRODOTTO")}
 	WHERE annostagione BETWEEN (EXTRACT(YEAR FROM DATE_ADD(CURRENT_DATE(), INTERVAL -3 YEAR)) * 10 + 1) AND (EXTRACT(YEAR FROM CURRENT_DATE())+1) * 10 + 1
 ),
 prodotto_b2c AS (
@@ -31,7 +31,7 @@ prodotto_b2c AS (
 		pb2c.b2c_category,
 		pb2c.b2c_subcategory,
 		pb2c.b2c_collection
-	FROM `DM_DIGITAL.D_PRODOTTO_B2C` pb2c
+	FROM ${ref("DM_DIGITAL", "D_PRODOTTO_B2C")} pb2c
 	WHERE TRUE
 	QUALIFY ROW_NUMBER() OVER (PARTITION BY REGEXP_REPLACE(pb2c.modello_barcode_negozio, r'(^[A-Z]{2})', ''), brand, region ORDER BY annostagione DESC) = 1
 ),
@@ -49,9 +49,9 @@ date_rate AS (
 		avg_rate
 	FROM (
 		SELECT DISTINCT data reference_date, iso_code
-		FROM `DM_SELLOUT.D_TEMPO`, `DM_SELLOUT.F_TASSO_QUOTIDIANO`
+		FROM ${ref("DM_SELLOUT", "D_TEMPO")}, ${ref("F_TASSO_QUOTIDIANO")}
 	)
-	LEFT JOIN `DM_SELLOUT.F_TASSO_QUOTIDIANO` USING (reference_date, iso_code)
+	LEFT JOIN ${ref("F_TASSO_QUOTIDIANO")} USING (reference_date, iso_code)
 	WHERE reference_date <= CURRENT_DATE() 
 	AND iso_code = 'USD'
 ),
@@ -80,7 +80,7 @@ raw_MM AS (
 		)                                                                                                               AS event_name, 
 		ep.key                                                                                                          AS ep_key,
 		ep.value.string_value                                                                                           AS ep_value_string
-	FROM `mmfg-analytics-gruppo-prod.analytics_260123046.events_*`,
+	FROM ${ref("analytics_260123046", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
 	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
@@ -105,7 +105,7 @@ raw_SP AS (
 		)                                                                                                               AS event_name, 
 		ep.key                                                                                                          AS ep_key,
 		ep.value.string_value                                                                                           AS ep_value_string
-	FROM `mmfg-analytics-gruppo-prod.analytics_260107564.events_*`,
+	FROM ${ref("analytics_260107564", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
 	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
@@ -130,7 +130,7 @@ raw_WE AS (
 		)                                                                                                               AS event_name, 
 		ep.key                                                                                                          AS ep_key,
 		ep.value.string_value                                                                                           AS ep_value_string
-	FROM `mmfg-analytics-gruppo-prod.analytics_260112979.events_*`,
+	FROM ${ref("analytics_260112979", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
 	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
@@ -155,7 +155,7 @@ raw_MR AS (
 		)                                                                                                               AS event_name, 
 		ep.key                                                                                                          AS ep_key,
 		ep.value.string_value                                                                                           AS ep_value_string
-	FROM `mmfg-analytics-gruppo-prod.analytics_260108762.events_*`,
+	FROM ${ref("analytics_260108762", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
 	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
@@ -180,7 +180,7 @@ raw_MA AS (
 		)                                                                                                               AS event_name, 
 		ep.key                                                                                                          AS ep_key,
 		ep.value.string_value                                                                                           AS ep_value_string
-	FROM `mmfg-analytics-gruppo-prod.analytics_260106982.events_*`,
+	FROM ${ref("analytics_260106982", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
 	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
@@ -205,7 +205,7 @@ raw_IB AS (
 		)                                                                                                               AS event_name, 
 		ep.key                                                                                                          AS ep_key,
 		ep.value.string_value                                                                                           AS ep_value_string
-	FROM `mmfg-analytics-gruppo-prod.analytics_260088170.events_*`,
+	FROM ${ref("analytics_260088170", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
 	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
@@ -230,7 +230,7 @@ raw_MC AS (
 		)                                                                                                               AS event_name, 
 		ep.key                                                                                                          AS ep_key,
 		ep.value.string_value                                                                                           AS ep_value_string
-	FROM `mmfg-analytics-gruppo-prod.analytics_260031029.events_*`,
+	FROM ${ref("analytics_260031029", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
 	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
@@ -255,7 +255,7 @@ raw_PB AS (
 		)                                                                                                               AS event_name, 
 		ep.key                                                                                                          AS ep_key,
 		ep.value.string_value                                                                                           AS ep_value_string
-	FROM `mmfg-analytics-gruppo-prod.analytics_260115782.events_*`,
+	FROM ${ref("analytics_260115782", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
 	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
@@ -280,7 +280,7 @@ raw_DT AS (
 		)                                                                                                               AS event_name, 
 		ep.key                                                                                                          AS ep_key,
 		ep.value.string_value                                                                                           AS ep_value_string
-	FROM `mmfg-analytics-gruppo-prod.analytics_248931566.events_*`,
+	FROM ${ref("analytics_248931566", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
 	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
@@ -305,7 +305,7 @@ raw_FM AS (
 		)                                                                                                               AS event_name, 
 		ep.key                                                                                                          AS ep_key,
 		ep.value.string_value                                                                                           AS ep_value_string
-	FROM `mmfg-analytics-gruppo-prod.analytics_260115140.events_*`,
+	FROM ${ref("analytics_260115140", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
 	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})

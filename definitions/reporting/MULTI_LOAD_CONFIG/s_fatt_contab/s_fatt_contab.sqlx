@@ -1,7 +1,7 @@
 config {
     type: "incremental",
-    schema: "injenia",
-    name: "S_FATTURATO_CONTABILIZZATO_2023010111"
+    schema: DM_DIGITAL_STAGING,
+    name: "S_FATTURATO_CONTABILIZZATO_20230101"
 }
 
         SELECT
@@ -71,7 +71,7 @@ config {
             'Stargate' AS project_name,
             line_id,
             tracking_number
-        FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL_STAGING.S_LOG_FATTURATO_CONTABILIZZATO`
+        FROM ${ref("DM_DIGITAL_STAGING", "S_LOG_FATTURATO_CONTABILIZZATO")}
         WHERE EXTRACT(DATE FROM _PARTITIONTIME) = CURRENT_DATE()
         AND DATE(daily_sales_date) IN (SELECT * FROM ${ref("s_fatt_contab_input_output_partitions")})
         AND LOWER(sku) != 'shipping charges'

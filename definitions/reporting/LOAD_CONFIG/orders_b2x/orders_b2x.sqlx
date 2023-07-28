@@ -1,6 +1,5 @@
 config {
     type: "incremental",
-    schema: "injenia",
     name: "F_ORDINE_B2X"
 }
 

@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "injenia",
+    schema: DM_SELLOUT,
     name: "F_ORARIO_NEGOZIO"
 }
 
@@ -50,7 +50,7 @@ FROM (
 		data_creazione,
 		ROW_NUMBER() OVER(PARTITION BY negozio, data ORDER BY input_filename DESC, ts_inserimento DESC) AS rk
 	FROM
-		`mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.S_ORARIO_NEGOZIO`
+		${ref("DM_SELLOUT_STAGING", "S_ORARIO_NEGOZIO")}
 )
 WHERE
 	rk = 1

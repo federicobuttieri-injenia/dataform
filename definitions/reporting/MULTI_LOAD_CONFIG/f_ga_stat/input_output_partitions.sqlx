@@ -1,58 +1,58 @@
 config {
     type: "view",
-    schema: "injenia",
+    schema: DM_DIGITAL,
     name: "f_ga_stat_input_output_partitions"
 }
 
         with ga_part as (
         select 
             distinct parse_date('%Y%m%d', event_date) as Date 
-        FROM `mmfg-analytics-gruppo-prod.analytics_260123046.events_*`
+        FROM ${ref("analytics_260123046", "events_*")}
         where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) 
         union all
         select 
             distinct parse_date('%Y%m%d', event_date) as Date
-        FROM `mmfg-analytics-gruppo-prod.analytics_260031029.events_*`
+        FROM ${ref("analytics_260031029", "events_*")}
         where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
         union all
         select 
             distinct parse_date('%Y%m%d', event_date) as Date
-        FROM `mmfg-analytics-gruppo-prod.analytics_260112979.events_*`
+        FROM ${ref("analytics_260112979", "events_*")}
         where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
         union all
         select
             distinct parse_date('%Y%m%d', event_date) as Date 
-        FROM `mmfg-analytics-gruppo-prod.analytics_260115782.events_*`
+        FROM ${ref("analytics_260115782", "events_*")}
         where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
         union all
         select 
             distinct parse_date('%Y%m%d', event_date) as Date 
-        FROM `mmfg-analytics-gruppo-prod.analytics_260088170.events_*`
+        FROM ${ref("analytics_260088170", "events_*")}
         where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
         union all
         select 
             distinct parse_date('%Y%m%d', event_date) as Date 
-        FROM `mmfg-analytics-gruppo-prod.analytics_260106982.events_*`
+        FROM ${ref("analytics_260106982", "events_*")}
         where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
         union all
         select 
             distinct parse_date('%Y%m%d', event_date) as Date
-        FROM `mmfg-analytics-gruppo-prod.analytics_260108762.events_*`
+        FROM ${ref("analytics_260108762", "events_*")}
         where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
         union all
         select 
             distinct parse_date('%Y%m%d', event_date) as Date
-        FROM `mmfg-analytics-gruppo-prod.analytics_260107564.events_*`
+        FROM ${ref("analytics_260107564", "events_*")}
         where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
         union all
         select 
             distinct parse_date('%Y%m%d', event_date) as Date 
-        FROM `mmfg-analytics-gruppo-prod.analytics_260115140.events_*`
+        FROM ${ref("analytics_260115140", "events_*")}
         where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
         union all
         select 
             distinct parse_date('%Y%m%d', event_date) as Date
-        FROM `mmfg-analytics-gruppo-prod.analytics_248931566.events_*`
+        FROM ${ref("analytics_248931566", "events_*")}
         where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
         )
         select distinct Date from ga_part

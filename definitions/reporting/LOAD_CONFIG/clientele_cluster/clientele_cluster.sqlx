@@ -1,6 +1,5 @@
 config {
     type: "table",
-    schema: "injenia",
     name: "D_CLIENTELA_CLUSTER"
 }
 
@@ -11,7 +10,7 @@ FROM (
 		attributes.* EXCEPT(tipo_ordine_cliente),
 		IFNULL(attributes.tipo_ordine_cliente, 'CV') AS tipo_ordine_cliente,
 		timestamp AS ts_inserimento,
-	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.S_CLIENTELA_CLUSTER`
+	FROM ${ref("DM_SELLOUT_STAGING", "S_CLIENTELA_CLUSTER")}
 	WHERE True 
 	QUALIFY ROW_NUMBER() OVER(PARTITION BY societa, anno, stagione, uscita_collezione, cliente, tipo_ordine_cliente ORDER BY timestamp DESC) = 1
 )

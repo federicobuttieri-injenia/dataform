@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "injenia",
+    schema: DM_DIGITAL,
     name: "F_TARGET"
 }
 
@@ -14,7 +14,7 @@ SELECT
 	budget,
 	budget_forecast_LINR,
 	budget_forecast_LILR
-FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL_STAGING.S_TARGET_DT_FM` UNION ALL 
+FROM ${ref("DM_DIGITAL_STAGING", "S_TARGET_DT_FM")} UNION ALL 
 	SELECT
 	brand,
 	region,
@@ -25,7 +25,7 @@ FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL_STAGING.S_TARGET_DT_FM` UNION ALL
 	budget,
 	budget_forecast_LINR,
 	budget_forecast_LILR
-FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL_STAGING.S_TARGET_MA_IB_MC_PB` UNION ALL
+FROM ${ref("DM_DIGITAL_STAGING", "S_TARGET_MA_IB_MC_PB")} UNION ALL
 	SELECT
 	brand,
 	region,
@@ -36,4 +36,4 @@ FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL_STAGING.S_TARGET_MA_IB_MC_PB` UNION ALL
 	budget,
 	budget_forecast_LINR,
 	budget_forecast_LILR
-FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL_STAGING.S_TARGET_MM_SP_WE_MR`
+FROM ${ref("DM_DIGITAL_STAGING", "S_TARGET_MM_SP_WE_MR")}

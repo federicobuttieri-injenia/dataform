@@ -1,11 +1,11 @@
 config {
     type: "view",
-    schema: "injenia",
+    schema: DM_CRM,
     name: "f_email_result_input_partitions"
 }
 
 SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
-FROM `mmfg-dwh-gruppo-prod.TEMP_LOCATION.PARTIZIONI_LOADJOB` 
+FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")} 
 WHERE 
 	DATE(ts_lancio) = CURRENT_DATE 
 AND table_name = 'S_LOG_EMAIL_RESULT'

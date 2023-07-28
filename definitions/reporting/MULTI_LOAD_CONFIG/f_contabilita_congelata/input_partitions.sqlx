@@ -1,11 +1,11 @@
 config {
     type: "view",
-    schema: "injenia",
+    schema: DM_BMS,
     name: "f_contabilita_congelata_input_partitions"
 }
 
 SELECT DISTINCT creation_date AS data_creazione,
-FROM `mmfg-dwh-gruppo-prod.TEMP_LOCATION.MOV_MODIFIED_DATE`
+FROM ${ref("TEMP_LOCATION", "MOV_MODIFIED_DATE")}
 WHERE DATE(ts_lancio) >= CURRENT_DATE() - 1
 	AND record_type IN ('BMS')
 	AND EXTRACT(YEAR FROM creation_date) BETWEEN GREATEST(2021, EXTRACT(YEAR FROM CURRENT_DATE) - 5) and EXTRACT(YEAR FROM CURRENT_DATE) - 1

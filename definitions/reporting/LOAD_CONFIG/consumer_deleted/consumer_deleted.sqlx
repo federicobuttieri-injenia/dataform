@@ -1,17 +1,17 @@
 config {
     type: "table",
-    schema: "injenia",
+    schema: DM_SELLOUT_STAGING,
     name: "D_CONSUMER_DELETED"
 }
 
 WITH data AS (
 	SELECT *
-	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.S_CONSUMER_DELETED`
+	FROM ${ref("DM_SELLOUT_STAGING", "S_CONSUMER_DELETED")}
 	WHERE TRUE
 	QUALIFY _PARTITIONDATE = max(_PARTITIONDATE) OVER()
 	UNION DISTINCT
 	SELECT *
-	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_CONSUMER_DELETED`
+	FROM ${ref("D_CONSUMER_DELETED")}
 	WHERE TRUE
 ),
 ready_data AS (

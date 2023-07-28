@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "injenia",
+    schema: DM_DIGITAL,
     name: "F_FATTURATO_CONTABILIZZATO_20230101"
 }
 
@@ -27,20 +27,20 @@ config {
                 ELSE sku 
             END AS b2c_sku,
             ROW_NUMBER() OVER (PARTITION BY order_number, delivery_name, rma_number, daily_sales_date, sku, line_id ORDER BY project_name = 'OPS' DESC, ts_creazione DESC, ts_inserimento DESC, ts_modifica DESC, record_type = 'INSERT' DESC, delivery_date IS NULL) AS rnk    
-            FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL_STAGING.S_FATTURATO_CONTABILIZZATO_2*`
+            FROM ${ref("DM_DIGITAL_STAGING", "S_FATTURATO_CONTABILIZZATO_2*")}
         ),
         regions AS (
             SELECT CONCAT(brand, "-", country) AS key, brand, region, country, warehouse_code, currency_trx, currency_fnc, date_begin, date_end
-            FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL.D_REGION`
+            FROM ${ref("D_REGION")}
         ),
         prodotto AS (
             SELECT CONCAT(societa, '-', barcode_negozio) AS key, societa, nome, desc_colore, annostagione,
             DENSE_RANK() OVER (PARTITION BY societa, barcode_negozio ORDER BY anno DESC, stagione DESC) AS rnk_prodotto
-            FROM `mmfg-dwh-gruppo-prod.DM_PRODOTTO.D_PRODOTTO`
+            FROM ${ref("D_PRODOTTO")}
         ),
         prodotto_b2c AS (
             SELECT DISTINCT brand, annostagione, modello_barcode_negozio,
-            FROM  `mmfg-dwh-gruppo-prod.DM_DIGITAL.D_PRODOTTO_B2C`
+            FROM  ${ref("DM_DIGITAL", "D_PRODOTTO_B2C")}
             ORDER BY modello_barcode_negozio, brand, annostagione DESC
         ),
         prodotto_b2c_ranked AS (
@@ -58,18 +58,18 @@ config {
                 pb2c_ls.modello_barcode_negozio AS modello_barcode_negozio,
                 pb2c.brand, pb2c.region, pb2c.annostagione, 
                 pb2c.b2c_category
-            FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL.D_PRODOTTO_B2C` pb2c
+            FROM ${ref("DM_DIGITAL", "D_PRODOTTO_B2C")} pb2c
             INNER JOIN prodotto_b2c_latest_season pb2c_ls 
             USING(modello_barcode_negozio, brand, annostagione)
             ORDER BY pb2c.brand, pb2c.region, pb2c.annostagione DESC
         ),
         se_rate AS (
             SELECT CONCAT(anno,stagione,"-",currency_iso_code) AS key, anno, stagione, currency_iso_code, seasonal_exchange_rate
-            FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL.D_SEASONAL_EXCHANGE_RATE`
+            FROM ${ref("D_SEASONAL_EXCHANGE_RATE")}
         ),
         codici_esistenti AS (
             SELECT DISTINCT iso_code
-            FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.F_TASSO_QUOTIDIANO`
+            FROM ${ref("F_TASSO_QUOTIDIANO")}
         ),
         tassi AS (
             SELECT DISTINCT
@@ -83,10 +83,10 @@ config {
                 LAST_VALUE(avg_rate IGNORE NULLS) OVER(PARTITION BY iso_code ORDER BY reference_date DESC) AS last_avg_rate,
                 FROM (
                     SELECT iso_code, reference_date, avg_rate
-                    FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.F_TASSO_QUOTIDIANO` ta 
+                    FROM ${ref("F_TASSO_QUOTIDIANO")} ta 
                     UNION ALL
                     SELECT codici_esistenti.iso_code, te.data, NULL 
-                    FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_TEMPO` te, codici_esistenti
+                    FROM ${ref("DM_SELLOUT", "D_TEMPO")} te, codici_esistenti
                 )
             )
         ),
@@ -94,9 +94,9 @@ config {
             SELECT DISTINCT reference_date, iso_code, avg_rate
             FROM (
                 SELECT DISTINCT data reference_date, iso_code
-                FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_TEMPO`, `mmfg-dwh-gruppo-prod.DM_SELLOUT.F_TASSO_QUOTIDIANO`
+                FROM ${ref("DM_SELLOUT", "D_TEMPO")}, ${ref("F_TASSO_QUOTIDIANO")}
             )
-            LEFT JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT.F_TASSO_QUOTIDIANO` USING (reference_date, iso_code)
+            LEFT JOIN ${ref("F_TASSO_QUOTIDIANO")} USING (reference_date, iso_code)
             WHERE reference_date <= CURRENT_DATE()
         ),
         fnc_rate AS (
@@ -111,7 +111,7 @@ config {
             SELECT DISTINCT deliveries.daily_sales_date AS data_delivery,
             delivery_name,
             country
-            FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL.F_FATTURATO_CONTABILIZZATO_2*` deliveries
+            FROM ${ref("DM_DIGITAL", "F_FATTURATO_CONTABILIZZATO_2*")} deliveries
             WHERE deliveries.quantity > 0 
         ),
         fatturato_pre_conversione AS (

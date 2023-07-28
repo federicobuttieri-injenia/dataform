@@ -1,6 +1,6 @@
 config {
     type: "view",
-    schema: "injenia",
+    schema: DM_SELLOUT,
     name: "righe_scontrino_post_input_output_partitions"
 }
 
@@ -19,7 +19,7 @@ WITH PREZZI AS (
 		ts_inserimento
 	FROM (
 		SELECT *
-		FROM `mmfg-dwh-gruppo-prod.DM_PREZZO_LISTINO.D_PREZZO`
+		FROM ${ref("D_PREZZO")}
 		WHERE tipo_prezzo IN ('A', 'V')
 		QUALIFY ROW_NUMBER() OVER(PARTITION BY societa, modello, listino, anno, stagione, tipo_prezzo, progr_periodo ORDER BY ts_inserimento DESC, prezzo IS NULL) = 1
 	) PR
@@ -39,7 +39,7 @@ TIPI_PREZZO_CLIENTE AS (
 		SELECT *, FIRST_VALUE(data_inizio) OVER(PARTITION BY societa, anno, stagione, cliente, tipo_prezzo ORDER BY progr_periodo DESC ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) AS temp_data_fine_calcolata
 		FROM (
 			SELECT *
-			FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_TIPO_PREZZO_CLIENTE` 
+			FROM ${ref("DM_SELLOUT_STAGING", "D_TIPO_PREZZO_CLIENTE")} 
 			WHERE tipo_prezzo IN ('A', 'V')
 			QUALIFY ROW_NUMBER() OVER(PARTITION BY societa, anno, stagione, cliente, tipo_prezzo, data_inizio ORDER BY ts_inserimento DESC) = 1
 		)
@@ -49,7 +49,7 @@ TIPI_PREZZO_CLIENTE AS (
 SELECT DISTINCT EXTRACT(YEAR FROM data_vendita)
 FROM (
 	SELECT codice_cliente, societa, negozio, nazione_negozio, anno, stagione, modello, uscita_collezione, barcode_negozio, valuta_pagamento, data_vendita, tipo_negozio_retail, anno_transazione,listino_acquisto, listino_vendita, ts_creazione
-	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.RIGA_SCONTRINO_*`
+	FROM ${ref("DM_SELLOUT", "RIGA_SCONTRINO_*")}
 ) AS R
 LEFT JOIN (
 	SELECT
@@ -69,13 +69,13 @@ LEFT JOIN (
 		IF(tema IS NOT NULL AND tema !='', tema, NULL) as tema,
 		ts_modifica,
 		indice_taglia
-	FROM `mmfg-dwh-gruppo-prod.DM_PRODOTTO.D_PRODOTTO`
+	FROM ${ref("D_PRODOTTO")}
 ) AS BACKUP_PRODOTTI ON (
 	BACKUP_PRODOTTI.barcode_negozio = R.barcode_negozio
 	AND BACKUP_PRODOTTI.societa = R.societa
 	AND BACKUP_PRODOTTI.anno BETWEEN (CAST(anno_transazione AS INT64) - 8) AND (CAST(anno_transazione AS INT64) + 1)
 )
-LEFT JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_NEGOZIO_LISTINO_EXT` LISTINI_MANUALI ON(
+LEFT JOIN ${ref("DM_SELLOUT", "D_NEGOZIO_LISTINO_EXT")} LISTINI_MANUALI ON(
 	R.negozio = LISTINI_MANUALI.negozio
 	AND r.societa = LISTINI_MANUALI.societa
 	AND r.anno = LISTINI_MANUALI.anno
@@ -100,7 +100,7 @@ LEFT JOIN (
 			mercato_vendita,
 			ts_modifica,
 			ROW_NUMBER() OVER(PARTITION BY societa, anno, stagione, cliente, uscita_collezione ORDER BY f_tipo_ordine_riferimento IS NOT NULL DESC, f_tipo_ordine_riferimento = '1' DESC, tipo_ordine_cliente = 'CV' DESC, listino_vendita IS NOT NULL DESC, listino_acquisto IS NOT NULL DESC) rk
-		FROM `mmfg-dwh-gruppo-prod.DM_PREZZO_LISTINO.D_CLIENTELA`
+		FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTELA")}
 		WHERE validita IN ('V', '')
 	)
 	WHERE rk = 1
@@ -111,7 +111,7 @@ LEFT JOIN (
 	AND R.uscita_collezione = CLIENTELE.uscita_collezione
 	AND R.codice_cliente = CLIENTELE.cliente
 )
-LEFT JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_LISTINO` LISTINI ON (
+LEFT JOIN ${ref("DM_SELLOUT_STAGING", "D_LISTINO")} LISTINI ON (
 	R.societa = LISTINI.societa
 	AND R.anno = LISTINI.anno
 	AND R.stagione = LISTINI.stagione
@@ -160,7 +160,7 @@ LEFT JOIN (
 	AND R.anno = PREZZI_VALIDI.anno
 	AND R.stagione = PREZZI_VALIDI.stagione
 )
-LEFT JOIN `mmfg-dwh-gruppo-prod.DM_PREZZO_LISTINO.D_PREZZO_EXT` AS D ON (
+LEFT JOIN ${ref("D_PREZZO_EXT")} AS D ON (
 		D.societa = R.societa 
 	AND D.annostagione = CAST(CONCAT(R.anno, R.stagione) AS INT64)
 	AND D.negozio = R.negozio

@@ -1,6 +1,6 @@
 config {
     type: "view",
-    schema: "injenia",
+    schema: DM_SELLOUT_STAGING,
     name: "s_vidimato_output_partitions"
 }
 

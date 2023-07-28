@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "injenia",
+    schema: DM_CRM,
     name: "D_CONSUMATRICE_ULTIMO_ACQUISTO"
 }
 
@@ -10,9 +10,9 @@ SELECT
 	n.insegna AS insegna,
 	MAX(data_vendita) AS data_ultimo_acquisto,
 	MAX(R.ts_creazione) AS ts_inserimento
-FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.RIGA_SCONTRINO_*` R
-JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_PORTA` AS n ON (R.negozio = n.porta)
-JOIN `mmfg-dwh-gruppo-prod.DM_CRM.D_SEGMENTO` s ON (
+FROM ${ref("DM_SELLOUT", "RIGA_SCONTRINO_*")} R
+JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS n ON (R.negozio = n.porta)
+JOIN ${ref("DM_CRM", "D_SEGMENTO")} s ON (
 	s.brand = CASE n.insegna
 WHEN "MM" THEN "MM"
 WHEN "WE" THEN "WE"

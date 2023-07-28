@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "injenia",
+    schema: DM_PREZZO_LISTINO,
     name: "D_PREZZO"
 }
 
@@ -12,7 +12,7 @@ FROM (
 		IF(attributes.societa = 'MN', LTRIM(attributes.variante, '0'), attributes.variante) AS variante,
 		timestamp AS ts_inserimento,
 		RANK() OVER(PARTITION BY id ORDER BY timestamp DESC, GENERATE_UUID()) AS rk
-	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.S_PREZZO`
+	FROM ${ref("DM_SELLOUT_STAGING", "S_PREZZO")}
 )
 WHERE rk = 1
 AND action != 'DELETE'

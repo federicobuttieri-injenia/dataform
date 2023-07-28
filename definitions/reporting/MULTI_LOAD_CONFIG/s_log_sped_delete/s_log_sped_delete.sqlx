@@ -1,6 +1,6 @@
 config {
     type: "incremental",
-    schema: "injenia",
+    schema: DM_SELLOUT_STAGING,
     name: "S_LOG_SPEDIZIONE_DELETE"
 }
 
@@ -11,7 +11,7 @@ SELECT
 	attributes.societa AS societa,
 	_PARTITIONTIME AS ts_creazione,
 	_PARTITIONDATE AS data_creazione
-FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.S_LOG_SPEDIZIONE`
+FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_SPEDIZIONE")}
 WHERE attributes.action = 'DELETE'
 AND _PARTITIONDATE IN (SELECT * FROM ${ref("s_log_sped_delete_input_output_partitions")})
 		

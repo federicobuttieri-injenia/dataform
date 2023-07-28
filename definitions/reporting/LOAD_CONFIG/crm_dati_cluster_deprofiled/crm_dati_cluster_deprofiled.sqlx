@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "injenia",
+    schema: DM_CRM,
     name: "DATI_CLUSTER_NO_PROFILING"
 }
 
@@ -34,14 +34,14 @@ SELECT
 	-- questo e' fatto per modello anziche' per barcode_negozio, in modo da non considerare vendite eventuali cambi taglia/colore di acquisti fatti prima dell'inizio della finestra
 	p.stagionale = "PERMANENTE" f_co,
 	p.stagione = 1 f_ss
-FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.RIGA_SCONTRINO_*` r
-JOIN `mmfg-dwh-gruppo-prod.DM_CRM.D_CONSUMATRICE_NO_PROFILING` AS cnp USING(cod_consumer)
-JOIN `mmfg-dwh-gruppo-prod.DM_CRM.STORICIZZAZIONI` s ON (
+FROM ${ref("DM_SELLOUT", "RIGA_SCONTRINO_*")} r
+JOIN ${ref("DM_CRM", "D_CONSUMATRICE_NO_PROFILING")} AS cnp USING(cod_consumer)
+JOIN ${ref("STORICIZZAZIONI")} s ON (
 	_TABLE_SUFFIX BETWEEN s.minshard AND s.maxshard
 	AND data_vendita BETWEEN s.data_inizio_storicizzazione AND s.data_fine_storicizzazione
 )
-JOIN `mmfg-dwh-gruppo-prod.DM_PRODOTTO.D_PRODOTTO` p USING (barcode_negozio, societa, anno)
-JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_PORTA` n ON (r.negozio = n.porta)
+JOIN ${ref("D_PRODOTTO")} p USING (barcode_negozio, societa, anno)
+JOIN ${ref("DM_SELLOUT", "D_PORTA")} n ON (r.negozio = n.porta)
 WHERE 
 	r.tipo_negozio_retail NOT LIKE '__O_'
 		
@@ -62,7 +62,7 @@ WHERE
 			seg.brand,
 			seg.f_insegna
 		FROM vendite
-		LEFT JOIN `mmfg-dwh-gruppo-prod.DM_CRM.D_SEGMENTO` seg ON (
+		LEFT JOIN ${ref("DM_CRM", "D_SEGMENTO")} seg ON (
 			seg.brand = CASE IF(seg.f_insegna, vendite.insegna, vendite.brand)
 WHEN "MM" THEN "MM"
 WHEN "WE" THEN "WE"

@@ -1,11 +1,11 @@
 config {
     type: "table",
-    schema: "injenia",
+    schema: DM_SELLIN,
     name: "F_SPEDITO_20230101"
 }
 
 SELECT * EXCEPT(action)
-FROM `DM_SELLOUT_STAGING.S_SPEDITO_*`
+FROM ${ref("DM_SELLOUT_STAGING", "S_SPEDITO_*")}
 WHERE data_bolla IN (SELECT * FROM ${ref("f_spedizioni_sellin_input_output_partitions")})
 QUALIFY RANK() OVER(PARTITION BY societa, numero_bolla, serie_bolla ORDER BY ts_creazione DESC, ts_inserimento DESC, ts_modifica DESC) = 1
 AND action = 'REPLACE'

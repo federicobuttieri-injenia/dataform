@@ -1,6 +1,6 @@
 config {
     type: "incremental",
-    schema: "injenia",
+    schema: DM_SELLOUT_STAGING,
     name: "S_PREZZO_EXT"
 }
 
@@ -26,7 +26,7 @@ WITH ricarichi AS (
 			1,
 			CAST(cambio_acquisto AS FLOAT64))            AS cambio_acquisto, # Se non presente default 1
 		CAST(annostag AS INT64) 						 AS annostagione
-	FROM `mmfg-dwh-gruppo-prod.DM_PREZZO_LISTINO.{from_table}`
+	FROM ${ref("DM_PREZZO_LISTINO", "{from_table}")}
 	WHERE CAST(annostag as INT64) >= 20131
 	AND valuta_acquisto IS NOT NULL
 	AND NOT (valuta_acquisto = 'USD' AND cambio_acquisto = '1')
@@ -43,12 +43,12 @@ porte AS (
 		cliente,
 		nazione,
 		annostagione
-	FROM `mmfg-dwh-gruppo-prod.DM_PREZZO_LISTINO.D_CLIENTE_STAGIONE`
+	FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTE_STAGIONE")}
 	JOIN (
 			SELECT DISTINCT 
 					nazione,
 					porta AS punto_vendita_retail
-			FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_PORTA`
+			FROM ${ref("DM_SELLOUT", "D_PORTA")}
 	) USING (punto_vendita_retail)
 ), 
 clienti_listini AS (
@@ -66,13 +66,13 @@ clienti_listini AS (
 			stagione,
 			cliente,
 			listino_acquisto AS listino
-		FROM `mmfg-dwh-gruppo-prod.DM_PREZZO_LISTINO.D_CLIENTELA`
+		FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTELA")}
 		WHERE listino_acquisto IS NOT NULL
 		AND listino_vendita IS NULL
 		AND validita IN ('V', '') 
 		AND annostagione >= 20131
 	) clientele
-	JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_LISTINO` listini USING (societa, anno, stagione, listino)
+	JOIN ${ref("DM_SELLOUT_STAGING", "D_LISTINO")} listini USING (societa, anno, stagione, listino)
 )
 SELECT DISTINCT
 	negozio                                                  AS negozio,
@@ -118,7 +118,7 @@ JOIN (
 		prezzo,
 		divisa,
 		controvalore
-	FROM `mmfg-dwh-gruppo-prod.DM_PREZZO_LISTINO.D_PREZZO`
+	FROM ${ref("D_PREZZO")}
 	WHERE tipo_prezzo = 'A'
 ) prezzi USING (societa, anno, stagione, listino, divisa)
 	

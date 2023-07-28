@@ -1,7 +1,7 @@
 config {
     type: "table",
-    schema: "injenia",
-    name: "F_DISPONIBILITA_202301011"
+    schema: DM_DIGITAL,
+    name: "F_DISPONIBILITA_20230101"
 }
 
 SELECT
@@ -10,7 +10,7 @@ SELECT
 	brand,
 	quantity,
 	date
-FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL_STAGING.S_DISPONIBILITA_*`
+FROM ${ref("DM_DIGITAL_STAGING", "S_DISPONIBILITA_*")}
 WHERE date IN (SELECT * FROM ${ref("f_disponibilita_input_output_partitions")})
 QUALIFY ROW_NUMBER() OVER(PARTITION BY sku, warehouse, brand, date ORDER BY CASE source WHEN 'om' THEN 1 WHEN 'bms' THEN 2 ELSE 3 END ASC, ts_inserimento DESC) = 1
 		

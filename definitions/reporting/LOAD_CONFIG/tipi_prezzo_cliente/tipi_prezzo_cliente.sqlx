@@ -1,6 +1,5 @@
 config {
     type: "table",
-    schema: "injenia",
     name: "D_TIPO_PREZZO_CLIENTE"
 }
 
@@ -10,7 +9,7 @@ FROM (
 		id,
 		attributes.*,
 		timestamp AS ts_inserimento,
-	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.S_TIPO_PREZZO_CLIENTE`
+	FROM ${ref("DM_SELLOUT_STAGING", "S_TIPO_PREZZO_CLIENTE")}
 	WHERE True
 	QUALIFY ROW_NUMBER() OVER(PARTITION BY id ORDER BY timestamp DESC) = 1
 )

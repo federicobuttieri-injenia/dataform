@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "injenia",
+    schema: DM_CRM,
     name: "F_SMS_RESULT_20230101"
 }
 
@@ -8,7 +8,7 @@ SELECT
 	s.* EXCEPT(ts_modifica, pk_consumer),
 	CAST(s.pk_consumer AS INT64 ) AS pk_consumer,
 	CURRENT_TIMESTAMP AS ts_modifica
-FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.{from_table}` s
+FROM ${ref("DM_SELLOUT_STAGING", "{from_table}")} s
 WHERE EXTRACT(DATE FROM s.dataora_creazione) IN ({where_partitions_current_table})
 QUALIFY ROW_NUMBER() OVER (PARTITION BY s.sms_id ORDER BY ts_inserimento DESC, ts_modifica DESC, ts_creazione DESC) = 1
 		

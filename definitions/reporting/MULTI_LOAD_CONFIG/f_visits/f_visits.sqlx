@@ -1,6 +1,6 @@
 config {
     type: "table",
-    schema: "injenia",
+    schema: DM_DIGITAL,
     name: "F_VISITS_20230101"
 }
 
@@ -14,7 +14,7 @@ FROM (
 		DATA AS Date,
 		SUM(ingressi) AS Tot_visits
 	FROM
-		`mmfg-dwh-gruppo-prod.DM_SELLOUT.F_WALKIN_*`
+		${ref("DM_SELLOUT", "F_WALKIN_*")}
 	WHERE
 		negozio is not null
 		AND mese_contapersone = DATE_TRUNC(DATE SELECT * FROM ${ref("f_visits_input_output_partitions")}, MONTH)
@@ -35,7 +35,7 @@ FROM (
 		Date,
 		SUM(Sessions) AS Tot_visits
 	FROM
-		`mmfg-dwh-gruppo-prod.DM_DIGITAL.F_GA_STAT_*`
+		${ref("DM_DIGITAL", "F_GA_STAT_*")}
 	WHERE
 		Date IN (SELECT * FROM ${ref("f_visits_input_output_partitions")})
 		AND Shop_code is not null

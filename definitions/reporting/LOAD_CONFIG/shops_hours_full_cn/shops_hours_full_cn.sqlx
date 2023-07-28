@@ -1,11 +1,11 @@
 config {
     type: "table",
-    schema: "injenia",
+    schema: GRP_FAREAST,
     name: "shops_hours_full"
 }
 
 SELECT or_neg.*
-FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.F_ORARIO_NEGOZIO` AS or_neg
-JOIN `mmfg-dwh-gruppo-prod.GRP_FAREAST.shops_full` USING(negozio)
+FROM ${ref("F_ORARIO_NEGOZIO")} AS or_neg
+JOIN ${ref("GRP_FAREAST", "shops_full")} USING(negozio)
 WHERE f_approvazione = 'OK'
 		

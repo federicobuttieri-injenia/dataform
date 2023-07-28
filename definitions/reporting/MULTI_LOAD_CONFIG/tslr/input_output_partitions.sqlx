@@ -1,16 +1,16 @@
 config {
     type: "view",
-    schema: "injenia",
+    schema: DM_SELLOUT,
     name: "tslr_input_output_partitions"
 }
 
 SELECT 
 	PARSE_DATE("%Y%m%d", partizioni.partition)
-FROM `mmfg-dwh-gruppo-prod.TEMP_LOCATION.PARTIZIONI_LOADJOB` AS partizioni
+FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")} AS partizioni
 JOIN (
 	SELECT 
 		TIMESTAMP_MILLIS(last_modified_time) AS modificata 
-	FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT.__TABLES__` 
+	FROM ${ref("DM_SELLOUT", "__TABLES__")} 
 	WHERE table_id = "F_TSLR"
 ) AS agg_f_tsl ON (agg_f_tsl.modificata < partizioni.ts_lancio)
 WHERE partizioni.table_name = "S_TSLR"

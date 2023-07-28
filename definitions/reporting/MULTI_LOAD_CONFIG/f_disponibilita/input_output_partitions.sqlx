@@ -1,9 +1,9 @@
 config {
     type: "view",
-    schema: "injenia",
+    schema: DM_DIGITAL,
     name: "f_disponibilita_input_output_partitions"
 }
 
 SELECT DISTINCT date
-FROM `mmfg-dwh-gruppo-prod.DM_DIGITAL_STAGING.S_DISPONIBILITA_*`
+FROM ${ref("DM_DIGITAL_STAGING", "S_DISPONIBILITA_*")}
 WHERE CAST(ts_inserimento AS DATE) = DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)

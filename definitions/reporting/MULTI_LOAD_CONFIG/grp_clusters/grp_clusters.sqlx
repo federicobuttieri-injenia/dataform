@@ -1,7 +1,7 @@
 config {
     type: "table",
-    schema: "injenia",
-    name: "clusters_fulla"
+    schema: GRP,
+    name: "clusters_full"
 }
 
 SELECT
@@ -16,17 +16,17 @@ SELECT
 	dvc.qta_vincolata,
 	dvc.rating,
 	CAST(CONCAT(dcc.anno, dcc.stagione) AS INT64) AS annostagione
-FROM `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_CLIENTELA_CLUSTER` AS dcc
+FROM ${ref("DM_SELLOUT_STAGING", "D_CLIENTELA_CLUSTER")} AS dcc
 JOIN (
 	SELECT DISTINCT societa, anno, stagione, uscita_collezione, modello, variante 
-	FROM `mmfg-dwh-gruppo-prod.DM_PRODOTTO.D_PRODOTTO`
+	FROM ${ref("DM_PRODOTTO", "D_PRODOTTO")}
 ) AS p ON(
 		dcc.societa = p.societa
 	AND dcc.anno = p.anno
 	AND dcc.stagione = p.stagione
 	AND dcc.uscita_collezione = p.uscita_collezione
 )
-JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_VARIANTE_CLUSTER` AS dvc ON(
+JOIN ${ref("DM_SELLOUT_STAGING", "D_VARIANTE_CLUSTER")} AS dvc ON(
 		dvc.societa = dcc.societa
 	AND dvc.anno = dcc.anno
 	AND dvc.stagione = dcc.stagione
@@ -37,11 +37,11 @@ JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT_STAGING.D_VARIANTE_CLUSTER` AS dvc ON(
 )
 JOIN (
 	SELECT DISTINCT cli.societa, cli.anno, cli.stagione, cli.cliente, p.porta, cli.tipo_ordine_cliente
-	FROM `mmfg-dwh-gruppo-prod.DM_PREZZO_LISTINO.D_CLIENTE_STAGIONE` AS cli
-	LEFT JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_PORTA` AS num_porta ON (
+	FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTE_STAGIONE")} AS cli
+	LEFT JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS num_porta ON (
 		CAST(cli.punto_vendita_retail AS INT64) = num_porta.numero_porta AND num_porta.numero_porta != 0
 	)
-	JOIN `mmfg-dwh-gruppo-prod.DM_SELLOUT.D_PORTA` AS p ON (
+	JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS p ON (
 		COALESCE(num_porta.porta, cli.punto_vendita_retail) = p.porta
 	)
 ) AS cli_neg ON(

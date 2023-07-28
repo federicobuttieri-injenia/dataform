@@ -1,10 +1,10 @@
 config {
     type: "view",
-    schema: "injenia",
+    schema: DM_SELLOUT,
     name: "f_sale_on_approval_input_output_partitions"
 }
 
 SELECT DISTINCT data_soa
-FROM `mmfg-dwh-gruppo-prod.TEMP_LOCATION.LAST_MODIFIED_SOA_DATES`
+FROM ${ref("TEMP_LOCATION", "LAST_MODIFIED_SOA_DATES")}
 WHERE DATE(ts_inserimento) = CURRENT_DATE
 		
