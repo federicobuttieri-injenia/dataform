@@ -79,7 +79,7 @@ vendite AS (
 		COUNT(DISTINCT(data_vendita)) AS n_acquisti,
 		"vendite" AS origin
 	FROM base_query AS v
-	JOIN ${ref("DM_CRM", "STORICIZZAZIONI")} AS stor ON(
+	JOIN ${ref("STORICIZZAZIONI")} AS stor ON(
 		data_vendita >= DATE_ADD(stor.data_fine_storicizzazione, INTERVAL -6 YEAR)
 	AND data_vendita <= stor.data_fine_storicizzazione
 	)
@@ -138,7 +138,7 @@ rank_no_vendite AS (
 	JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS n ON (lneg.negozio = n.porta)
 	JOIN ${ref("DM_CRM", "D_MAPPING_INSEGNA_BRAND")} MIB USING (insegna)
 	JOIN ${ref("DM_CRM", "D_SEGMENTO")} s ON (MIB.brand = s.brand)
-	JOIN ${ref("DM_CRM", "STORICIZZAZIONI")} AS stor ON (
+	JOIN ${ref("STORICIZZAZIONI")} AS stor ON (
 			lneg.data_ultima_transazione IS NULL 
 		OR lneg.data_ultima_transazione < DATE_ADD(stor.data_fine_storicizzazione, INTERVAL -6 YEAR)
 		OR lneg.data_prima_registrazione <= stor.data_fine_storicizzazione 

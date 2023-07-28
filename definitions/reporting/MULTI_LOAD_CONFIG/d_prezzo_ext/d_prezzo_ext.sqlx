@@ -69,14 +69,14 @@ S_PREZZO_EXT AS (
 		SELECT
 			pr.* EXCEPT(tipo_negozio_retail),
 			tipo_negozio_retail
-		FROM ${ref("DM_SELLOUT_STAGING", "S_PREZZO_EXT")} pr
+		FROM ${ref("S_PREZZO_EXT")} pr
 		WHERE input_filename != 'catalogo_prezzi'
 		UNION ALL
 		SELECT
 			pr.* EXCEPT(tipo_negozio_retail),
 			-- FGEDW-945: i prezzi da BMS vengono moltiplicati per nazione-catena
 			neg.tipo_negozio_retail
-		FROM ${ref("DM_SELLOUT_STAGING", "S_PREZZO_EXT")} pr
+		FROM ${ref("S_PREZZO_EXT")} pr
 		LEFT JOIN (
 			SELECT DISTINCT nazione_negozio, tipo_negozio_retail
 			FROM BACKUP_NEGOZI

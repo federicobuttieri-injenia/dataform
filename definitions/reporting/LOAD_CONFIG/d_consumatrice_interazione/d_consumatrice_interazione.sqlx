@@ -19,7 +19,7 @@ events AS (
 		pk_consumer, 
 		cod_negozio AS negozio, 
 		DATE(dataora_partecipazione) AS data_partecipazione
-	FROM ${ref("DM_CRM", "F_INVITATO")}
+	FROM ${ref("F_INVITATO")}
 	WHERE partecipanti = TRUE 
 	AND dataora_partecipazione IS NOT NULL 
 ),
@@ -82,7 +82,7 @@ remote_sale AS(
 		ANY_VALUE((CONCAT(r.project_name,r.commessa) NOT IN 
 		(
 			SELECT DISTINCT CONCAT(c.project_name,c.commessa)
-			FROM ${ref("DM_SELLOUT", "D_COMMESSA")} c
+			FROM ${ref("D_COMMESSA")} c
 		) 
 		OR CONCAT(r.project_name,r.commessa) IS NULL,
 		'Assente', 
@@ -131,7 +131,7 @@ remote_sale AS(
 	ANY_VALUE((CONCAT(o.project_name,o.commessa) 
 			NOT IN (SELECT DISTINCT 
 			CONCAT(c.project_name,c.commessa)
-			FROM ${ref("DM_SELLOUT", "D_COMMESSA")} c) 
+			FROM ${ref("D_COMMESSA")} c) 
 			OR CONCAT(o.project_name,o.commessa) IS NULL,'Assente',
 			CONCAT(o.project_name,'-',o.commessa))
 			) commessa, 
@@ -219,7 +219,7 @@ p AS (
 	FULL OUTER JOIN b2s USING (pk_consumer, negozio)
 	INNER JOIN ${ref("DM_SELLOUT", "V_NEGOZIO")} n USING (negozio)
 	INNER JOIN ${ref("DM_CRM", "D_CONSUMATRICE")} c USING (pk_consumer)
-	LEFT JOIN ${ref("DM_CRM", "D_RESO")} reso USING (negozio, data_transazione, id_transazione, id)
+	LEFT JOIN ${ref("D_RESO")} reso USING (negozio, data_transazione, id_transazione, id)
 	WHERE pk_consumer IS NOT NULL 
 	AND negozio IS NOT NULL
 	GROUP BY 1,2

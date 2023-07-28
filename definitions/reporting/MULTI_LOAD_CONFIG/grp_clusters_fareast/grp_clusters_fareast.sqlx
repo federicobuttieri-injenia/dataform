@@ -19,7 +19,7 @@ SELECT
 FROM ${ref("DM_SELLOUT_STAGING", "D_CLIENTELA_CLUSTER")} AS dcc
 JOIN (
 	SELECT DISTINCT societa, anno, stagione, uscita_collezione, modello, variante 
-	FROM ${ref("DM_PRODOTTO", "D_PRODOTTO")}
+	FROM ${ref("D_PRODOTTO")}
 ) AS p ON(
 		dcc.societa = p.societa
 	AND dcc.anno = p.anno

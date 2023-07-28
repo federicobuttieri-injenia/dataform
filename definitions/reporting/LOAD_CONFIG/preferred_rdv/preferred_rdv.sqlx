@@ -103,10 +103,10 @@ B2S AS (
 		) * IF(MAX(COALESCE(c_neg.attiva, c_project.attiva) = 1), 1, 0.001) AS score
 	FROM base_query bq
 	JOIN B2S_prep ON B2S_prep.pk_consumer = bq.pk_consumer AND B2S_prep.store_code = bq.negozio
-	LEFT JOIN ${ref("DM_SELLOUT", "D_COMMESSA")} AS c_neg ON (B2S_prep.code_cashier = c_neg.commessa AND B2S_prep.store_code = c_neg.negozio)
+	LEFT JOIN ${ref("D_COMMESSA")} AS c_neg ON (B2S_prep.code_cashier = c_neg.commessa AND B2S_prep.store_code = c_neg.negozio)
 	LEFT JOIN (
 		SELECT project_name, commessa, MAX(attiva) AS attiva
-		FROM ${ref("DM_SELLOUT", "D_COMMESSA")}
+		FROM ${ref("D_COMMESSA")}
 		GROUP BY 1,2
 	) AS c_project ON (B2S_prep.code_cashier = c_project.commessa AND bq.project_name = c_project.project_name)
 	WHERE status = "received"
@@ -135,10 +135,10 @@ sellout AS (
 			POWER(DATE_DIFF(CURRENT_DATE(), DATE_SUB(CURRENT_DATE(), INTERVAL 6 year), day), 2)
 		) * IF(MAX(COALESCE(c_neg.attiva, c_project.attiva) = 1), 1, 0.001) AS score
 	FROM base_query bq
-	LEFT JOIN ${ref("DM_SELLOUT", "D_COMMESSA")} AS c_neg ON (bq.commessa = c_neg.commessa AND bq.negozio = c_neg.negozio)
+	LEFT JOIN ${ref("D_COMMESSA")} AS c_neg ON (bq.commessa = c_neg.commessa AND bq.negozio = c_neg.negozio)
 	LEFT JOIN (
 		SELECT project_name, commessa, MAX(attiva) AS attiva
-		FROM ${ref("DM_SELLOUT", "D_COMMESSA")}
+		FROM ${ref("D_COMMESSA")}
 		GROUP BY 1,2
 	) AS c_project ON (bq.commessa = c_project.commessa AND bq.project_name = c_project.project_name)
 	INNER JOIN average_transaction_sales ats

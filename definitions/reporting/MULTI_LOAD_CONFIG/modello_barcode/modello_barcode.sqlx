@@ -209,7 +209,7 @@ PREZZI_VALIDI AS (
 		PR.controvalore
 	FROM (
 		SELECT *, ROW_NUMBER() OVER(PARTITION BY societa, modello, listino, anno, stagione, tipo_prezzo ORDER BY ts_inserimento DESC, prezzo IS NULL) AS rk
-		FROM ${ref("DM_PREZZO_LISTINO", "D_PREZZO")}
+		FROM ${ref("D_PREZZO")}
 		WHERE tipo_prezzo IN ('A', 'V', 'S')
 	) PR
 	LEFT JOIN ${ref("DM_SELLOUT_STAGING", "D_TIPO_PREZZO_CLIENTE")} USING (societa, anno, stagione, cliente, tipo_prezzo, progr_periodo)
