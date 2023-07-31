@@ -4,6 +4,14 @@ config {
     name: "F_APPROVAZIONE_ORDINE_20230101"
 }
 
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(
+SELECT DISTINCT data_vidimazione
+FROM ${ref("DM_SELLOUT_STAGING", "S_APPROVAZIONE_ORDINE_*")}
+WHERE DATE(ts_modifica) = CURRENT_DATE
+		);
+
 SELECT * EXCEPT(action, ts_modifica), CURRENT_TIMESTAMP AS ts_modifica
 FROM ${ref("DM_SELLOUT_STAGING", "S_APPROVAZIONE_ORDINE_*")} s
 WHERE data_vidimazione IN (SELECT * FROM ${ref("f_vidimato_input_output_partitions")})

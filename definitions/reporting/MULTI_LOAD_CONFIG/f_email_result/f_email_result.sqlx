@@ -4,6 +4,24 @@ config {
     name: "F_EMAIL_RESULT_20230101"
 }
 
+DECLARE input_partitions ARRAY<DATE>;
+
+DECLARE output_partitions ARRAY<INT64>;
+
+SET input_partitions = ARRAY(
+SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
+FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")} 
+WHERE 
+	DATE(ts_lancio) = CURRENT_DATE 
+AND table_name = 'S_LOG_EMAIL_RESULT'
+		);
+
+SET output_partitions = ARRAY(
+SELECT DISTINCT DATE(a.dataora_creazione) AS dataora_creazione AS value
+FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_EMAIL_RESULT")}, UNNEST (attributes) a
+WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("f_email_result_input_partitions")})
+		);
+
 SELECT 
 	s.email_id,
 	s.pk_consumer,

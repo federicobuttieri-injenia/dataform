@@ -4,6 +4,16 @@ config {
     name: "S_PREZZO_EXT"
 }
 
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(
+SELECT DISTINCT  PARSE_DATE("%Y%m%d", data_creazione) AS data_creazione
+FROM ${ref("DM_PREZZO_LISTINO", "D_RICARICHI")}
+WHERE data_creazione IS NOT NULL 
+AND data_creazione != ''
+AND DATE(CAST(modificato AS TIMESTAMP)) >= CURRENT_DATE
+		);
+
 WITH ricarichi AS (
 	SELECT DISTINCT 
 		tipo_negozio                                     AS tipo_negozio_retail,

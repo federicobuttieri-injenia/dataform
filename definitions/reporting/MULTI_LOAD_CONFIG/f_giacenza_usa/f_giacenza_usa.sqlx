@@ -4,6 +4,12 @@ config {
     name: "F_GIACENZA_20230101"
 }
 
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(
+SELECT CURRENT_DATE() - 1 AS giorno
+		);
+
 SELECT
 	giac.barcode_negozio,
 	giorno,

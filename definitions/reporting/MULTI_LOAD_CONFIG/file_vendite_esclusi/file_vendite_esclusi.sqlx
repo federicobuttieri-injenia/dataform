@@ -4,6 +4,25 @@ config {
     name: "FILE_VENDITE_ESCLUSI_BMS"
 }
 
+DECLARE input_partitions ARRAY<DATE>;
+
+DECLARE output_partitions ARRAY<INT64>;
+
+SET input_partitions = ARRAY(
+SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
+FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")} 
+WHERE 
+	table_name = 'S_FILE_VENDITE_ESCLUSI_BMS'
+AND DATE(ts_lancio) >= DATE_SUB(CURRENT_DATE, INTERVAL 1 DAY) 
+QUALIFY RANK() OVER(PARTITION BY table_name ORDER BY ts_lancio DESC) = 1
+		);
+
+SET output_partitions = ARRAY(
+SELECT DISTINCT data_documento AS value
+FROM ${ref("DM_SELLOUT_STAGING", "S_FILE_VENDITE_ESCLUSI_BMS")}
+WHERE DATE(_PARTITIONTIME) IN (SELECT * FROM ${ref("file_vendite_esclusi_input_partitions")})
+		);
+
 SELECT *
 FROM ${ref("DM_SELLOUT_STAGING", "S_FILE_VENDITE_ESCLUSI_BMS")}
 WHERE 

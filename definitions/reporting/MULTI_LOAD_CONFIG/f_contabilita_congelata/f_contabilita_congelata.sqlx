@@ -4,6 +4,27 @@ config {
     name: "BILANCIO_GIACENZE_MOV_RITARDATARI"
 }
 
+DECLARE input_partitions ARRAY<DATE>;
+
+DECLARE output_partitions ARRAY<INT64>;
+
+SET input_partitions = ARRAY(
+SELECT DISTINCT creation_date AS data_creazione,
+FROM ${ref("TEMP_LOCATION", "MOV_MODIFIED_DATE")}
+WHERE DATE(ts_lancio) >= CURRENT_DATE() - 1
+	AND record_type IN ('BMS')
+	AND EXTRACT(YEAR FROM creation_date) BETWEEN GREATEST(2021, EXTRACT(YEAR FROM CURRENT_DATE) - 5) and EXTRACT(YEAR FROM CURRENT_DATE) - 1
+		);
+
+SET output_partitions = ARRAY(
+SELECT DISTINCT DATE(ts_modifica) as data_modifica, AS value
+FROM ${ref("DM_SELLOUT_STAGING", "S_MOVIMENTAZIONE_2*")}
+WHERE data_creazione IN (SELECT * FROM ${ref("f_contabilita_congelata_input_partitions")})
+	AND DATE(orario_evento) >= CURRENT_DATE() - 1
+	AND record_type IN ('BMS')
+	AND project_name IN ("maxima20","bmsde","mmltd")
+		);
+
 SELECT r.project_name, r.mittente, r.destinatario, r.dislocazione_finale, r.tipo_movimento, r.data_documento, TIMESTAMP(r.orario_evento) as orario_evento,
 	r.barcode_negozio AS sku, r.numero_documento, r.id_testata, IFNULL(f.qta, 0) AS qta_capi, r.prezzo_import,
 	r.prezzo_sell_in AS prezzo_landed, "NEW" AS stato, "REPLACE" as action, r.ts_modifica, DATE(r.ts_modifica) AS data_modifica

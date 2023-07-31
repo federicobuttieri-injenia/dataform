@@ -3,6 +3,13 @@ config {
     schema: "DM_SELLOUT",
     name: "F_GIFT_CARD_20230101"
 }
+
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(
+SELECT DISTINCT EXTRACT(YEAR FROM data_vendita)
+FROM ${ref("DM_SELLOUT_STAGING", "S_GIFT_CARD_*")}
+WHERE DATE(CAST(ts_modifica AS TIMESTAMP)) = CURRENT_DATE);
 SELECT * EXCEPT(rk_duplicati_operazioni)
 FROM (
 	SELECT

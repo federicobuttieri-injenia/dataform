@@ -4,6 +4,24 @@ config {
     name: "D_MODELLO_BARCODE"
 }
 
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(
+SELECT *
+FROM (
+	SELECT DISTINCT annostagione
+	FROM DM_SELLOUT_STAGING.D_MODELLO_PRODUZIONE
+	WHERE DATE(ts_modifica) = CURRENT_DATE
+	UNION DISTINCT
+	SELECT DISTINCT annostagione
+	FROM DM_SELLOUT_STAGING.D_ARTICOLO_PRODUZIONE
+	WHERE DATE(ts_modifica) = CURRENT_DATE
+)
+-- alcuni articoli hanno ast nullo o 0, valori non contemplati come partizioni su D_PRODOTTO
+WHERE annostagione IS NOT NULL
+AND annostagione >= 20001 -- minimo ast possibile su D_PRODOTTO
+		);
+
 WITH _modelli_permanenti_all AS (
 	SELECT DISTINCT
 		PE.id,

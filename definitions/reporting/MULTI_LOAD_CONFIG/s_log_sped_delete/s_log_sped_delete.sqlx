@@ -4,6 +4,25 @@ config {
     name: "S_LOG_SPEDIZIONE_DELETE"
 }
 
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(
+-- selezione delle partizioni da elaborare con spedizione_to_transform
+SELECT DISTINCT _PARTITIONDATE part
+FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_SPEDIZIONE")}
+WHERE _PARTITIONDATE >= ( -- viene presa l'ultima partizione arrivata
+	-- il campo ts_creazione corrisponde a S_LOG_SPED.timestamp e la parte data e uguale al _PARTITIONDATE
+	SELECT DATE(IFNULL(MAX(ts_creazione), '2000-01-01')) ts
+	FROM ${ref("DM_SELLOUT_STAGING", "S_MOVIMENTAZIONE_2*")}
+	WHERE record_type = 'DBG'
+)
+AND timestamp > (
+	SELECT IFNULL(MAX(ts_creazione), '2000-01-01') ts
+	FROM ${ref("DM_SELLOUT_STAGING", "S_MOVIMENTAZIONE_2*")}
+	WHERE record_type = 'DBG'
+)
+		);
+
 SELECT
 	id,
 	attributes.numero_bolla AS numero_bolla,

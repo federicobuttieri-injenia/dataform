@@ -4,6 +4,22 @@ config {
     name: "F_FIDELITY_PASSAGGIO_SOGLIA"
 }
 
+DECLARE input_partitions ARRAY<DATE>;
+
+DECLARE output_partitions ARRAY<INT64>;
+
+SET input_partitions = ARRAY(
+SELECT DATE(
+	EXTRACT(YEAR FROM DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)), 
+	EXTRACT(MONTH FROM DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)),
+	1     
+)
+		);
+
+SET output_partitions = ARRAY(
+SELECT CURRENT_DATE() AS value
+		);
+
 WITH S_FIDELITY_CARD_HISTORY AS (
 	SELECT * EXCEPT(rank)
 	FROM (

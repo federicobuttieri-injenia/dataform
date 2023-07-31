@@ -4,6 +4,14 @@ config {
     name: "F_DISPONIBILITA_20230101"
 }
 
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(
+SELECT DISTINCT date
+FROM ${ref("DM_DIGITAL_STAGING", "S_DISPONIBILITA_*")}
+WHERE CAST(ts_inserimento AS DATE) = DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
+);
+
 SELECT
 	sku,
 	warehouse,

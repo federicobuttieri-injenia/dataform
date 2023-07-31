@@ -4,6 +4,15 @@ config {
     name: "D_PREZZO_EXT"
 }
 
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(
+SELECT DISTINCT(CAST(CONCAT(anno,stagione) AS INT64))
+FROM DM_SELLOUT_STAGING.S_PREZZO_EXT
+WHERE DATE(ts_modifica) = DATE_SUB(CURRENT_DATE, INTERVAL 1 DAY)
+AND CAST(CONCAT(anno,stagione) AS INT64) >= 20001 -- minimo ast possibile
+		);
+
 WITH BACKUP_PRODOTTI AS (
 	SELECT
 		IF(societa IS NOT NULL AND societa !='', societa, NULL) AS societa,

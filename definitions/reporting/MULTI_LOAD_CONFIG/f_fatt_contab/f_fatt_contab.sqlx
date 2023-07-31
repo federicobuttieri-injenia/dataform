@@ -4,6 +4,22 @@ config {
     name: "F_FATTURATO_CONTABILIZZATO_20230101"
 }
 
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(
+        SELECT DISTINCT DATE(daily_sales_date) AS daily_sales_date
+        FROM ${ref("DM_DIGITAL_STAGING", "S_LOG_FATTURATO_CONTABILIZZATO")}
+        WHERE EXTRACT(DATE FROM _PARTITIONTIME) = CURRENT_DATE()
+        UNION DISTINCT
+        SELECT DISTINCT DATE(daily_sales_date) AS daily_sales_date
+        FROM ${ref("DM_DIGITAL_STAGING", "S_LOG_FATTURATO_CONTABILIZZATO_OM")}
+        WHERE EXTRACT(DATE FROM _PARTITIONTIME) = CURRENT_DATE()
+        UNION DISTINCT
+        SELECT DISTINCT DATE(daily_sales_date) AS daily_sales_date
+        FROM ${ref("DM_DIGITAL_STAGING", "S_LOG_FATTURATO_CONTABILIZZATO_EXT")}
+        WHERE EXTRACT(DATE FROM _PARTITIONTIME) = DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
+        );
+
         WITH fatturato AS (
             SELECT DISTINCT insegna, country, corporate_customer_id, mail_cliente, order_number, delivery_name, rma_number, rma_type, return_reason, sku, sku_type, order_date, 
             daily_sales_date, shipment_date, delivery_date, return_open_date, return_close_date, time_order_to_sales, time_sales_to_shipment, time_shipment_to_delivery, note, 

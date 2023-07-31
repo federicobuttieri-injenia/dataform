@@ -4,6 +4,16 @@ config {
     name: "clusters_full"
 }
 
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(SELECT DISTINCT CONCAT(anno, stagione) 
+FROM ${ref("DM_SELLOUT_STAGING", "D_CLIENTELA_CLUSTER")}
+WHERE ts_inserimento >= TIMESTAMP_SUB(CURRENT_TIMESTAMP, INTERVAL 1 DAY)
+UNION DISTINCT
+SELECT DISTINCT CONCAT(anno, stagione) 
+FROM ${ref("DM_SELLOUT_STAGING", "D_VARIANTE_CLUSTER")}
+WHERE ts_inserimento >= TIMESTAMP_SUB(CURRENT_TIMESTAMP, INTERVAL 1 DAY));
+
 SELECT
 	dcc.societa,
 	CAST(dcc.anno AS STRING) AS anno,

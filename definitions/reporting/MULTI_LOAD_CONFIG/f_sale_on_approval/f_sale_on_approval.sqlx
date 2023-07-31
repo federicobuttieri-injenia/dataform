@@ -4,6 +4,14 @@ config {
     name: "F_SALE_ON_APPROVAL_20230101"
 }
 
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(
+SELECT DISTINCT data_soa
+FROM ${ref("TEMP_LOCATION", "LAST_MODIFIED_SOA_DATES")}
+WHERE DATE(ts_inserimento) = CURRENT_DATE
+		);
+
 WITH clienti_fallback AS (
 	SELECT DISTINCT negozio, societa, anno, stagione, uscita_collezione, codice_cliente
 	FROM (

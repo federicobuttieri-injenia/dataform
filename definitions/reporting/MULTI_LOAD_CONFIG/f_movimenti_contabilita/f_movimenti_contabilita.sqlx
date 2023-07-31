@@ -4,6 +4,14 @@ config {
     name: "F_MOVIMENTO_CONTABILITA_20230101"
 }
 
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(
+SELECT DISTINCT(EXTRACT(YEAR FROM data_vendita))
+FROM ${ref("DM_SELLOUT_STAGING", "S_MOVIMENTO_CONTABILITA_*")}
+WHERE DATE(CAST(ts_modifica AS TIMESTAMP)) = CURRENT_DATE
+		);
+
 WITH file_xml_per_negozio_data AS (
 	SELECT
 		negozio,

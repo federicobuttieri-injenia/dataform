@@ -4,6 +4,16 @@ config {
     name: "BILANCIO_GIACENZE"
 }
 
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(
+SELECT DISTINCT creation_date AS data_creazione
+FROM ${ref("TEMP_LOCATION", "MOV_MODIFIED_DATE")}
+WHERE DATE(ts_lancio) = CURRENT_DATE
+	AND EXTRACT(YEAR FROM creation_date) >= EXTRACT(YEAR FROM CURRENT_DATE) - 5
+	AND record_type = 'CONTABILITA'
+		);
+
 WITH PORTE AS (
 	SELECT distinct porta, catena, tipo, project_name
 	FROM ${ref("DM_SELLOUT", "D_PORTA")}

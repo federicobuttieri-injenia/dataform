@@ -1,9 +1,0 @@
-config {
-    type: "view",
-    schema: "DM_SELLOUT",
-    name: "gift_card_input_output_partitions"
-}
-
-SELECT DISTINCT EXTRACT(YEAR FROM data_vendita)
-FROM ${ref("DM_SELLOUT_STAGING", "S_GIFT_CARD_*")}
-WHERE DATE(CAST(ts_modifica AS TIMESTAMP)) = CURRENT_DATE

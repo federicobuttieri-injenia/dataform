@@ -4,6 +4,14 @@ config {
     name: "S_FATTURATO_CONTABILIZZATO_20230101"
 }
 
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(
+        SELECT DISTINCT DATE(daily_sales_date) AS daily_sales_date
+        FROM ${ref("DM_DIGITAL_STAGING", "S_LOG_FATTURATO_CONTABILIZZATO")}
+        WHERE EXTRACT(DATE FROM _PARTITIONTIME) = CURRENT_DATE()
+        );
+
         SELECT
             UPPER(brand) AS insegna,
             UPPER(country) AS country,

@@ -4,6 +4,14 @@ config {
     name: "F_PROMO_ENGINE_20230101"
 }
 
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(
+select distinct data_vendita 
+from ${ref("DM_SELLOUT_STAGING", "S_PROMO_ENGINE_*")}
+WHERE DATE(CAST(ts_modifica AS TIMESTAMP)) = CURRENT_DATE
+		);
+
 		select * EXCEPT(ts_modifica),
 		CURRENT_TIMESTAMP() AS ts_modifica 
 		from ${ref("DM_SELLOUT_STAGING", "S_PROMO_ENGINE_*")}

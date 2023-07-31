@@ -4,6 +4,14 @@ config {
     name: "S_DISPONIBILITA_20230101"
 }
 
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(
+SELECT DISTINCT _PARTITIONDATE
+FROM ${ref("DM_DIGITAL_STAGING", "S_LOG_DISPONIBILITA")}
+WHERE _PARTITIONDATE = DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
+);
+
 SELECT
 	REPLACE(REPLACE(sku, 'SP', ''), 'WE', '') AS sku,
 	warehouse,

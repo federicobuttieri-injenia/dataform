@@ -4,10 +4,32 @@ config {
     name: "F_INVITATO"
 }
 
-with output_partitions as (
-    SELECT value AS partition_start,
-        value + 99 AS partition_end
-    FROM ${ref("f_invitato_input_output_partitions")}
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(
+SELECT DISTINCT CAST((FLOOR((id_iniziativa - 1) / 100) * 100) as INT64) + 1
+FROM (
+	SELECT DISTINCT CAST(SPLIT(id, ":::")[OFFSET(0)] AS INT64) AS id_iniziativa
+	FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_INVITATO")}
+	WHERE _PARTITIONDATE = CURRENT_DATE
+
+	UNION DISTINCT
+
+	SELECT DISTINCT CAST(SPLIT(id, ":::")[OFFSET(0)] AS INT64) AS id_iniziativa
+	FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_INIZIATIVA_NEGOZIO")}
+	WHERE _PARTITIONDATE = CURRENT_DATE
+
+	UNION DISTINCT
+
+	SELECT DISTINCT CAST(id AS INT64)
+	FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_INIZIATIVA")}
+	WHERE _PARTITIONDATE = CURRENT_DATE
+)
+		);
+
+with partitions_intervals as (
+  SELECT partition_start, partition_start + 99 as partition_end
+  FROM UNNEST(output_partitions) as partition_start
 )
 
 WITH new_table AS (

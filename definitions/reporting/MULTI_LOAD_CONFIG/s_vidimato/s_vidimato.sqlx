@@ -4,6 +4,23 @@ config {
     name: "S_APPROVAZIONE_ORDINE_20230101"
 }
 
+DECLARE input_partitions ARRAY<DATE>;
+
+DECLARE output_partitions ARRAY<INT64>;
+
+SET input_partitions = ARRAY(
+SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
+FROM TEMP_LOCATION.PARTIZIONI_LOADJOB
+WHERE DATE(ts_lancio) = CURRENT_DATE
+AND table_name = 'S_LOG_APPROVAZIONE_ORDINE'
+		);
+
+SET output_partitions = ARRAY(
+SELECT DISTINCT DATE(attributes.dataora_vidimazione) AS value
+FROM DM_SELLOUT_STAGING.S_LOG_APPROVAZIONE_ORDINE
+WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("s_vidimato_input_partitions")})
+		);
+
 SELECT
 	id,
 	DATE(attributes.dataora_vidimazione) AS data_vidimazione,

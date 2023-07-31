@@ -4,6 +4,24 @@ config {
     name: "F_FIFO"
 }
 
+DECLARE input_partitions ARRAY<DATE>;
+
+DECLARE output_partitions ARRAY<INT64>;
+
+SET input_partitions = ARRAY(
+SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
+FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")} 
+WHERE 
+	DATE(ts_lancio) = CURRENT_DATE 
+AND table_name = 'S_LOG_FIFO'
+		);
+
+SET output_partitions = ARRAY(
+SELECT DISTINCT data_carico AS value
+FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_FIFO")}
+WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("fifo_input_partitions")})
+		);
+
 SELECT * EXCEPT (action, rk)
 FROM (
 	SELECT

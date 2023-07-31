@@ -4,6 +4,24 @@ config {
     name: "S_SPEDITO_20230101"
 }
 
+DECLARE input_partitions ARRAY<DATE>;
+
+DECLARE output_partitions ARRAY<INT64>;
+
+SET input_partitions = ARRAY(
+SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
+FROM TEMP_LOCATION.PARTIZIONI_LOADJOB
+WHERE DATE(ts_lancio) = CURRENT_DATE
+AND table_name = 'S_LOG_SPEDIZIONE'
+		);
+
+SET output_partitions = ARRAY(
+SELECT DISTINCT attributes.data_bolla AS value
+FROM DM_SELLOUT_STAGING.S_LOG_SPEDIZIONE
+WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("s_spedizioni_sellin_input_partitions")})
+AND attributes.data_bolla IS NOT NULL
+		);
+
 SELECT
 	attributes.* EXCEPT(
 		anagrafica_concessionario, barcode_bolla_spedizione, righe_spedizione_cliente, data_fattura, magazzino,

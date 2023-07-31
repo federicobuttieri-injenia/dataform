@@ -3,6 +3,14 @@ config {
     schema: "DM_DIGITAL",
     name: "F_GA_INTREND_APP_20230101"
 }
+
+DECLARE input_output_partitions ARRAY<DATE>;
+
+SET input_output_partitions = ARRAY(SELECT DISTINCT PARSE_DATE('%Y%m%d', event_date) as event_date
+            FROM ${ref("analytics_248931566", "events_*")}
+            where _TABLE_SUFFIX IN (
+                    ifnull( ({partitions}), GREATEST("20220401", format_date('%Y%m%d', date_add(current_date, interval -1 day))))
+                ));
 WITH transactions AS (
                 SELECT DISTINCT
                     event_date,
