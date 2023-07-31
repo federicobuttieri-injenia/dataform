@@ -121,7 +121,7 @@ raw_MM AS (
 	FROM ${ref("analytics_260123046", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
-	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_product_kpi_advanced_input_output_partitions")})
+	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (input_output_partitions)
 	AND user_pseudo_id IS NOT NULL
 	AND IF(event_name = 'image_change', IF(ep.key = 'event_location', CAST(ep.value.int_value AS STRING) IS NOT NULL,     TRUE), it.item_id IS NOT NULL   )
 	AND IF(event_name = 'image_change', IF(ep.key = 'event_location', CAST(ep.value.int_value AS STRING) <> '(not set)',  TRUE), it.item_id <> '(not set)')

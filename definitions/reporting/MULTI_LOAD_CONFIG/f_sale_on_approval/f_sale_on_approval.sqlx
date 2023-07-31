@@ -160,7 +160,7 @@ WHEN "RMB" THEN "CNY"
 WHEN "YEN" THEN "JPY"
 ELSE R.valuta
 END AND CONCAT(EXTRACT(YEAR FROM data_sale_on_approval), EXTRACT(MONTH FROM data_sale_on_approval)) = T.reference_date)
-			WHERE data_sale_on_approval IN (SELECT * FROM ${ref("f_sale_on_approval_input_output_partitions")})
+			WHERE data_sale_on_approval IN (input_output_partitions)
 			-- estendere qui per filtri sui record che non necessitano di window function
 		) R
 		LEFT JOIN BACKUP_PRODOTTI ON (

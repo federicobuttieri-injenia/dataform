@@ -132,10 +132,10 @@ SET input_output_partitions = ARRAY(
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
             FROM ${ref("analytics_260123046", "events_*")},unnest(event_params)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))  AND stream_ID IN ("2263769002")
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))  AND stream_ID IN ("2263769002")
             GROUP BY 1,2,3,4,5 
             having transactions = purchase)
 
@@ -211,10 +211,10 @@ SET input_output_partitions = ARRAY(
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
             FROM ${ref("analytics_260031029", "events_*")},unnest(event_params)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263767950")
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263767950")
             GROUP BY 1,2,3,4,5
             having transactions = purchase)
 
@@ -290,10 +290,10 @@ SET input_output_partitions = ARRAY(
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
             FROM ${ref("analytics_260112979", "events_*")},unnest(event_params)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263881422")
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263881422")
             GROUP BY 1,2,3,4,5
             having transactions = purchase)
 
@@ -369,10 +369,10 @@ SET input_output_partitions = ARRAY(
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
             FROM ${ref("analytics_260115782", "events_*")},unnest(event_params)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263778834")
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263778834")
             GROUP BY 1,2,3,4,5
             having transactions = purchase)
 
@@ -451,10 +451,10 @@ SET input_output_partitions = ARRAY(
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
             FROM ${ref("analytics_260088170", "events_*")},unnest(event_params)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263746098")
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263746098")
             GROUP BY 1,2,3,4,5
             having transactions = purchase)
 
@@ -530,10 +530,10 @@ SET input_output_partitions = ARRAY(
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
             FROM ${ref("analytics_260106982", "events_*")},unnest(event_params)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263729825")
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263729825")
             GROUP BY 1,2,3,4,5
             having transactions = purchase)
 
@@ -610,10 +610,10 @@ SET input_output_partitions = ARRAY(
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
             FROM ${ref("analytics_260108762", "events_*")},unnest(event_params)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263752352")
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263752352")
             GROUP BY 1,2,3,4,5
             having transactions = purchase)
 
@@ -689,10 +689,10 @@ SET input_output_partitions = ARRAY(
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
             FROM ${ref("analytics_260107564", "events_*")},unnest(event_params)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263804342")
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263804342")
             GROUP BY 1,2,3,4,5
             having transactions = purchase)
 
@@ -768,10 +768,10 @@ SET input_output_partitions = ARRAY(
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
             FROM ${ref("analytics_260115140", "events_*")},unnest(event_params)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263919120")
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263919120")
             GROUP BY 1,2,3,4,5
             having transactions = purchase)
 
@@ -846,10 +846,10 @@ SET input_output_partitions = ARRAY(
             INNER JOIN (SELECT
             user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
             FROM ${ref("analytics_248931566", "events_*")},unnest(event_params)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
             GROUP BY 1)
             USING(user_pseudo_id)
-            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(SELECT * FROM ${ref("f_ga_stat_input_output_partitions")}))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2086088052","2211484880","2211472582")
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", date(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2086088052","2211484880","2211472582")
             GROUP BY 1,2,3,4,5
             having transactions = purchase)
             ),

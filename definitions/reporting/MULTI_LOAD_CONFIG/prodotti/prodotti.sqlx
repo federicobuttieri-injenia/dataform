@@ -615,7 +615,7 @@ FROM
 									${ref("DM_SELLOUT_STAGING", "D_MODELLO_PRODUZIONE")},
 									UNNEST(composizioni) AS comp_info
 								WHERE
-									annostagione IN (SELECT * FROM ${ref("prodotti_input_output_partitions")})
+									annostagione IN (input_output_partitions)
 								GROUP BY
 									id,
 									progr_composizione
@@ -639,7 +639,7 @@ FROM
 						sku_info.barcode_negozio IS NOT NULL
 						AND sku_info.barcode_negozio != ''
 						AND sku_info.variante_produzione = var_info.variante_produzione
-						AND annostagione IN (SELECT * FROM ${ref("prodotti_input_output_partitions")})
+						AND annostagione IN (input_output_partitions)
 					UNION DISTINCT
 					SELECT
 						AP.id,
@@ -731,7 +731,7 @@ FROM
 						sku_info.barcode_negozio IS NOT NULL
 						AND sku_info.barcode_negozio != ''
 						AND sku_info.variante_articolo_produzione = var_info.variante_produzione
-						AND annostagione IN (SELECT * FROM ${ref("prodotti_input_output_partitions")})
+						AND annostagione IN (input_output_partitions)
 				) MOD_ART
 				LEFT JOIN (
 					SELECT DISTINCT
@@ -841,7 +841,7 @@ FROM
 				FROM
 					${ref("DM_SELLOUT_STAGING", "D_MODELLO_PRODUZIONE")},
 					UNNEST(composizioni) AS comp_info
-				WHERE annostagione IN (SELECT * FROM ${ref("prodotti_input_output_partitions")})
+				WHERE annostagione IN (input_output_partitions)
 				GROUP BY
 					id,
 					progr_composizione

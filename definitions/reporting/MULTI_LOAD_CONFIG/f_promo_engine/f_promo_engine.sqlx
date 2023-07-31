@@ -15,6 +15,6 @@ WHERE DATE(CAST(ts_modifica AS TIMESTAMP)) = CURRENT_DATE
 		select * EXCEPT(ts_modifica),
 		CURRENT_TIMESTAMP() AS ts_modifica 
 		from ${ref("DM_SELLOUT_STAGING", "S_PROMO_ENGINE_*")}
-		where data_vendita IN (SELECT * FROM ${ref("f_promo_engine_input_output_partitions")})
+		where data_vendita IN (input_output_partitions)
 		QUALIFY ROW_NUMBER() OVER (PARTITION BY input_filename, ts_creazione, id, codice_promo ORDER BY  ts_inserimento DESC, ts_modifica DESC) = 1
 		

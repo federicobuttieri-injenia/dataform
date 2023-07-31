@@ -49,7 +49,7 @@ new_rows AS (
 	WHERE c.project_name IS NOT NULL AND porta IS NOT NULL AND tipo_porta IS NOT NULL
 		AND brand IS NOT NULL AND barcode_negozio IS NOT NULL AND anno IS NOT NULL
 		AND stagione IS NOT NULL
-		AND data_creazione IN (SELECT * FROM ${ref("f_contabilita_input_output_partitions")})
+		AND data_creazione IN (input_output_partitions)
 	GROUP BY data_documento, data_creazione, project_name, valuta, prezzo_import, prezzo_landed, controvalore_import,
 		controvalore_landed, prezzo_import_catalogo, controvalore_import_catalogo, porta, nazione_porta, tipo_porta,
 		societa_prodotto, classe, modello, variante, brand, uscita, barcode_negozio, anno, stagione, collezione_uscita,
@@ -62,7 +62,7 @@ new_rows AS (
 current_table AS (
 	SELECT * EXCEPT(prezzo_import, prezzo_landed), IFNULL(prezzo_import, 0.0) AS prezzo_import, IFNULL(prezzo_landed, 0.0) AS prezzo_landed
 	FROM ${ref("BILANCIO_GIACENZE")}
-	WHERE data_creazione IN (SELECT * FROM ${ref("f_contabilita_input_output_partitions")})
+	WHERE data_creazione IN (input_output_partitions)
 )
 SELECT data_documento, data_creazione, project_name, porta, barcode_negozio, data_evento, campi.*, action, ts_modifica, anno_tabella, prezzo_import, prezzo_landed, societa_prodotto FROM (
 	SELECT IFNULL(new_rows.data_documento, current_table.data_documento) AS data_documento, data_creazione, project_name, porta, barcode_negozio, data_evento, anno_tabella, prezzo_import, prezzo_landed, societa_prodotto,

@@ -64,8 +64,8 @@ FROM (
 	FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_INVITATO")}, UNNEST(attributes) AS invitato
 	LEFT JOIN UNNEST(invitato.crm_accoglimento) AS accoglimento
 	WHERE
-		_PARTITIONDATE IN (SELECT * FROM ${ref("s_invitato_input_partitions")})
-	AND CAST(SPLIT(id, ":::")[OFFSET(0)] AS INT64) BETWEEN op.partition_start AND op.partition_end
+		_PARTITIONDATE IN (UNNEST(input_partitions))
+	AND CAST(SPLIT(id, ":::")[OFFSET(0)] AS INT64) BETWEEN pi.partition_start AND pi.partition_end
 ) AS subquery
 GROUP BY id_iniziativa, cod_negozio, progressivo_invitato, contatto_negozio, action, pk_consumer, stato, partecipanti, fuori_lista, primo_contatto_negozio_data, ts_inserimento, ts_modifica, ts_creazione
 		

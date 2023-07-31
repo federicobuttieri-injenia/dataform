@@ -22,7 +22,7 @@ SELECT
 	CURRENT_TIMESTAMP() AS ts_modifica,
 	'bms' AS source
 FROM ${ref("DM_DIGITAL_STAGING", "S_LOG_DISPONIBILITA")}
-WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("s_disponibilita_input_output_partitions")})
+WHERE _PARTITIONDATE IN (input_output_partitions)
 
 UNION ALL
 
@@ -36,5 +36,5 @@ SELECT
 	CURRENT_TIMESTAMP() AS ts_modifica,
 	'om' AS source
 FROM ${ref("DM_DIGITAL_STAGING", "S_LOG_DISPONIBILITA_OM")}
-WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("s_disponibilita_input_output_partitions")})
+WHERE _PARTITIONDATE IN (input_output_partitions)
 		

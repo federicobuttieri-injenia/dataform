@@ -102,7 +102,7 @@ raw_MM AS (
 	FROM ${ref("analytics_260123046", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
-	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
+	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (input_output_partitions)
 	AND user_pseudo_id IS NOT NULL
 	AND item_id IS NOT NULL
 	AND ep.key IN ('store_country', 'page_type')
@@ -127,7 +127,7 @@ raw_SP AS (
 	FROM ${ref("analytics_260107564", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
-	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
+	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (input_output_partitions)
 	AND user_pseudo_id IS NOT NULL
 	AND item_id IS NOT NULL
 	AND ep.key IN ('store_country', 'page_type')
@@ -152,7 +152,7 @@ raw_WE AS (
 	FROM ${ref("analytics_260112979", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
-	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
+	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (input_output_partitions)
 	AND user_pseudo_id IS NOT NULL
 	AND item_id IS NOT NULL
 	AND ep.key IN ('store_country', 'page_type')
@@ -177,7 +177,7 @@ raw_MR AS (
 	FROM ${ref("analytics_260108762", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
-	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
+	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (input_output_partitions)
 	AND user_pseudo_id IS NOT NULL
 	AND item_id IS NOT NULL
 	AND ep.key IN ('store_country', 'page_type')
@@ -202,7 +202,7 @@ raw_MA AS (
 	FROM ${ref("analytics_260106982", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
-	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
+	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (input_output_partitions)
 	AND user_pseudo_id IS NOT NULL
 	AND item_id IS NOT NULL
 	AND ep.key IN ('store_country', 'page_type')
@@ -227,7 +227,7 @@ raw_IB AS (
 	FROM ${ref("analytics_260088170", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
-	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
+	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (input_output_partitions)
 	AND user_pseudo_id IS NOT NULL
 	AND item_id IS NOT NULL
 	AND ep.key IN ('store_country', 'page_type')
@@ -252,7 +252,7 @@ raw_MC AS (
 	FROM ${ref("analytics_260031029", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
-	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
+	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (input_output_partitions)
 	AND user_pseudo_id IS NOT NULL
 	AND item_id IS NOT NULL
 	AND ep.key IN ('store_country', 'page_type')
@@ -277,7 +277,7 @@ raw_PB AS (
 	FROM ${ref("analytics_260115782", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
-	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
+	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (input_output_partitions)
 	AND user_pseudo_id IS NOT NULL
 	AND item_id IS NOT NULL
 	AND ep.key IN ('store_country', 'page_type')
@@ -302,7 +302,7 @@ raw_DT AS (
 	FROM ${ref("analytics_248931566", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
-	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
+	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (input_output_partitions)
 	AND user_pseudo_id IS NOT NULL
 	AND item_id IS NOT NULL
 	AND ep.key IN ('store_country', 'page_type')
@@ -327,7 +327,7 @@ raw_FM AS (
 	FROM ${ref("analytics_260115140", "events_*")},
 	UNNEST(event_params)    AS ep 
 	LEFT JOIN UNNEST(items)   AS it
-	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (SELECT * FROM ${ref("ga_kpi_prodotto_basic_input_output_partitions")})
+	WHERE PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) IN (input_output_partitions)
 	AND user_pseudo_id IS NOT NULL
 	AND item_id IS NOT NULL
 	AND ep.key IN ('store_country', 'page_type')

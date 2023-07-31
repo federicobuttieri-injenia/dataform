@@ -32,5 +32,5 @@ SELECT
 	_PARTITIONDATE AS data_creazione
 FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_SPEDIZIONE")}
 WHERE attributes.action = 'DELETE'
-AND _PARTITIONDATE IN (SELECT * FROM ${ref("s_log_sped_delete_input_output_partitions")})
+AND _PARTITIONDATE IN (input_output_partitions)
 		

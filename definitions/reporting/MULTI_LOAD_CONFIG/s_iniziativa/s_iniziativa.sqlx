@@ -58,6 +58,6 @@ SELECT
 	SAFE_CAST(resource_timestamp AS TIMESTAMP) AS ts_creazione,
 FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_INIZIATIVA")}, unnest(attributes) AS iniziativa
 WHERE
-	_PARTITIONDATE IN (SELECT * FROM ${ref("s_iniziativa_input_partitions")})
-AND CAST(id AS INT64) BETWEEN op.partition_start AND op.partition_end
+	_PARTITIONDATE IN (UNNEST(input_partitions))
+AND CAST(id AS INT64) BETWEEN pi.partition_start AND pi.partition_end
 		

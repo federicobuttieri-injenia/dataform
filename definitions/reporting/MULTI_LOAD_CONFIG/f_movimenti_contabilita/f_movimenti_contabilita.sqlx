@@ -20,7 +20,7 @@ WITH file_xml_per_negozio_data AS (
 		COUNTIF(input_filename LIKE '%xml') AS n_xml_per_data,
 		COUNTIF(input_filename LIKE '%xml' AND LOWER(input_filename) NOT LIKE '%runit%') AS n_xml_non_runit_per_data
 	FROM ${ref("DM_SELLOUT_STAGING", "S_MOVIMENTO_CONTABILITA_*")}
-	WHERE EXTRACT(YEAR FROM data_pagamento) IN (SELECT * FROM ${ref("f_movimenti_contabilita_input_output_partitions")})
+	WHERE EXTRACT(YEAR FROM data_pagamento) IN (input_output_partitions)
 	GROUP BY negozio, data_vendita
 ),
 consumer_local AS (
@@ -173,7 +173,7 @@ END
 	LEFT JOIN file_xml_per_negozio_data USING (negozio, data_vendita)
 	LEFT JOIN consumer_local ON (CONTAB.cod_consumer = consumer_local.consumer_local AND CONTAB.negozio = consumer_local.negozio)
 	LEFT JOIN ${ref("DM_SELLOUT_STAGING", "V_FILE_VENDITE_ESPLICITI")} file_espliciti ON (CONTAB.input_filename = file_espliciti.file_name)
-	WHERE EXTRACT(YEAR FROM data_vendita) IN (SELECT * FROM ${ref("f_movimenti_contabilita_input_output_partitions")})
+	WHERE EXTRACT(YEAR FROM data_vendita) IN (input_output_partitions)
 	AND PORTE.porta IS NOT NULL # filtro per record con negozi non esistenti, ne teniamo traccia solo sulla S_MOV
 )
 WHERE (

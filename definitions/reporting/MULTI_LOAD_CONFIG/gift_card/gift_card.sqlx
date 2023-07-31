@@ -47,6 +47,6 @@ FROM (
 		d_porta.nazione = d_cir_gc.nazione
 	AND d_porta.insegna = d_cir_gc.insegna
 	)
-	WHERE EXTRACT(YEAR FROM data_vendita) IN (SELECT * FROM ${ref("gift_card_input_output_partitions")})
+	WHERE EXTRACT(YEAR FROM data_vendita) IN (input_output_partitions)
 )
 where rk_duplicati_operazioni = 1

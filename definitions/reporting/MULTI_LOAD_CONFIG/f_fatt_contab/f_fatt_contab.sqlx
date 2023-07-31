@@ -179,7 +179,7 @@ END = t.currency AND f.daily_sales_date = t.reference_date)
         LEFT JOIN fnc_rate fnc_rate_returns ON (r.currency_trx = fnc_rate_returns.iso_code AND ddr.data_delivery = fnc_rate_returns.reference_date) 
         WHERE f.rnk = 1
         AND f.record_type != 'DELETE'
-        AND daily_sales_date IN (SELECT * FROM ${ref("f_fatt_contab_input_output_partitions")})
+        AND daily_sales_date IN (input_output_partitions)
         )
         SELECT * EXCEPT (revenue_net, vat, revenue_gross, return_revenue_net, return_vat, return_revenue_gross, fnc_comp_rate),
         IF(country = 'GB' AND project_name = 'OM', CAST((vat_trx / fnc_comp_rate) AS NUMERIC), vat) AS vat,

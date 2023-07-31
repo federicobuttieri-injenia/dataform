@@ -111,11 +111,11 @@ report_fidelity AS(
 		history_id IS NOT NULL
 	AND tipo_fidelity IN ("LOYALTY_PB_IT", "LOYALTY_MC_IT")
 	AND (
-		data_operazione BETWEEN SELECT * FROM ${ref("fidelity_card_passaggio_soglia_input_partitions")} AND LAST_DAY(DATE(SELECT * FROM ${ref("fidelity_card_passaggio_soglia_input_partitions")}), MONTH)	
+		data_operazione BETWEEN UNNEST(input_partitions) AND LAST_DAY(DATE(UNNEST(input_partitions)), MONTH)	
 		OR (
-			data_operazione BETWEEN SELECT * FROM ${ref("fidelity_card_passaggio_soglia_input_partitions")} AND LAST_DAY(DATE(SELECT * FROM ${ref("fidelity_card_passaggio_soglia_input_partitions")}), MONTH) 
+			data_operazione BETWEEN UNNEST(input_partitions) AND LAST_DAY(DATE(UNNEST(input_partitions)), MONTH) 
 			AND tipo_operazione = 'RETURN'
-			AND data_acquisto_del_reso BETWEEN SELECT * FROM ${ref("fidelity_card_passaggio_soglia_input_partitions")} AND LAST_DAY(DATE(SELECT * FROM ${ref("fidelity_card_passaggio_soglia_input_partitions")}), MONTH)
+			AND data_acquisto_del_reso BETWEEN UNNEST(input_partitions) AND LAST_DAY(DATE(UNNEST(input_partitions)), MONTH)
 		) 
 	)
 	ORDER BY history_id ASC
@@ -126,9 +126,9 @@ report_fidelity_resi_post AS(
 	WHERE
 		history_id IS NOT NULL
 	AND tipo_fidelity IN ("LOYALTY_PB_IT", "LOYALTY_MC_IT")
-	AND data_operazione BETWEEN DATE_ADD(LAST_DAY(DATE(SELECT * FROM ${ref("fidelity_card_passaggio_soglia_input_partitions")}), MONTH), INTERVAL 1 DAY) AND DATE_ADD(LAST_DAY(DATE(SELECT * FROM ${ref("fidelity_card_passaggio_soglia_input_partitions")}), MONTH), INTERVAL 15 DAY) 
+	AND data_operazione BETWEEN DATE_ADD(LAST_DAY(DATE(UNNEST(input_partitions)), MONTH), INTERVAL 1 DAY) AND DATE_ADD(LAST_DAY(DATE(UNNEST(input_partitions)), MONTH), INTERVAL 15 DAY) 
 	AND tipo_operazione = 'RETURN'
-	AND data_acquisto_del_reso BETWEEN SELECT * FROM ${ref("fidelity_card_passaggio_soglia_input_partitions")} AND LAST_DAY(DATE(SELECT * FROM ${ref("fidelity_card_passaggio_soglia_input_partitions")}), MONTH)
+	AND data_acquisto_del_reso BETWEEN UNNEST(input_partitions) AND LAST_DAY(DATE(UNNEST(input_partitions)), MONTH)
 	GROUP BY 1,2
 ),
 calcolo_soglie AS (

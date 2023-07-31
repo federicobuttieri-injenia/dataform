@@ -22,7 +22,7 @@ WITH BACKUP_PRODOTTI AS (
 		IF(modello_barcode_negozio IS NOT NULL AND modello_barcode_negozio !='', modello_barcode_negozio, NULL) AS modello_retail,
 		annostagione
 	FROM ${ref("D_PRODOTTO")}
-	WHERE annostagione IN (SELECT * FROM ${ref("d_prezzo_ext_input_output_partitions")})
+	WHERE annostagione IN (input_output_partitions)
 ), 
 BACKUP_NEGOZI AS ( # necessario per record provenienti da BMS senza tipo_negozio
 	SELECT DISTINCT porta AS negozio, nazione AS nazione_negozio, tipo_negozio_retail
@@ -148,7 +148,7 @@ PREZZI_ACQUISTO_DBG AS (
 			divisa,
 		FROM ${ref("D_PREZZO")}
 		WHERE tipo_prezzo = 'A'
-		AND CAST(CONCAT(anno,stagione) AS INT64) IN (SELECT * FROM ${ref("d_prezzo_ext_input_output_partitions")})
+		AND CAST(CONCAT(anno,stagione) AS INT64) IN (input_output_partitions)
 	) prezzi USING (societa, anno, stagione, listino, divisa)
 ),
 RICARICHI AS (
@@ -381,7 +381,7 @@ FROM (
 			LEFT JOIN PREZZI_RICARICHI p_ric USING(negozio, modello, anno, stagione)
 			LEFT JOIN TASSI_CAMBIO_QUOTIDIANI AS f_tassi_quotidiani ON (D.divisa = f_tassi_quotidiani.iso_code AND D.data_creazione_prezzo = f_tassi_quotidiani.reference_date AND D.record_type IN ('SALE', 'BMS'))
 		)
-		WHERE CAST(CONCAT(anno,stagione) AS INT64) IN (SELECT * FROM ${ref("d_prezzo_ext_input_output_partitions")})
+		WHERE CAST(CONCAT(anno,stagione) AS INT64) IN (input_output_partitions)
 	)
 )
 WHERE TRUE

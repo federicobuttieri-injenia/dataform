@@ -62,6 +62,6 @@ JOIN (
 	AND dcc.tipo_ordine_cliente = cli_neg.tipo_ordine_cliente
 )
 WHERE 
-	CAST(CONCAT(dcc.anno, dcc.stagione) AS INT64) IN (SELECT * FROM ${ref("grp_clusters_input_output_partitions")})
+	CAST(CONCAT(dcc.anno, dcc.stagione) AS INT64) IN (input_output_partitions)
 AND dcc.tipo_ordine_cliente = 'CV'
 		

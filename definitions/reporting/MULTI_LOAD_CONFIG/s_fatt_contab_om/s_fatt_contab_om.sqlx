@@ -84,7 +84,7 @@ SET input_output_partitions = ARRAY(
                 tracking_number
             FROM ${ref("DM_DIGITAL_STAGING", "S_LOG_FATTURATO_CONTABILIZZATO_OM")}
             WHERE EXTRACT(DATE FROM _PARTITIONTIME) = CURRENT_DATE()
-            AND DATE(daily_sales_date) IN (SELECT * FROM ${ref("s_fatt_contab_om_input_output_partitions")})
+            AND DATE(daily_sales_date) IN (input_output_partitions)
             AND LOWER(sku) != 'shipping charges'
         )
         SELECT s_log.* except(customer_number),

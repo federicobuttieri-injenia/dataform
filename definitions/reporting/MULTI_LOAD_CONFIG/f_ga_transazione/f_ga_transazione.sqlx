@@ -99,7 +99,7 @@ WITH regions AS (
               WHERE
                     e.event_name = 'purchase' 
                 AND ep.key IN ('transaction_id', 'store_country', 'payment_type', 'shipping_tier', 'user_type')
-                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(SELECT * FROM ${ref("f_ga_transazione_input_output_partitions")}))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
+                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(input_output_partitions))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
             )
             , raw_sp AS(
               SELECT
@@ -118,7 +118,7 @@ WITH regions AS (
               WHERE
                     e.event_name = 'purchase' 
                 AND ep.key IN ('transaction_id', 'store_country', 'payment_type', 'shipping_tier', 'user_type')
-                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(SELECT * FROM ${ref("f_ga_transazione_input_output_partitions")}))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
+                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(input_output_partitions))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
             )
             , raw_we AS(
               SELECT
@@ -137,7 +137,7 @@ WITH regions AS (
               WHERE
                     e.event_name = 'purchase' 
                 AND ep.key IN ('transaction_id', 'store_country', 'payment_type', 'shipping_tier', 'user_type')
-                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(SELECT * FROM ${ref("f_ga_transazione_input_output_partitions")}))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
+                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(input_output_partitions))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
             )
             , raw_mr AS(
               SELECT
@@ -156,7 +156,7 @@ WITH regions AS (
               WHERE
                     e.event_name = 'purchase' 
                 AND ep.key IN ('transaction_id', 'store_country', 'payment_type', 'shipping_tier', 'user_type')
-                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(SELECT * FROM ${ref("f_ga_transazione_input_output_partitions")}))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
+                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(input_output_partitions))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
             )
             , raw_ma AS(
               SELECT
@@ -175,7 +175,7 @@ WITH regions AS (
               WHERE
                     e.event_name = 'purchase' 
                 AND ep.key IN ('transaction_id', 'store_country', 'payment_type', 'shipping_tier', 'user_type')
-                AND _TABLE_SUFFIX = (IFNULL((FORMAT_DATE("%Y%m%d", DATE(SELECT * FROM ${ref("f_ga_transazione_input_output_partitions")}))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
+                AND _TABLE_SUFFIX = (IFNULL((FORMAT_DATE("%Y%m%d", DATE(input_output_partitions))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
             )
             , raw_ib AS(
               SELECT
@@ -194,7 +194,7 @@ WITH regions AS (
               WHERE
                     e.event_name = 'purchase' 
                 AND ep.key IN ('transaction_id', 'store_country', 'payment_type', 'shipping_tier', 'user_type')
-                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(SELECT * FROM ${ref("f_ga_transazione_input_output_partitions")}))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
+                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(input_output_partitions))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
             )
             , raw_mc AS(
               SELECT
@@ -213,7 +213,7 @@ WITH regions AS (
               WHERE
                     e.event_name = 'purchase' 
                 AND ep.key IN ('transaction_id', 'store_country', 'payment_type', 'shipping_tier', 'user_type')
-                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(SELECT * FROM ${ref("f_ga_transazione_input_output_partitions")}))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
+                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(input_output_partitions))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
             )
             , raw_pb AS(
               SELECT
@@ -232,7 +232,7 @@ WITH regions AS (
               WHERE
                     e.event_name = 'purchase' 
                 AND ep.key IN ('transaction_id', 'store_country', 'payment_type', 'shipping_tier', 'user_type')
-                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(SELECT * FROM ${ref("f_ga_transazione_input_output_partitions")}))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
+                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(input_output_partitions))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
             )
             , raw_dt_1 AS(
               SELECT
@@ -251,7 +251,7 @@ WITH regions AS (
               WHERE
                     e.event_name = 'purchase' 
                 AND ep.key IN ('transaction_id', 'store_country', 'payment_type', 'shipping_tier', 'user_type')
-                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(SELECT * FROM ${ref("f_ga_transazione_input_output_partitions")}))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
+                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(input_output_partitions))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
             )
             , raw_dt_2 AS(
               SELECT
@@ -270,7 +270,7 @@ WITH regions AS (
               WHERE
                     e.event_name = 'purchase' 
                 AND ep.key IN ('transaction_id', 'store_country', 'payment_type', 'shipping_tier', 'user_type')
-                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(SELECT * FROM ${ref("f_ga_transazione_input_output_partitions")}))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
+                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(input_output_partitions))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
             )
             , raw_dt_3 AS(
               SELECT
@@ -289,7 +289,7 @@ WITH regions AS (
               WHERE
                     e.event_name = 'purchase' 
                 AND ep.key IN ('transaction_id', 'store_country', 'payment_type', 'shipping_tier', 'user_type')
-                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(SELECT * FROM ${ref("f_ga_transazione_input_output_partitions")}))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
+                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(input_output_partitions))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
             )
             , raw_fm AS(
               SELECT
@@ -308,7 +308,7 @@ WITH regions AS (
               WHERE
                     e.event_name = 'purchase' 
                 AND ep.key IN ('transaction_id', 'store_country', 'payment_type', 'shipping_tier', 'user_type')
-                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(SELECT * FROM ${ref("f_ga_transazione_input_output_partitions")}))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
+                AND _TABLE_SUFFIX IN (IFNULL((FORMAT_DATE("%Y%m%d", DATE(input_output_partitions))), GREATEST("20221101", FORMAT_DATE('%Y%m%d', DATE_ADD(CURRENT_DATE, INTERVAL -1 DAY)))))
             )
             , raw AS (
                         SELECT * FROM raw_mm

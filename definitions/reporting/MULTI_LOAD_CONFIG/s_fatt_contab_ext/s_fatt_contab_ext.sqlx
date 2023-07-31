@@ -85,7 +85,7 @@ SET input_output_partitions = ARRAY(
                 tracking_number
             FROM ${ref("DM_DIGITAL_STAGING", "S_LOG_FATTURATO_CONTABILIZZATO_EXT")}
             WHERE EXTRACT(DATE FROM _PARTITIONTIME) = DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
-            AND DATE(daily_sales_date) IN (SELECT * FROM ${ref("s_fatt_contab_ext_input_output_partitions")})
+            AND DATE(daily_sales_date) IN (input_output_partitions)
         )
         SELECT s_log_ext.* except(customer_number, corporate_customer_id),
             IFNULL(corporate_customer_id, map_c.pk_consumer_new) AS corporate_customer_id,

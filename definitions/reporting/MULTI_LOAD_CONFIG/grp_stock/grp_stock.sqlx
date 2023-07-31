@@ -55,7 +55,7 @@ FROM (
 				SUM(imp.qta_impegnata) AS qta_impegnata
 			FROM ${ref("DM_SELLOUT", "F_GIACENZA_*")}, UNNEST(impegnato) AS imp
 			WHERE 
-				giorno IN (SELECT * FROM ${ref("grp_stock_input_partitions")})
+				giorno IN (UNNEST(input_partitions))
 			AND imp.causale = "B2B"
 			GROUP BY 1,2,3,4
 		) AS imp_b2b ON(
@@ -68,7 +68,7 @@ FROM (
 			g.societa = dbb.societa AND g.dislocazione_logica = dbb.codice_industria
 		)
 		WHERE 
-			g.giorno IN (SELECT * FROM ${ref("grp_stock_input_partitions")})
+			g.giorno IN (UNNEST(input_partitions))
 		GROUP BY 1,2,3,4,5,6
 		QUALIFY RANK() OVER(PARTITION BY g.dislocazione_fisica ORDER BY g.giorno DESC) = 1
 	) AS input
@@ -88,7 +88,7 @@ FROM (
 		g.negozio = dbb.codice_bms AND dbb.tipologia = "BULK"
 	)
 	WHERE 
-		giorno IN (SELECT * FROM ${ref("grp_stock_input_partitions")})
+		giorno IN (UNNEST(input_partitions))
 	QUALIFY RANK() OVER(PARTITION BY codice_board ORDER BY giorno DESC) = 1 
 )
 GROUP BY 1,2,3,4,5
