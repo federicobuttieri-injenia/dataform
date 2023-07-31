@@ -83,15 +83,15 @@ FROM all_partitions_per_date
 SET output_partitions = ARRAY(
 SELECT DISTINCT PARSE_DATE("%Y%m%d", giorno) AS value
 FROM DM_SELLOUT_STAGING.S_KPI_FATTURATO
-WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("store_plan_kpi_input_partitions")})
+WHERE _PARTITIONDATE IN (UNNEST(input_partitions))
 UNION DISTINCT
 SELECT DISTINCT PARSE_DATE("%Y%m%d", giorno)
 FROM DM_SELLOUT_STAGING.S_KPI_VENDITE
-WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("store_plan_kpi_input_partitions")})
+WHERE _PARTITIONDATE IN (UNNEST(input_partitions))
 UNION DISTINCT
 SELECT DISTINCT PARSE_DATE("%Y%m%d", giorno)
 FROM DM_SELLOUT_STAGING.S_KPI_INGRESSI
-WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("store_plan_kpi_input_partitions")})
+WHERE _PARTITIONDATE IN (UNNEST(input_partitions))
 		);
 
 WITH tempo AS (

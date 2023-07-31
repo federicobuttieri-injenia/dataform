@@ -19,7 +19,7 @@ AND table_name = 'S_LOG_SMS_RESULT'
 SET output_partitions = ARRAY(
 SELECT DISTINCT DATE(a.dataora_creazione) AS dataora_creazione AS value
 FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_SMS_RESULT")}, UNNEST (attributes) a
-WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("f_sms_result_input_partitions")})
+WHERE _PARTITIONDATE IN (UNNEST(input_partitions))
 		);
 
 SELECT 

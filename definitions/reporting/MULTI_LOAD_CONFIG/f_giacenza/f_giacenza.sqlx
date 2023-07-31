@@ -19,7 +19,7 @@ AND table_name = 'S_GIACENZA'
 SET output_partitions = ARRAY(
 SELECT DISTINCT giorno AS value
 FROM ${ref("DM_SELLOUT_STAGING", "S_GIACENZA")}
-WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("f_giacenza_input_partitions")})
+WHERE _PARTITIONDATE IN (UNNEST(input_partitions))
 		);
 
 SELECT

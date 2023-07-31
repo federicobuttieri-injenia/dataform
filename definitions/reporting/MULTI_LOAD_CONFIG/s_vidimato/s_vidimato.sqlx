@@ -18,7 +18,7 @@ AND table_name = 'S_LOG_APPROVAZIONE_ORDINE'
 SET output_partitions = ARRAY(
 SELECT DISTINCT DATE(attributes.dataora_vidimazione) AS value
 FROM DM_SELLOUT_STAGING.S_LOG_APPROVAZIONE_ORDINE
-WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("s_vidimato_input_partitions")})
+WHERE _PARTITIONDATE IN (UNNEST(input_partitions))
 		);
 
 SELECT

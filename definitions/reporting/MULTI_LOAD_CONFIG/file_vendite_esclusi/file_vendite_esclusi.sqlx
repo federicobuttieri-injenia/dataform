@@ -20,7 +20,7 @@ QUALIFY RANK() OVER(PARTITION BY table_name ORDER BY ts_lancio DESC) = 1
 SET output_partitions = ARRAY(
 SELECT DISTINCT data_documento AS value
 FROM ${ref("DM_SELLOUT_STAGING", "S_FILE_VENDITE_ESCLUSI_BMS")}
-WHERE DATE(_PARTITIONTIME) IN (SELECT * FROM ${ref("file_vendite_esclusi_input_partitions")})
+WHERE DATE(_PARTITIONTIME) IN (UNNEST(input_partitions))
 		);
 
 SELECT *

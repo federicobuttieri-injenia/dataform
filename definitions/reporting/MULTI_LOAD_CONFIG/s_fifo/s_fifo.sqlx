@@ -19,7 +19,7 @@ AND table_name = 'S_LOG_FIFO'
 SET output_partitions = ARRAY(
 SELECT DISTINCT data_carico AS value
 FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_FIFO")}
-WHERE _PARTITIONDATE IN (SELECT * FROM ${ref("s_fifo_input_partitions")})
+WHERE _PARTITIONDATE IN (UNNEST(input_partitions))
 		);
 
 SELECT *
