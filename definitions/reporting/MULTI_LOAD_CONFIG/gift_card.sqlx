@@ -1,0 +1,54 @@
+config {
+    type: "table",
+    schema: "DM_SELLOUT",
+    name: "F_GIFT_CARD_20230101"
+}
+
+pre_operations {
+	DECLARE input_output_partitions ARRAY<INT64>;
+	
+	SET input_output_partitions = ARRAY(
+		SELECT DISTINCT EXTRACT(YEAR FROM data_vendita)
+		FROM ${ref("DM_SELLOUT_STAGING", "S_GIFT_CARD_*")}
+		WHERE DATE(CAST(ts_modifica AS TIMESTAMP)) = CURRENT_DATE);
+}
+SELECT * EXCEPT(rk_duplicati_operazioni)
+FROM (
+	SELECT
+		codice_circuito,
+		id_vendita,
+		id_transazione,
+		id,
+		data_vendita,
+		codice_carta,
+		soggetto_giuridico AS codice_le,
+		input_filename,
+		dataora,
+		data_scadenza,
+		negozio,
+		numero_documento,
+		s_gc.project_name,
+		record_type,
+		tipo_operazione,
+		stato,
+		valore,
+		valuta,
+		"GIFTCARD" as tipo_emissione,
+		valore_residuo,
+		ts_creazione,
+		s_gc.ts_inserimento,
+		CURRENT_TIMESTAMP AS ts_modifica,
+		ROW_NUMBER() OVER(PARTITION BY id_vendita, id_transazione, data_vendita, id
+			ORDER BY s_gc.ts_creazione DESC, s_gc.ts_inserimento DESC, s_gc.ts_modifica DESC
+		) as rk_duplicati_operazioni
+	FROM ${ref("DM_SELLOUT_STAGING", "S_GIFT_CARD_*")} as s_gc
+	LEFT JOIN DM_SELLOUT.D_PORTA AS d_porta ON(
+		d_porta.porta=negozio
+	)
+	LEFT JOIN DM_SELLOUT_STAGING.D_CIRCUITO_GIFT_CARD AS d_cir_gc  ON (
+		d_porta.nazione = d_cir_gc.nazione
+	AND d_porta.insegna = d_cir_gc.insegna
+	)
+	WHERE EXTRACT(YEAR FROM data_vendita) IN UNNEST(input_output_partitions)
+)
+where rk_duplicati_operazioni = 1

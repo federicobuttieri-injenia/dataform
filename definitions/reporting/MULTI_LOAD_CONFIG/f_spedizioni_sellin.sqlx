@@ -1,0 +1,22 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLIN",
+    name: "F_SPEDITO_{year}0101"
+}
+
+pre_operations {
+	DECLARE input_output_partitions ARRAY<INT64>;
+	
+	SET input_output_partitions = ARRAY(
+		SELECT DISTINCT data_bolla
+		FROM ${ref("DM_SELLOUT_STAGING", "S_SPEDITO_*")}
+		WHERE DATE(ts_modifica) = CURRENT_DATE
+				);
+}
+
+SELECT * EXCEPT(action)
+FROM ${ref("DM_SELLOUT_STAGING", "S_SPEDITO_*")}
+WHERE data_bolla IN UNNEST(input_output_partitions)
+QUALIFY RANK() OVER(PARTITION BY societa, numero_bolla, serie_bolla ORDER BY ts_creazione DESC, ts_inserimento DESC, ts_modifica DESC) = 1
+AND action = 'REPLACE'
+		

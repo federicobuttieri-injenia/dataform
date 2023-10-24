@@ -1,0 +1,68 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_INVITATO"
+}
+
+pre_operations {
+	DECLARE input_partitions ARRAY<DATE>;
+	
+	DECLARE output_partitions ARRAY<INT64>;
+	
+	SET input_partitions = ARRAY(
+		SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
+		FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")}
+		WHERE
+			DATE(ts_lancio) = CURRENT_DATE
+		AND table_name = 'S_LOG_INVITATO'
+				);
+	
+	SET output_partitions = ARRAY(
+		SELECT DISTINCT CAST((FLOOR((id_iniziativa - 1) / 100) * 100) as INT64) + 1
+		FROM (
+			SELECT DISTINCT CAST(SPLIT(id, ":::")[OFFSET(0)] AS INT64) AS id_iniziativa
+			FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_INVITATO")}
+			WHERE _PARTITIONDATE IN UNNEST(input_partitions)
+		
+			UNION DISTINCT
+		
+			SELECT DISTINCT CAST(SPLIT(id, ":::")[OFFSET(0)] AS INT64) AS id_iniziativa
+			FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_INIZIATIVA_NEGOZIO")}
+			WHERE _PARTITIONDATE IN UNNEST(input_partitions)
+		
+			UNION DISTINCT
+		
+			SELECT DISTINCT CAST(id AS INT64)
+			FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_INIZIATIVA")}
+			WHERE _PARTITIONDATE IN UNNEST(input_partitions)
+		)
+				);
+}
+
+SELECT 
+	* EXCEPT(dataora_partecipazione),
+	MAX(dataora_partecipazione) AS dataora_partecipazione
+FROM (
+	SELECT 
+		CAST(SPLIT(id, ":::")[OFFSET(0)] AS INT64) AS id_iniziativa,
+		SPLIT(id, ":::")[OFFSET(1)] AS cod_negozio,
+		CAST(SPLIT(id, ":::")[OFFSET(2)] AS INT64) AS progressivo_invitato,
+		action,
+		SAFE_CAST(invitato.contatto_negozio AS INT64) AS contatto_negozio,
+		SAFE_CAST(invitato.pk_consumer AS INT64) AS pk_consumer,
+		invitato.stato AS stato,
+		ARRAY_LENGTH(invitato.crm_accoglimento) > 0 AS partecipanti,
+		IF(invitato.stato = "VALIDO_IMBUCATO", 1, 0) AS fuori_lista,
+		invitato.primo_contatto_negozio_data AS primo_contatto_negozio_data,
+		TIMESTAMP(_PARTITIONTIME) AS ts_inserimento,
+		CURRENT_TIMESTAMP AS ts_modifica,
+		SAFE_CAST(resource_timestamp AS TIMESTAMP) AS ts_creazione,
+		accoglimento.dataora_partecipazione AS dataora_partecipazione
+FROM UNNEST (output_partitions) op, ${ref("DM_SELLOUT_STAGING", "S_LOG_INVITATO")}, UNNEST(attributes) AS invitato
+	LEFT JOIN UNNEST(invitato.crm_accoglimento) AS accoglimento
+	WHERE
+		_PARTITIONDATE IN UNNEST(input_partitions)
+	AND CAST(SPLIT(id, ":::")[OFFSET(0)] AS INT64) BETWEEN op AND op + 99
+) AS subquery
+GROUP BY id_iniziativa, cod_negozio, progressivo_invitato, contatto_negozio, action, pk_consumer, stato, partecipanti, fuori_lista, primo_contatto_negozio_data, ts_inserimento, ts_modifica, ts_creazione
+		

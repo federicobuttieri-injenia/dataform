@@ -1,0 +1,906 @@
+config {
+    type: "incremental",
+    schema: "DM_DIGITAL",
+    name: "F_GA_STAT_{year}0101"
+}
+
+pre_operations {
+	DECLARE input_output_partitions ARRAY<INT64>;
+	
+	SET input_output_partitions = ARRAY(
+		        with ga_part as (
+		        select 
+		            distinct parse_date('%Y%m%d', event_date) as Date 
+		        FROM ${ref("analytics_260123046", "events_*")}
+		        where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) 
+		        union all
+		        select 
+		            distinct parse_date('%Y%m%d', event_date) as Date
+		        FROM ${ref("analytics_260031029", "events_*")}
+		        where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+		        union all
+		        select 
+		            distinct parse_date('%Y%m%d', event_date) as Date
+		        FROM ${ref("analytics_260112979", "events_*")}
+		        where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+		        union all
+		        select
+		            distinct parse_date('%Y%m%d', event_date) as Date 
+		        FROM ${ref("analytics_260115782", "events_*")}
+		        where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+		        union all
+		        select 
+		            distinct parse_date('%Y%m%d', event_date) as Date 
+		        FROM ${ref("analytics_260088170", "events_*")}
+		        where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+		        union all
+		        select 
+		            distinct parse_date('%Y%m%d', event_date) as Date 
+		        FROM ${ref("analytics_260106982", "events_*")}
+		        where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+		        union all
+		        select 
+		            distinct parse_date('%Y%m%d', event_date) as Date
+		        FROM ${ref("analytics_260108762", "events_*")}
+		        where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+		        union all
+		        select 
+		            distinct parse_date('%Y%m%d', event_date) as Date
+		        FROM ${ref("analytics_260107564", "events_*")}
+		        where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+		        union all
+		        select 
+		            distinct parse_date('%Y%m%d', event_date) as Date 
+		        FROM ${ref("analytics_260115140", "events_*")}
+		        where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+		        union all
+		        select 
+		            distinct parse_date('%Y%m%d', event_date) as Date
+		        FROM ${ref("analytics_248931566", "events_*")}
+		        where _TABLE_SUFFIX IN (ifnull(({partitions}), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+		        )
+		        select distinct Date from ga_part
+		        );
+}
+
+        WITH KPI as (
+            (SELECT
+            "MM" as Brand,
+            parse_date('%Y%m%d', event_date) date,
+            platform,
+            device.category as category,
+            country,
+            COUNT( distinct IF(event_name="session_start",CONCAT(user_pseudo_id,(select cast(value.int_value as string) from unnest(event_params) where key = 'ga_session_id')),NULL)) sessions,
+            COUNT(distinct case when (select distinct value.string_value from unnest(event_params) where key = 'session_engaged') = '1' then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) end) as Bounces,
+            SUM((select value.int_value from unnest(event_params) where key = 'engagement_time_msec'))/1000 total_session_duration,
+            COUNT (
+            DISTINCT
+            IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) page_views,
+            COUNT(
+             IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_page_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) wishlist_views,
+            COUNT(
+             IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_wishlist_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) cart_views,
+            COUNT(
+             IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_cart" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_cart_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "view_item" ,
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) product_views,
+            COUNT(
+             IF(event_name = "view_item",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_item" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_product_views,
+             COUNT( distinct
+            IF(event_name = "purchase",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             ) purchase,
+             COUNT( distinct
+            IF(key= "transaction_id",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             ) transactions,
+            SUM(distinct ecommerce.purchase_revenue) as local_revenue,
+            SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
+            MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
+            FROM ${ref("analytics_260123046", "events_*")} ,unnest(event_params)
+            INNER JOIN (SELECT
+            user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
+            FROM ${ref("analytics_260123046", "events_*")},unnest(event_params)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            GROUP BY 1)
+            USING(user_pseudo_id)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))  AND stream_ID IN ("2263769002")
+            GROUP BY 1,2,3,4,5 
+            having transactions = purchase)
+
+            UNION ALL
+
+            (SELECT
+            "MC" as Brand,
+            parse_date('%Y%m%d', event_date) date,
+            platform,
+            device.category as category,
+            country,
+            COUNT( distinct IF(event_name="session_start",CONCAT(user_pseudo_id,(select cast(value.int_value as string) from unnest(event_params) where key = 'ga_session_id')),NULL)) sessions,
+            COUNT(distinct case when (select distinct value.string_value from unnest(event_params) where key = 'session_engaged') = '1' then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) end) as Bounces,
+            SUM((select value.int_value from unnest(event_params) where key = 'engagement_time_msec'))/1000 total_session_duration,
+            COUNT (
+            DISTINCT
+            IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) page_views,
+            COUNT(
+             IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_page_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) wishlist_views,
+            COUNT(
+             IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_wishlist_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) cart_views,
+            COUNT(
+             IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_cart" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_cart_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "view_item" ,
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) product_views,
+            COUNT(
+             IF(event_name = "view_item",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_item" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_product_views,
+             COUNT( distinct
+            IF(event_name = "purchase",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             ) purchase,
+             COUNT( distinct
+            IF(key= "transaction_id",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             )transactions,
+            SUM(distinct ecommerce.purchase_revenue) as local_revenue,
+            SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
+            MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
+            FROM ${ref("analytics_260031029", "events_*")} ,unnest(event_params)
+            INNER JOIN (SELECT
+            user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
+            FROM ${ref("analytics_260031029", "events_*")},unnest(event_params)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            GROUP BY 1)
+            USING(user_pseudo_id)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263767950")
+            GROUP BY 1,2,3,4,5
+            having transactions = purchase)
+
+            UNION ALL
+
+            (SELECT
+            "WE" as Brand,
+            parse_date('%Y%m%d', event_date) date,
+            platform,
+            device.category as category,
+            country,
+            COUNT( distinct IF(event_name="session_start",CONCAT(user_pseudo_id,(select cast(value.int_value as string) from unnest(event_params) where key = 'ga_session_id')),NULL)) sessions,
+            COUNT(distinct case when (select distinct value.string_value from unnest(event_params) where key = 'session_engaged') = '1' then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) end) as Bounces,
+            SUM((select value.int_value from unnest(event_params) where key = 'engagement_time_msec'))/1000 total_session_duration,
+            COUNT (
+            DISTINCT
+            IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) page_views,
+            COUNT(
+             IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_page_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) wishlist_views,
+            COUNT(
+             IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_wishlist_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) cart_views,
+            COUNT(
+             IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_cart" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_cart_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "view_item" ,
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) product_views,
+            COUNT(
+             IF(event_name = "view_item",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_item" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_product_views,
+             COUNT( distinct
+            IF(event_name = "purchase",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             ) purchase,
+             COUNT( distinct
+            IF(key= "transaction_id",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             )transactions,
+            SUM(distinct ecommerce.purchase_revenue) as local_revenue,
+            SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
+            MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
+            FROM ${ref("analytics_260112979", "events_*")} ,unnest(event_params)
+            INNER JOIN (SELECT
+            user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
+            FROM ${ref("analytics_260112979", "events_*")},unnest(event_params)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            GROUP BY 1)
+            USING(user_pseudo_id)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263881422")
+            GROUP BY 1,2,3,4,5
+            having transactions = purchase)
+
+            UNION ALL
+
+            (SELECT
+            "PB" as Brand,
+            parse_date('%Y%m%d', event_date) date,
+            platform,
+            device.category as category,
+            country,
+            COUNT( distinct IF(event_name="session_start",CONCAT(user_pseudo_id,(select cast(value.int_value as string) from unnest(event_params) where key = 'ga_session_id')),NULL)) sessions,
+            COUNT(distinct case when (select distinct value.string_value from unnest(event_params) where key = 'session_engaged') = '1' then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) end) as Bounces,
+            SUM((select value.int_value from unnest(event_params) where key = 'engagement_time_msec'))/1000 total_session_duration,
+            COUNT (
+            DISTINCT 
+            IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) page_views,
+            COUNT( DISTINCT 
+             IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_page_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) wishlist_views,
+            COUNT(
+             IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_wishlist_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) cart_views,
+            COUNT(
+             IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_cart" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_cart_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "view_item" ,
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) product_views,
+            COUNT(
+             IF(event_name = "view_item",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_item" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_product_views,
+             COUNT( distinct
+            IF(event_name = "purchase",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             ) purchase,
+             COUNT( distinct
+            IF(key= "transaction_id",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             )transactions,
+            SUM(distinct ecommerce.purchase_revenue) as local_revenue,
+            SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
+            MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
+            FROM ${ref("analytics_260115782", "events_*")} ,unnest(event_params)
+            INNER JOIN (SELECT
+            user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
+            FROM ${ref("analytics_260115782", "events_*")},unnest(event_params)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            GROUP BY 1)
+            USING(user_pseudo_id)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263778834")
+            GROUP BY 1,2,3,4,5
+            having transactions = purchase)
+
+            UNION ALL
+
+            (SELECT
+            "IB" as Brand,
+            parse_date('%Y%m%d', event_date) date,
+            platform,
+            device.category as category,
+            country,
+            COUNT( distinct IF(event_name="session_start",CONCAT(user_pseudo_id,(select cast(value.int_value as string) from unnest(event_params) where key = 'ga_session_id')),NULL)) sessions,
+            COUNT(distinct case when (select distinct value.string_value from unnest(event_params) where key = 'session_engaged') = '1' then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) end) as Bounces,
+            SUM((select value.int_value from unnest(event_params) where key = 'engagement_time_msec'))/1000 total_session_duration,
+            COUNT (
+            DISTINCT
+            IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) page_views,
+            COUNT(
+            DISTINCT
+             IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_page_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) wishlist_views,
+            COUNT(
+            DISTINCT
+             IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_wishlist_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) cart_views,
+            COUNT(
+            DISTINCT
+             IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_cart" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_cart_views,
+            COUNT( DISTINCT
+            IF(event_name = "view_item",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) product_views,
+            COUNT(
+             DISTINCT
+             IF(event_name = "view_item",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_item" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_product_views,
+             COUNT( distinct
+            IF(event_name = "purchase",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             ) purchase,
+             COUNT( distinct
+            IF(key= "transaction_id",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             )transactions,
+            SUM(distinct ecommerce.purchase_revenue) as local_revenue,
+            SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
+            MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
+            FROM ${ref("analytics_260088170", "events_*")} ,unnest(event_params)
+            INNER JOIN (SELECT
+            user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
+            FROM ${ref("analytics_260088170", "events_*")},unnest(event_params)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            GROUP BY 1)
+            USING(user_pseudo_id)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263746098")
+            GROUP BY 1,2,3,4,5
+            having transactions = purchase)
+
+            UNION ALL
+
+            (SELECT
+            "MA" as Brand,
+            parse_date('%Y%m%d', event_date) date,
+            platform,
+            device.category as category,
+            country,
+            COUNT( distinct IF(event_name="session_start",CONCAT(user_pseudo_id,(select cast(value.int_value as string) from unnest(event_params) where key = 'ga_session_id')),NULL)) sessions,
+            COUNT(distinct case when (select distinct value.string_value from unnest(event_params) where key = 'session_engaged') = '1' then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) end) as Bounces,
+            SUM((select value.int_value from unnest(event_params) where key = 'engagement_time_msec'))/1000 total_session_duration,
+            COUNT (
+            DISTINCT
+            IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) page_views,
+            COUNT(
+             IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_page_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) wishlist_views,
+            COUNT(
+             IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_wishlist_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) cart_views,
+            COUNT(
+             IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_cart" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_cart_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "view_item",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) product_views,
+            COUNT(
+             IF(event_name = "view_item",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_item" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_product_views,
+             COUNT( distinct
+            IF(event_name = "purchase",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             ) purchase,
+             COUNT( distinct
+            IF(key= "transaction_id",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             )transactions,
+            SUM(distinct ecommerce.purchase_revenue) as local_revenue,
+            SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
+            MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
+            FROM ${ref("analytics_260106982", "events_*")},unnest(event_params)
+            INNER JOIN (SELECT
+            user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
+            FROM ${ref("analytics_260106982", "events_*")},unnest(event_params)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            GROUP BY 1)
+            USING(user_pseudo_id)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263729825")
+            GROUP BY 1,2,3,4,5
+            having transactions = purchase)
+
+            UNION ALL
+
+            (SELECT
+            "MR" as Brand,
+            parse_date('%Y%m%d', event_date) date,
+            platform,
+            device.category as category,
+            country,
+            COUNT( distinct IF(event_name="session_start",CONCAT(user_pseudo_id,(select cast(value.int_value as string) from unnest(event_params) where key = 'ga_session_id')),NULL)) sessions,
+            COUNT(distinct case when (select distinct value.string_value from unnest(event_params) where key = 'session_engaged') = '1' then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) end) as Bounces,
+            SUM((select value.int_value from unnest(event_params) where key = 'engagement_time_msec'))/1000 total_session_duration,
+            COUNT ( 
+            DISTINCT 
+            IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) page_views,
+            COUNT(
+            DISTINCT 
+             IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_page_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) wishlist_views,
+            COUNT(
+             IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_wishlist_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) cart_views,
+            COUNT(
+             IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_cart" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_cart_views,
+            COUNT( DISTINCT
+            IF(event_name = "view_item" ,
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) product_views,
+            COUNT(
+             DISTINCT
+             IF(event_name = "view_item",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_item" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_product_views,
+             COUNT( distinct
+            IF(event_name = "purchase",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             ) purchase,
+             COUNT( distinct
+            IF(key= "transaction_id",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             )transactions,
+            SUM(distinct ecommerce.purchase_revenue) as local_revenue,
+            SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
+            MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
+            FROM ${ref("analytics_260108762", "events_*")} ,unnest(event_params)
+            INNER JOIN (SELECT
+            user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
+            FROM ${ref("analytics_260108762", "events_*")},unnest(event_params)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            GROUP BY 1)
+            USING(user_pseudo_id)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263752352")
+            GROUP BY 1,2,3,4,5
+            having transactions = purchase)
+
+            UNION ALL
+
+            (SELECT
+            "SP" as Brand,
+            parse_date('%Y%m%d', event_date) date,
+            platform,
+            device.category as category,
+            country,
+            COUNT( distinct IF(event_name="session_start",CONCAT(user_pseudo_id,(select cast(value.int_value as string) from unnest(event_params) where key = 'ga_session_id')),NULL)) sessions,
+            COUNT(distinct case when (select distinct value.string_value from unnest(event_params) where key = 'session_engaged') = '1' then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) end) as Bounces,
+            SUM((select value.int_value from unnest(event_params) where key = 'engagement_time_msec'))/1000 total_session_duration,
+            COUNT (
+            DISTINCT
+            IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) page_views,
+            COUNT(
+             IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_page_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) wishlist_views,
+            COUNT(
+             IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_wishlist_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) cart_views,
+            COUNT(
+             IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_cart" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_cart_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "view_item",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) product_views,
+            COUNT(
+             IF(event_name = "view_item",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_item" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_product_views,
+             COUNT( distinct
+            IF(event_name = "purchase",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             ) purchase,
+             COUNT( distinct
+            IF(key= "transaction_id",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             )transactions,
+            SUM(distinct ecommerce.purchase_revenue) as local_revenue,
+            SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
+            MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
+            FROM ${ref("analytics_260107564", "events_*")} ,unnest(event_params)
+            INNER JOIN (SELECT
+            user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
+            FROM ${ref("analytics_260107564", "events_*")},unnest(event_params)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            GROUP BY 1)
+            USING(user_pseudo_id)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263804342")
+            GROUP BY 1,2,3,4,5
+            having transactions = purchase)
+
+            UNION ALL
+
+            (SELECT
+            "FM" as Brand,
+            parse_date('%Y%m%d', event_date) date,
+            platform,
+            device.category as category,
+            country,
+            COUNT( distinct IF(event_name="session_start",CONCAT(user_pseudo_id,(select cast(value.int_value as string) from unnest(event_params) where key = 'ga_session_id')),NULL)) sessions,
+            COUNT(distinct case when (select distinct value.string_value from unnest(event_params) where key = 'session_engaged') = '1' then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) end) as Bounces,
+            SUM((select value.int_value from unnest(event_params) where key = 'engagement_time_msec'))/1000 total_session_duration,
+            COUNT (
+            DISTINCT
+            IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) page_views,
+            COUNT(
+             IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_page_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) wishlist_views,
+            COUNT(
+             IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_wishlist_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) cart_views,
+            COUNT(
+             IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_cart" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_cart_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "view_item" ,
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) product_views,
+            COUNT(
+             IF(event_name = "view_item",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_item" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_product_views,
+             COUNT( distinct
+            IF(event_name = "purchase",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             ) purchase,
+             COUNT( distinct
+            IF(key= "transaction_id",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             )transactions,
+            SUM(distinct ecommerce.purchase_revenue) as local_revenue,
+            SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
+            MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
+            FROM ${ref("analytics_260115140", "events_*")},unnest(event_params)
+            INNER JOIN (SELECT
+            user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
+            FROM ${ref("analytics_260115140", "events_*")},unnest(event_params)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            GROUP BY 1)
+            USING(user_pseudo_id)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2263919120")
+            GROUP BY 1,2,3,4,5
+            having transactions = purchase)
+
+            UNION ALL
+
+            (SELECT
+            "DT" as Brand,
+            parse_date('%Y%m%d', event_date) date,
+            platform,
+            device.category as category,
+            country,
+            COUNT( distinct IF(event_name="session_start",CONCAT(user_pseudo_id,(select cast(value.int_value as string) from unnest(event_params) where key = 'ga_session_id')),NULL)) sessions,
+            COUNT(distinct case when (select distinct value.string_value from unnest(event_params) where key = 'session_engaged') = '1' then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) end) as Bounces,
+            SUM((select value.int_value from unnest(event_params) where key = 'engagement_time_msec'))/1000 total_session_duration,
+            COUNT (
+            DISTINCT
+            IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) page_views,
+            COUNT(
+             IF(event_name = "page_view",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_page_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) wishlist_views,
+            COUNT(
+             IF(event_name = "page_view" AND key="page_location" AND CONTAINS_SUBSTR(value.string_value, "/wishlist"),
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "page_view" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_wishlist_views,
+            COUNT( DISTINCT
+            IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) cart_views,
+            COUNT(
+             IF(event_name = "view_cart",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_cart" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_cart_views,
+            COUNT(
+             DISTINCT
+            IF(event_name = "view_item" ,
+               CONCAT(user_pseudo_id,event_timestamp),
+               NULL)
+               ) product_views,
+            COUNT(
+             IF(event_name = "view_item",
+               CONCAT(user_pseudo_id,user_first_touch_timestamp,IF(event_name = "view_item" AND key="page_location",value.string_value,NULL)),
+               NULL)
+               ) unique_product_views,
+             COUNT( distinct
+            IF(event_name = "purchase",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             ) purchase,
+             COUNT( distinct
+            IF(key= "transaction_id",
+             CONCAT(user_pseudo_id,event_timestamp),
+             NULL)
+             )transactions,
+            SUM(distinct ecommerce.purchase_revenue) as local_revenue,
+            SUM(distinct ecommerce.purchase_revenue_in_usd) as local_revenue_in_usd,
+            MAX((select value.string_value from unnest(event_params) where key = 'currency' AND event_name = "purchase")) currency
+            FROM ${ref("analytics_248931566", "events_*")} ,unnest(event_params)
+            INNER JOIN (SELECT
+            user_pseudo_id, MAX(IF(key = "store_country" AND value.string_value NOT IN ("(null)"),value.string_value,NULL)) country
+            FROM ${ref("analytics_248931566", "events_*")},unnest(event_params)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day)))))
+            GROUP BY 1)
+            USING(user_pseudo_id)
+            WHERE _TABLE_SUFFIX IN (ifnull((format_date("%Y%m%d", dateUNNEST(input_output_partitions))), GREATEST("20230101", format_date('%Y%m%d', date_add(current_date, interval -1 day))))) AND stream_ID IN ("2086088052","2211484880","2211472582")
+            GROUP BY 1,2,3,4,5
+            having transactions = purchase)
+            ),
+        date_rate AS (
+            SELECT DISTINCT reference_date, iso_code, avg_rate
+            FROM (
+                SELECT DISTINCT data reference_date, iso_code
+                FROM ${ref("DM_SELLOUT", "D_TEMPO")}, ${ref("F_TASSO_QUOTIDIANO")}
+            )
+            LEFT JOIN ${ref("F_TASSO_QUOTIDIANO")} USING (reference_date, iso_code)
+            WHERE reference_date <= CURRENT_DATE() AND iso_code = 'USD'
+        ),
+        usd_rate AS (
+            SELECT 
+                reference_date, 
+                iso_code, 
+                avg_rate,
+                LAST_VALUE(avg_rate IGNORE NULLS) OVER (PARTITION BY iso_code ORDER BY reference_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS comp_rate
+                FROM date_rate
+        ),
+        pre_conversione AS (
+           SELECT
+           KPI.Brand,
+           KPI.Date,
+           KPI.Platform as Web_App,
+           KPI.Category as Device_Category,
+           KPI.Country,
+           KPI.Sessions,
+           KPI.Bounces,
+           KPI.Transactions,
+           KPI.Total_Session_Duration,
+           KPI.Page_views as Pageviews,
+           KPI.Unique_page_views as Unique_Pageviews,
+           KPI.Wishlist_Views,
+           KPI.Unique_Wishlist_Views,
+           KPI.Cart_Views,
+           KPI.Unique_Cart_Views,
+           KPI.Product_Views,
+           KPI.Unique_Product_Views,
+           KPI.Local_Revenue ,
+           KPI.Local_revenue_in_usd,
+           KPI.Currency,
+           reg.negozio as Shop_code,
+           CURRENT_TIMESTAMP() AS ts_modifica
+           from KPI
+           LEFT JOIN ${ref("DM_DIGITAL_STAGING", "S_REGION")} reg 
+           ON (KPI.Brand = reg.webanalytics_brand AND KPI.Country = reg.webanalytics_country)
+        )
+        SELECT pre_conversione.* EXCEPT(Local_revenue_in_usd),
+        (Local_revenue_in_usd/comp_rate) Revenue
+        FROM pre_conversione LEFT JOIN usd_rate ON (usd_rate.reference_date = pre_conversione.Date)
+        

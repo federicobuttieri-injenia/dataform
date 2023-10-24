@@ -1,0 +1,244 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLOUT",
+    name: "STORE_PLAN_KPI"
+}
+
+pre_operations {
+	DECLARE input_partitions ARRAY<DATE>;
+	
+	DECLARE output_partitions ARRAY<DATE>;
+	
+	SET input_partitions = ARRAY(
+		WITH days_output AS (
+			SELECT DISTINCT PARSE_DATE("%Y%m%d", giorno) AS giorno
+			FROM DM_SELLOUT_STAGING.S_KPI_FATTURATO
+			WHERE _PARTITIONDATE = (
+				SELECT 
+					MAX(PARSE_DATE("%Y%m%d", `partition`)) 
+				FROM TEMP_LOCATION.PARTIZIONI_LOADJOB 
+				WHERE table_name = 'S_KPI_FATTURATO'
+			)
+			UNION DISTINCT
+			SELECT DISTINCT PARSE_DATE("%Y%m%d", giorno) AS giorno
+			FROM DM_SELLOUT_STAGING.S_KPI_VENDITE
+			WHERE _PARTITIONDATE = (
+				SELECT 
+					MAX(PARSE_DATE("%Y%m%d", `partition`)) 
+				FROM TEMP_LOCATION.PARTIZIONI_LOADJOB 
+				WHERE table_name = 'S_KPI_VENDITE'
+			)
+			UNION DISTINCT
+			SELECT DISTINCT PARSE_DATE("%Y%m%d", giorno) AS giorno
+			FROM DM_SELLOUT_STAGING.S_KPI_INGRESSI
+			WHERE _PARTITIONDATE = (
+				SELECT 
+					MAX(PARSE_DATE("%Y%m%d", `partition`)) 
+				FROM TEMP_LOCATION.PARTIZIONI_LOADJOB 
+				WHERE table_name = 'S_KPI_INGRESSI'
+			)
+		), all_partitions_per_date AS (
+			SELECT 
+				d_o.giorno, MAX(_PARTITIONDATE) AS max_pdate
+			FROM DM_SELLOUT_STAGING.S_KPI_FATTURATO AS kpi
+			JOIN days_output AS d_o ON (d_o.giorno = PARSE_DATE("%Y%m%d", kpi.giorno))
+			GROUP BY 1
+			UNION ALL
+			SELECT 
+				d_o.giorno, MAX(_PARTITIONDATE) AS max_pdate
+			FROM DM_SELLOUT_STAGING.S_KPI_VENDITE AS kpi
+			JOIN days_output AS d_o ON (d_o.giorno = PARSE_DATE("%Y%m%d", kpi.giorno))
+			GROUP BY 1
+			UNION ALL
+			SELECT 
+				d_o.giorno, MAX(_PARTITIONDATE) AS max_pdate
+			FROM DM_SELLOUT_STAGING.S_KPI_INGRESSI AS kpi
+			JOIN days_output AS d_o ON (d_o.giorno = PARSE_DATE("%Y%m%d", kpi.giorno))
+			GROUP BY 1
+			UNION ALL
+			SELECT 
+				d_o.giorno, MAX(_PARTITIONDATE) AS max_pdate
+			FROM DM_SELLOUT_STAGING.S_KPI_VENDITE_B2E AS kpi
+			JOIN DM_SELLOUT.D_TEMPO AS t ON (t.anno_settimana_retail = kpi.settimana)
+			JOIN days_output AS d_o ON (d_o.giorno = t.data)
+			GROUP BY 1
+			UNION ALL
+			SELECT 
+				d_o.giorno, MAX(_PARTITIONDATE) AS max_pdate
+			FROM DM_SELLOUT_STAGING.S_KPI_FATTURATO_B2E AS kpi
+			JOIN DM_SELLOUT.D_TEMPO AS t ON (t.anno_settimana_retail = kpi.settimana)
+			JOIN days_output AS d_o ON (d_o.giorno = t.data)
+			GROUP BY 1
+			UNION ALL
+			SELECT 
+				d_o.giorno, MAX(_PARTITIONDATE) AS max_pdate
+			FROM DM_SELLOUT_STAGING.S_KPI_ORE_LAVORATE AS kpi
+			JOIN DM_SELLOUT.D_TEMPO AS t ON (CONCAT(SUBSTR(t.semestre, 1, 4), SUBSTR(t.semestre, 7, 1)) = kpi.semestre)
+			JOIN days_output AS d_o ON (d_o.giorno = t.data)
+			GROUP BY 1
+		)
+		SELECT distinct max_pdate
+		FROM all_partitions_per_date
+				);
+	
+	SET output_partitions = ARRAY(
+		SELECT DISTINCT PARSE_DATE("%Y%m%d", giorno)
+		FROM DM_SELLOUT_STAGING.S_KPI_FATTURATO
+		WHERE _PARTITIONDATE IN UNNEST(input_partitions)
+		UNION DISTINCT
+		SELECT DISTINCT PARSE_DATE("%Y%m%d", giorno)
+		FROM DM_SELLOUT_STAGING.S_KPI_VENDITE
+		WHERE _PARTITIONDATE IN UNNEST(input_partitions)
+		UNION DISTINCT
+		SELECT DISTINCT PARSE_DATE("%Y%m%d", giorno)
+		FROM DM_SELLOUT_STAGING.S_KPI_INGRESSI
+		WHERE _PARTITIONDATE IN UNNEST(input_partitions)
+				);
+}
+
+WITH tempo AS (
+	SELECT *, FORMAT_DATE('%Y%m%d', data) AS join_date
+	FROM DM_SELLOUT.D_TEMPO
+	WHERE data IN ({where_partitions_current_table})
+),
+kpi_fatt AS (
+	SELECT *
+	FROM (
+		SELECT *, ROW_NUMBER() OVER(PARTITION BY curva_giornaliera, negozio, giorno ORDER BY _PARTITIONDATE DESC) AS rk -- record piu recente, utile quando vengono lette piu partizioni
+		FROM DM_SELLOUT_STAGING.S_KPI_FATTURATO
+		WHERE _PARTITIONTIME IN {partitions}
+	)
+	WHERE rk = 1
+),
+ven AS (
+	SELECT *
+	FROM (
+		SELECT *, ROW_NUMBER() OVER(PARTITION BY curva_giornaliera, negozio, giorno ORDER BY _PARTITIONDATE DESC) AS rk
+		FROM DM_SELLOUT_STAGING.S_KPI_VENDITE
+		WHERE _PARTITIONTIME IN {partitions}
+	)
+	WHERE rk = 1
+),
+ven_b2e AS (
+	SELECT *
+	FROM (
+		SELECT *, ROW_NUMBER() OVER(PARTITION BY negozio, settimana ORDER BY _PARTITIONDATE DESC) AS rk
+		FROM DM_SELLOUT_STAGING.S_KPI_VENDITE_B2E
+		WHERE _PARTITIONTIME IN {partitions}
+	)
+	WHERE rk = 1
+),
+kpi_ing AS (
+	SELECT *
+	FROM (
+		SELECT *, ROW_NUMBER() OVER(PARTITION BY curva_giornaliera, negozio, giorno ORDER BY _PARTITIONDATE DESC) AS rk
+		FROM DM_SELLOUT_STAGING.S_KPI_INGRESSI
+		WHERE _PARTITIONTIME IN {partitions}
+	)
+	WHERE rk = 1
+),
+ore_lavorate AS (
+	SELECT *
+	FROM (
+		SELECT *, ROW_NUMBER() OVER(PARTITION BY negozio, fase_pianificazione, semestre ORDER BY _PARTITIONDATE DESC) AS rk
+		FROM DM_SELLOUT_STAGING.S_KPI_ORE_LAVORATE
+		WHERE _PARTITIONTIME IN {partitions}
+	)
+	WHERE rk = 1
+),
+kpi_fatt_b2e AS (
+	SELECT *
+	FROM (
+		SELECT *, ROW_NUMBER() OVER(PARTITION BY negozio, settimana ORDER BY _PARTITIONDATE DESC) AS rk
+		FROM DM_SELLOUT_STAGING.S_KPI_FATTURATO_B2E
+		WHERE _PARTITIONTIME IN {partitions}
+	)
+	WHERE rk = 1
+)
+	
+SELECT
+	kpi_fatt.negozio,
+	data AS giorno,
+	kpi_fatt.pezzi,
+	kpi_ven.scontrini AS vendite,
+	kpi_ing.ingressi,
+	kpi_ore.ore AS ore_lavorate,
+	kpi_ven.scontrini_b2e AS b2e_vendite,
+	kpi_fatt_b2e.fatturato_b2e AS b2e_fatturato
+FROM tempo AS t
+LEFT JOIN kpi_fatt ON (t.join_date = kpi_fatt.giorno) -- da qui viene "pezzi"
+LEFT JOIN (
+	SELECT ven.giorno, ven.negozio, ven.scontrini, ven.scontrini * b2e.perc_b2e / 100 AS scontrini_b2e, perc_b2e
+	FROM ven
+	LEFT JOIN (
+		SELECT negozio, CAST(SUBSTR(settimana, 1, 4) AS INT64) AS anno, CAST(SUBSTR(settimana, 5, 2) AS INT64) AS settimana, perc_b2e
+		FROM ven_b2e
+	) b2e ON (EXTRACT(ISOYEAR FROM PARSE_DATE('%Y%m%d', ven.giorno)) = b2e.anno AND EXTRACT(ISOWEEK FROM PARSE_DATE('%Y%m%d', ven.giorno)) = b2e.settimana AND ven.negozio = b2e.negozio)
+) kpi_ven ON (t.join_date = kpi_ven.giorno AND kpi_fatt.negozio = kpi_ven.negozio) -- da qui vengono "scontrini" e "scontrini_b2e"
+LEFT JOIN kpi_ing ON (t.join_date = kpi_ing.giorno AND kpi_fatt.negozio = kpi_ing.negozio) -- da qui viene "ingressi"
+LEFT JOIN (
+	SELECT negozio, singola_data AS giorno, ore
+	FROM (
+		SELECT
+			negozio,
+			ore / numero_date_semestre AS ore,
+			date_semestre,
+			numero_date_semestre
+		FROM (
+			SELECT
+				negozio,
+				semestre,
+				ore,
+				ROW_NUMBER() OVER(PARTITION BY negozio, semestre ORDER BY fase_pianificazione = '02' DESC) AS rk
+			FROM ore_lavorate
+		)
+		JOIN (
+			SELECT
+				CONCAT(CAST(anno AS STRING), CAST(semestre AS STRING)) AS semestre,
+				IF(
+					semestre = 1,
+					GENERATE_DATE_ARRAY(inizio_semestre_1, fine_semestre_1),
+					GENERATE_DATE_ARRAY(inizio_semestre_2, fine_semestre_2)
+				) AS date_semestre,
+				IF(
+					semestre = 1,
+					ARRAY_LENGTH(GENERATE_DATE_ARRAY(inizio_semestre_1, fine_semestre_1)),
+					ARRAY_LENGTH(GENERATE_DATE_ARRAY(inizio_semestre_2, fine_semestre_2))
+				) AS numero_date_semestre
+			FROM (
+				SELECT
+					DATE(anno, 1, 1) AS inizio_semestre_1,
+					DATE(anno, 6, 30) AS fine_semestre_1,
+					DATE(anno, 7, 1) AS inizio_semestre_2,
+					DATE(anno, 12, 31) AS fine_semestre_2,
+					anno,
+					semestre
+				FROM (
+					SELECT DISTINCT CAST(SUBSTR(semestre, 1, 4) AS INT64) AS anno, CAST(SUBSTR(semestre, 5, 1) AS INT64) AS semestre
+					FROM ore_lavorate
+				)
+			)
+		) USING (semestre)
+		WHERE rk = 1
+	), UNNEST(date_semestre) AS singola_data
+) kpi_ore ON (t.data = kpi_ore.giorno AND kpi_fatt.negozio = kpi_ore.negozio) -- da qui viene "ore_lavorate"
+LEFT JOIN (
+	SELECT negozio, giorno, fatturato * b2e.perc_b2e / 100 AS fatturato_b2e, fatturato as fatturato_no_b2e
+	FROM (
+		SELECT negozio, giorno, EXTRACT(ISOYEAR FROM giorno) AS anno, EXTRACT(ISOWEEK FROM giorno) AS settimana, SUM(if(fatturato_lordo_obiettivi_definitivi_euro != 0, fatturato_lordo_obiettivi_definitivi_euro, if(fatturato_lordo_obiettivi_acquisti_euro != 0, fatturato_lordo_obiettivi_acquisti_euro, fatturato_lordo_obiettivi_preliminari_euro))) AS fatturato
+		FROM DM_SELLOUT_STAGING.F_STORE_PLAN_FATTURATI
+		GROUP BY negozio, giorno, settimana
+	) fatt
+	LEFT JOIN (
+		SELECT negozio, CAST(SUBSTR(settimana, 1, 4) AS INT64) AS anno, CAST(SUBSTR(settimana, 5, 2) AS INT64) AS settimana, perc_b2e
+		FROM kpi_fatt_b2e
+	) b2e USING (anno, settimana, negozio)
+) kpi_fatt_b2e ON (t.data = kpi_fatt_b2e.giorno AND kpi_fatt.negozio = kpi_fatt_b2e.negozio) -- da qui viene "b2e_fatturato"
+WHERE (
+	kpi_fatt.giorno IS NOT NULL
+	OR kpi_ven.giorno IS NOT NULL
+	OR kpi_ing.giorno IS NOT NULL
+	OR kpi_ore.giorno IS NOT NULL
+	OR kpi_ore.giorno IS NOT NULL
+)	
+		

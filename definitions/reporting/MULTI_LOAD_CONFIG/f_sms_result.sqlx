@@ -1,0 +1,34 @@
+config {
+    type: "incremental",
+    schema: "DM_CRM",
+    name: "F_SMS_RESULT_{year}0101"
+}
+
+pre_operations {
+	DECLARE input_partitions ARRAY<DATE>;
+	
+	DECLARE output_partitions ARRAY<DATE>;
+	
+	SET input_partitions = ARRAY(
+		SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
+		FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")} 
+		WHERE 
+			DATE(ts_lancio) >= CURRENT_DATE - 100
+		AND table_name = 'S_LOG_SMS_RESULT'
+				);
+	
+	SET output_partitions = ARRAY(
+		SELECT DISTINCT DATE(a.dataora_creazione) AS dataora_creazione
+		FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_SMS_RESULT")}, UNNEST (attributes) a
+		WHERE _PARTITIONDATE IN UNNEST(input_partitions)
+				);
+}
+
+SELECT 
+	s.* EXCEPT(ts_modifica, pk_consumer),
+	CAST(s.pk_consumer AS INT64 ) AS pk_consumer,
+	CURRENT_TIMESTAMP AS ts_modifica
+FROM ${ref("DM_SELLOUT_STAGING", "S_SMS_RESULT_*")} s
+WHERE EXTRACT(DATE FROM s.dataora_creazione) IN ({where_partitions_current_table})
+QUALIFY ROW_NUMBER() OVER (PARTITION BY s.sms_id ORDER BY ts_inserimento DESC, ts_modifica DESC, ts_creazione DESC) = 1
+		

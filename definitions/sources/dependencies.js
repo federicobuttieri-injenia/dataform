@@ -355,7 +355,12 @@ declare({
 
 declare({
     schema: "DM_SELLOUT_STAGING",
-    name: "{from_table}"
+    name: "S_TSL"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_TSLR"
 });
 
 declare({
@@ -395,12 +400,22 @@ declare({
 
 declare({
     schema: "DM_SELLOUT_STAGING",
+    name: "S_SMS_RESULT_*"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
     name: "S_LOG_CASE"
 });
 
 declare({
     schema: "DM_SELLOUT_STAGING",
     name: "S_LOG_EMAIL_RESULT"
+});
+
+declare({
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_EMAIL_RESULT_*"
 });
 
 declare({
@@ -485,11 +500,6 @@ declare({
 
 declare({
     schema: "DM_SELLOUT",
-    name: "{from_table}"
-});
-
-declare({
-    schema: "DM_SELLOUT",
     name: "RIGA_SCONTRINO_{by_year}0101"
 });
 
@@ -511,6 +521,11 @@ declare({
 declare({
     schema: "DM_SELLOUT",
     name: "F_ORDINATO_*"
+});
+
+declare({
+    schema: "DM_SELLOUT",
+    name: "F_ORDINATO*"
 });
 
 declare({
@@ -546,11 +561,6 @@ declare({
 declare({
     schema: "DM_PREZZO_LISTINO",
     name: "D_CAMBIO_STAGIONE"
-});
-
-declare({
-    schema: "DM_PREZZO_LISTINO",
-    name: "{from_table}"
 });
 
 declare({
@@ -715,7 +725,7 @@ declare({
 
 declare({
     schema: "DM_DIGITAL",
-    name: "F_GA_STAT_*"
+    name: "F_GA_STAT_ORA_*"
 });
 
 declare({

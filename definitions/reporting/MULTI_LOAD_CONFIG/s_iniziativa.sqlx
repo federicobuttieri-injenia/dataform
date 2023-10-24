@@ -1,0 +1,60 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_INIZIATIVA"
+}
+
+pre_operations {
+	DECLARE input_partitions ARRAY<DATE>;
+	
+	DECLARE output_partitions ARRAY<INT64>;
+	
+	SET input_partitions = ARRAY(
+		SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
+		FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")}
+		WHERE
+			DATE(ts_lancio) = CURRENT_DATE
+		AND table_name = 'S_LOG_INIZIATIVA'
+				);
+	
+	SET output_partitions = ARRAY(
+		SELECT DISTINCT CAST((FLOOR((id_iniziativa - 1) / 100) * 100) as INT64) + 1
+		FROM (
+			SELECT DISTINCT CAST(SPLIT(id, ":::")[OFFSET(0)] AS INT64) AS id_iniziativa
+			FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_INIZIATIVA_NEGOZIO")}
+			WHERE _PARTITIONDATE IN UNNEST(input_partitions)
+		
+			UNION DISTINCT
+		
+			SELECT DISTINCT CAST(id AS INT64)
+			FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_INIZIATIVA")}
+			WHERE _PARTITIONDATE IN UNNEST(input_partitions)
+		)
+				);
+}
+
+SELECT 
+	CAST(id AS INT64) AS id_iniziativa,
+	action,
+	iniziativa.categoria AS categoria,
+	iniziativa.tipologia AS tipologia,
+	iniziativa.descrizione AS descrizione,
+	CAST(SUBSTR (iniziativa.annostagione, 1, 4) AS INT64) AS anno,
+	CAST(SUBSTR (iniziativa.annostagione, 5) AS INT64) AS stagione,
+	iniziativa.brand AS brand,
+	iniziativa.stato AS stato,
+	SAFE_CAST(iniziativa.data_inizio_iniziativa AS date) AS data_inizio_iniziativa,
+	SAFE_CAST(iniziativa.data_fine_iniziativa AS date) AS data_fine_iniziativa,
+	iniziativa.tipo_lista_invitati AS tipo_lista_invitati,
+	SAFE_CAST(iniziativa.data_emissione AS DATE) AS data_invio_liste,
+	SAFE_CAST(iniziativa.data_convalida_liste AS date) AS data_convalida_liste,
+	SAFE_CAST(iniziativa.dataora_creazione AS datetime) AS dataora_creazione,
+	SAFE_CAST(iniziativa.dataora_modifica AS datetime) AS dataora_modifica,
+	TIMESTAMP(_PARTITIONTIME) AS ts_inserimento,
+	CURRENT_TIMESTAMP AS ts_modifica,
+	SAFE_CAST(resource_timestamp AS TIMESTAMP) AS ts_creazione,
+		FROM UNNEST (output_partitions) op, ${ref("DM_SELLOUT_STAGING", "S_LOG_INIZIATIVA")}, unnest(attributes) AS iniziativa
+WHERE
+	_PARTITIONDATE IN UNNEST(input_partitions)
+AND CAST(id AS INT64) BETWEEN op AND op + 99
+		

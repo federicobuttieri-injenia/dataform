@@ -1,9 +1,0 @@
-config {
-    type: "view",
-    schema: "DM_DIGITAL",
-    name: "ga_kpi_prodotto_basic_get_last_shard"
-}
-
-			SELECT max(_table_suffix)
-			FROM `mmfg-analytics-gruppo-prod.analytics_260123046.events_*`
-		

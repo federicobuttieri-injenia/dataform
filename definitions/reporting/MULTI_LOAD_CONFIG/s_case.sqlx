@@ -1,0 +1,57 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_CASE"
+}
+
+pre_operations {
+	DECLARE input_partitions ARRAY<DATE>;
+	
+	DECLARE output_partitions ARRAY<INT64>;
+	
+	SET input_partitions = ARRAY(
+		SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
+		FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")} 
+		WHERE 
+			DATE(ts_lancio) = CURRENT_DATE 
+		AND table_name = 'S_LOG_CASE'
+				);
+	
+	SET output_partitions = ARRAY(
+		SELECT DISTINCT CAST((FLOOR((numero_case - 1) / 10000) * 10000) as INT64) + 1
+		FROM (
+			SELECT DISTINCT a.numero_case AS numero_case
+			FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_CASE")}, UNNEST (attributes) a
+			WHERE _PARTITIONDATE IN UNNEST(input_partitions)
+		)
+				);
+}
+
+SELECT 
+	a.numero_case AS numero_case,
+	a.pk_consumer AS pk_consumer,
+	a.account_id AS account_id,
+	a.negozio AS negozio,
+	a.canale AS canale,
+	a.sorgente AS sorgente,
+	a.priorita AS priorita,
+	a.stato AS stato,
+	a.oggetto AS oggetto,
+	a.type AS type,
+	a.sub_type AS sub_type,
+	a.id_vendita AS id_vendita,
+	a.brand AS brand,
+	a.barcode_negozio AS barcode_negozio,
+	a.lingua AS lingua,
+	a.dataora_creazione AS dataora_creazione,
+	a.dataora_modifica AS dataora_modifica,
+	a.dataora_chiusura AS dataora_chiusura,
+	a.motivo_chiusura AS motivo_chiusura,
+	TIMESTAMP(_PARTITIONTIME) AS ts_inserimento,
+	CURRENT_TIMESTAMP AS ts_modifica,
+	SAFE_CAST(resource_timestamp AS TIMESTAMP) AS ts_creazione,
+	CAST(NULL AS STRING) AS cod_consumer
+		FROM UNNEST (output_partitions) op, ${ref("DM_SELLOUT_STAGING", "S_LOG_CASE")}, UNNEST (attributes) a
+WHERE CAST(a.numero_case AS INT64) BETWEEN op AND op + 9999
+AND _PARTITIONDATE IN UNNEST(input_partitions)
+		

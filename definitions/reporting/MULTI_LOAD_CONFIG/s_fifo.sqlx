@@ -1,0 +1,32 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_FIFO"
+}
+
+pre_operations {
+	DECLARE input_partitions ARRAY<DATE>;
+	
+	DECLARE output_partitions ARRAY<INT64>;
+	
+	SET input_partitions = ARRAY(
+		SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
+		FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")} 
+		WHERE 
+			DATE(ts_lancio) = CURRENT_DATE 
+		AND table_name = 'S_LOG_FIFO'
+				);
+	
+	SET output_partitions = ARRAY(
+		SELECT DISTINCT data_carico
+		FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_FIFO")}
+		WHERE _PARTITIONDATE IN UNNEST(input_partitions)
+				);
+}
+
+SELECT *
+FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_FIFO")}
+WHERE
+	_PARTITIONDATE IN {partitions}
+AND data_carico IN ({where_partitions_current_table})
+		

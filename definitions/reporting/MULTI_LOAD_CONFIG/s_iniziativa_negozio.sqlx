@@ -1,0 +1,79 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_INIZIATIVA_NEGOZIO"
+}
+
+pre_operations {
+	DECLARE input_partitions ARRAY<DATE>;
+	
+	DECLARE output_partitions ARRAY<INT64>;
+	
+	SET input_partitions = ARRAY(
+		SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
+		FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")}
+		WHERE
+			DATE(ts_lancio) = CURRENT_DATE
+		AND table_name = 'S_LOG_INIZIATIVA_NEGOZIO'
+				);
+	
+	SET output_partitions = ARRAY(
+		SELECT DISTINCT CAST((FLOOR((id_iniziativa - 1) / 100) * 100) as INT64) + 1
+		FROM (
+			SELECT DISTINCT CAST(SPLIT(id, ":::")[OFFSET(0)] AS INT64) AS id_iniziativa
+			FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_INIZIATIVA_NEGOZIO")}
+			WHERE _PARTITIONDATE IN UNNEST(input_partitions)
+		
+			UNION DISTINCT
+		
+			SELECT DISTINCT CAST(id AS INT64)
+			FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_INIZIATIVA")}
+			WHERE _PARTITIONDATE IN UNNEST(input_partitions)
+		)
+				);
+}
+
+SELECT 
+	id_iniziativa,
+	negozio,
+	action,
+	data_inizio_iniziativa,
+	data_fine_iniziativa,
+	tipo_lista_invitati,
+	stato,
+	data_inizio_osservazione,
+	data_fine_osservazione,
+	(budget_comunicazione + budget_omaggi + budget_personale + budget_modelle + budget_fotografo + budget_makeup_hair + budget_catering + budget_musica + budget_consulenza) AS budget,
+	ts_inserimento,
+	ts_modifica,
+	ts_creazione
+FROM (
+	SELECT
+		CAST(SPLIT(id, ":::")[OFFSET(0)] AS INT64) AS id_iniziativa,
+		SPLIT(id, ":::")[OFFSET(1)] AS negozio,
+		SAFE_CAST(iniziativa_negozio.data_inizio_iniziativa AS date) AS data_inizio_iniziativa,
+		SAFE_CAST(iniziativa_negozio.data_fine_iniziativa AS date) AS data_fine_iniziativa,
+		iniziativa_negozio.tipo_lista_invitati,
+		iniziativa_negozio.stato,
+		action,
+		DATE_ADD(SAFE_CAST(iniziativa_negozio.data_inizio_iniziativa AS DATE), interval -7 day) AS data_inizio_osservazione,
+		DATE_ADD(SAFE_CAST(iniziativa_negozio.data_fine_iniziativa AS DATE), interval 14 day) AS data_fine_osservazione,
+		IFNULL(SAFE_CAST(iniziativa_negozio.budget_comunicazione AS INT64), 0) AS budget_comunicazione,
+		IFNULL(SAFE_CAST(iniziativa_negozio.budget_omaggi AS INT64), 0) AS budget_omaggi,
+		IFNULL(SAFE_CAST(iniziativa_negozio.budget_personale AS INT64), 0) AS budget_personale,
+		IFNULL(SAFE_CAST(iniziativa_negozio.budget_modelle AS INT64), 0) AS budget_modelle,
+		IFNULL(SAFE_CAST(iniziativa_negozio.budget_fotografo AS INT64), 0) AS budget_fotografo,
+		IFNULL(SAFE_CAST(iniziativa_negozio.budget_makeup_hair AS INT64), 0) AS budget_makeup_hair,
+		IFNULL(SAFE_CAST(iniziativa_negozio.budget_catering AS INT64), 0) AS budget_catering,
+		IFNULL(SAFE_CAST(iniziativa_negozio.budget_musica AS INT64), 0) AS budget_musica,
+		IFNULL(SAFE_CAST(iniziativa_negozio.budget_consulenza AS INT64), 0) AS budget_consulenza,
+		TIMESTAMP(_PARTITIONTIME) AS ts_inserimento,
+		CURRENT_TIMESTAMP AS ts_modifica,
+		SAFE_CAST(resource_timestamp AS TIMESTAMP) AS ts_creazione,
+FROM UNNEST (output_partitions) op, ${ref("DM_SELLOUT_STAGING", "S_LOG_INIZIATIVA_NEGOZIO")}, unnest(attributes) AS iniziativa_negozio
+	WHERE
+		_PARTITIONDATE IN UNNEST(input_partitions)
+	AND CAST(SPLIT(id, ":::")[OFFSET(0)] AS INT64) BETWEEN op AND op + 99
+
+) AS subquery
+		

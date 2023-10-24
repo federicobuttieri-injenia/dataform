@@ -1,0 +1,26 @@
+config {
+    type: "incremental",
+    schema: "DM_DIGITAL",
+    name: "F_DISPONIBILITA_{year}0101"
+}
+
+pre_operations {
+	DECLARE input_output_partitions ARRAY<INT64>;
+	
+	SET input_output_partitions = ARRAY(
+		SELECT DISTINCT date
+		FROM ${ref("DM_DIGITAL_STAGING", "S_DISPONIBILITA_*")}
+		WHERE CAST(ts_inserimento AS DATE) = DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
+		);
+}
+
+SELECT
+	sku,
+	warehouse,
+	brand,
+	quantity,
+	date
+FROM ${ref("DM_DIGITAL_STAGING", "S_DISPONIBILITA_*")}
+WHERE date IN UNNEST(input_output_partitions)
+QUALIFY ROW_NUMBER() OVER(PARTITION BY sku, warehouse, brand, date ORDER BY CASE source WHEN 'om' THEN 1 WHEN 'bms' THEN 2 ELSE 3 END ASC, ts_inserimento DESC) = 1
+		

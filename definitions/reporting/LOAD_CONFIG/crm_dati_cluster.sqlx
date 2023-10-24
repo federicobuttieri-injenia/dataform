@@ -1,0 +1,183 @@
+config {
+    type: "table",
+    schema: "DM_CRM",
+    name: "DATI_CLUSTER"
+}
+
+WITH v1 AS (
+	WITH vendite AS (
+		
+SELECT
+	storicizzazione,
+	pk_consumer,
+	nazione_residenza_mmfg nazione_consumatrice,
+	-- nazione_residenza_mmfg = nazione_negozio f_local_tourist,
+	f_local_tourist,
+	nazione_negozio,
+	negozio,
+	barcode_negozio,
+	prezzo_listino_sell_out_nazionale prezzo_listino,
+	r.tipo_negozio_retail like '__EC' f_ecommerce,
+	IF(r.tipo_negozio_retail like 'DT__' OR r.tipo_negozio_retail like 'FM__', 'DT', brand) brand,
+	insegna,
+	collezione_brand collezione,
+	desc_collezione_brand desc_collezione,
+	department,
+	desc_department,
+	CONCAT(negozio, CAST(data_vendita AS string)) scontrino,
+	IF(brand = 'MM' AND collezione_brand in ('0803', '4184') AND department = '11' AND pezzi > 0, data_vendita, null) AS data_sposa,
+	data_vendita,
+	pezzi capi_ven,
+	fatturato_netto_tasso_quotidiano fatturato_euro,
+	-- metto prima i resi, poi le vendite in ordine di data, e scarto tutte le righe fino al numero di resi per due
+	r.tipo_movimento = 'VENDITA' AND reso.reso_id IS NULL AS non_resa,
+	-- questo e' fatto per modello anziche' per barcode_negozio, in modo da non considerare vendite eventuali cambi taglia/colore di acquisti fatti prima dell'inizio della finestra
+	p.stagionale = "PERMANENTE" f_co,
+	p.stagione = 1 f_ss
+FROM ${ref("DM_SELLOUT", "RIGA_SCONTRINO_*")} r
+JOIN ${ref("STORICIZZAZIONI")} s ON (
+	_TABLE_SUFFIX BETWEEN s.minshard AND s.maxshard
+	AND data_vendita BETWEEN s.data_inizio_storicizzazione AND s.data_fine_storicizzazione
+)
+JOIN ${ref("D_PRODOTTO")} p USING (barcode_negozio, societa, anno)
+JOIN ${ref("DM_SELLOUT", "D_PORTA")} n ON (r.negozio = n.porta)
+LEFT JOIN ${ref("D_RESO")} reso USING (negozio, data_transazione, id_transazione, id)
+WHERE 
+	r.tipo_negozio_retail NOT LIKE '__O_'
+AND grado_anonimato NOT IN ('40', '50') 
+AND pk_consumer IS NOT NULL
+		
+	)
+	SELECT
+		storicizzazione, pk_consumer, brand, f_insegna, nazione_negozio, barcode_negozio, prezzo_listino,
+		SUM(capi_ven) over(partition by storicizzazione, pk_consumer, brand) totale_capi,
+		SUM(fatturato_euro) over(partition by storicizzazione, pk_consumer, brand) totale_valore,
+		
+		scontrino, data_sposa, data_vendita, capi_ven, fatturato_euro, f_ss, f_co, nazione_consumatrice, f_local_tourist, f_ecommerce,
+		collezione, desc_collezione, department, desc_department,
+		
+		SUM(capi_ven) over(partition by storicizzazione, scontrino, brand) > 1 f_multiitem,
+		COUNT(distinct department) over(partition by storicizzazione, scontrino, brand) > 1 f_multidepartment
+	FROM ( -- sottoquery per il calcolo del brand e insegna dai segmenti
+		SELECT
+			* EXCEPT(brand, f_insegna),
+			seg.brand,
+			seg.f_insegna
+		FROM vendite
+		LEFT JOIN ${ref("DM_CRM", "D_SEGMENTO")} seg ON (
+			seg.brand = CASE IF(seg.f_insegna, vendite.insegna, vendite.brand)
+WHEN "MM" THEN "MM"
+WHEN "WE" THEN "WE"
+WHEN "SP" THEN "SP"
+WHEN "MH" THEN "MM"
+WHEN "MA" THEN "MA"
+WHEN "IB" THEN "IB"
+WHEN "LM" THEN "EM"
+WHEN "EM" THEN "EM"
+WHEN "DT" THEN "DT"
+WHEN "FM" THEN "FM"
+WHEN "IN" THEN "DT"
+WHEN "MC" THEN "MC"
+WHEN "PB" THEN "PB"
+WHEN "MR" THEN "MR"
+WHEN "PE" THEN "PE"
+WHEN "NP" THEN "PE"
+WHEN "PS" THEN "PE"
+ELSE NULL
+END
+		)
+		WHERE non_resa AND fatturato_euro > 0
+	)
+),
+terzili AS (
+	SELECT storicizzazione, brand, f_insegna, nazione_negozio, APPROX_QUANTILES(prezzo_medio, 3)[OFFSET(1)] lower_bound, APPROX_QUANTILES(prezzo_medio, 3)[OFFSET(2)] upper_bound
+	FROM (
+		SELECT storicizzazione, brand, f_insegna, nazione_negozio, barcode_negozio, avg(prezzo_listino) prezzo_medio -- in realta' dovrebbe essere costante
+		FROM v1
+		GROUP BY 1, 2, 3, 4, 5
+	)
+	GROUP BY 1, 2, 3, 4
+)
+SELECT
+	storicizzazione,
+	pk_consumer AS pk_consumer,
+	brand,
+	f_insegna,
+	MAX(data_sposa) AS data_sposa,
+	MAX(data_vendita) AS data_ultimo_acquisto,
+	MIN(data_vendita) data_primo_acquisto,
+	MAX(fatturato_euro / capi_ven) AS maxprice,
+	COUNT(distinct scontrino) AS frequenza,
+	SUM(fatturato_euro) / COUNT(distinct scontrino) AS scontrino_medio,
+	SUM(capi_ven) / COUNT(distinct scontrino) AS upt,
+	SUM(capi_ven) tot_capi,
+	SUM(fatturato_euro) fatturato_euro,
+	ANY_VALUE(nazione_consumatrice) nazione_consumatrice,
+	COUNT(distinct if(f_local_tourist, scontrino, NULL)) vendite_local,
+	COUNT(distinct if(f_ecommerce, scontrino, NULL)) vendite_ecommerce,
+	COUNT(distinct if(f_multiitem, scontrino, NULL)) vendite_multiitem,
+	COUNT(distinct if(f_multidepartment, scontrino, NULL)) vendite_multidepartment,
+	SUM(if(f_ss AND not f_co, fatturato_euro, 0)) fatturato_SS,
+	SUM(if(f_ss AND not f_co, capi_ven, 0)) tot_capi_SS,
+	SUM(if(f_co, fatturato_euro, 0)) fatturato_CO,
+	SUM(if(f_co, capi_ven, 0)) tot_capi_CO,
+	SUM(if(prezzo_listino > upper_bound, fatturato_euro, 0)) fatturato_fascia_alta,
+	SUM(if(prezzo_listino <= upper_bound AND prezzo_listino > lower_bound, fatturato_euro, 0)) fatturato_fascia_media,
+	SUM(if(prezzo_listino <= lower_bound, fatturato_euro, 0)) fatturato_fascia_bassa,
+	SUM(if(prezzo_listino > upper_bound, capi_ven, 0)) tot_capi_fascia_alta,
+	SUM(if(prezzo_listino <= upper_bound AND prezzo_listino > lower_bound, capi_ven, 0)) tot_capi_fascia_media,
+	SUM(if(prezzo_listino <= lower_bound, capi_ven, 0)) tot_capi_fascia_bassa,
+	ANY_VALUE(collezioni) collezioni,
+	ANY_VALUE(classi) department
+FROM v1
+JOIN terzili USING (storicizzazione, brand, f_insegna, nazione_negozio)
+LEFT JOIN (
+	SELECT
+		storicizzazione,
+		pk_consumer,
+		brand,
+		f_insegna,
+		ARRAY_AGG(STRUCT(collezione, desc_collezione, tot_capi, tot_fatturato, incidenza_capi, incidenza_fatturato)) collezioni
+	FROM (
+		-- tabella dove vengono calcolati i valori che voglio annidare, per collezione
+		SELECT
+			storicizzazione,
+			pk_consumer,
+			brand,
+			f_insegna,
+			collezione,
+			ANY_VALUE(desc_collezione) desc_collezione,
+			SUM(capi_ven) tot_capi, SUM(fatturato_euro) tot_fatturato,
+			SUM(capi_ven) / ANY_VALUE(totale_capi) incidenza_capi,
+			SUM(fatturato_euro) / ANY_VALUE(totale_valore) incidenza_fatturato
+		FROM v1
+		GROUP BY 1, 2, 3, 4, 5
+	)
+	GROUP BY 1, 2, 3, 4 -- in questa groupby vengono annidati, con array_agg
+) vc USING (storicizzazione, pk_consumer, brand, f_insegna)
+LEFT JOIN (
+	SELECT
+		storicizzazione,
+		pk_consumer,
+		brand,
+		f_insegna,
+		ARRAY_AGG(STRUCT(department, desc_department, tot_capi, tot_fatturato, incidenza_capi, incidenza_fatturato)) classi
+	FROM (
+		-- tabella dove vengono calcolati i valori che voglio annidare, per department
+		SELECT
+			storicizzazione,
+			pk_consumer,
+			brand,
+			f_insegna,
+			department,
+			ANY_VALUE(desc_department) desc_department,
+			SUM(capi_ven) tot_capi, SUM(fatturato_euro) tot_fatturato,
+			SUM(capi_ven) / ANY_VALUE(totale_capi) incidenza_capi,
+			SUM(fatturato_euro) / ANY_VALUE(totale_valore) incidenza_fatturato
+		FROM v1
+		GROUP BY 1, 2, 3, 4, 5
+	) GROUP BY 1, 2, 3, 4  -- in questa groupby vengono annidati, con array_agg
+) vd USING (storicizzazione, pk_consumer, brand, f_insegna)
+WHERE capi_ven > 0
+GROUP BY storicizzazione, pk_consumer, brand, f_insegna
+		

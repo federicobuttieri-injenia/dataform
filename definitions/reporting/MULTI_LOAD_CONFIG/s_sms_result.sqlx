@@ -1,0 +1,48 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_SMS_RESULT_{year}0101"
+}
+
+pre_operations {
+	DECLARE input_partitions ARRAY<DATE>;
+	
+	DECLARE output_partitions ARRAY<DATE>;
+	
+	SET input_partitions = ARRAY(
+		SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
+		FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")} 
+		WHERE 
+			DATE(ts_lancio) >= CURRENT_DATE - 100
+		AND table_name = 'S_LOG_SMS_RESULT'
+				);
+	
+	SET output_partitions = ARRAY(
+		SELECT DISTINCT DATE(a.dataora_creazione) AS dataora_creazione
+		FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_SMS_RESULT")}, UNNEST (attributes) a
+		WHERE _PARTITIONDATE IN UNNEST(input_partitions)
+				);
+}
+
+SELECT 
+	a.sms_id AS sms_id,
+	a.dataora_creazione AS dataora_creazione,
+	a.data_invio AS data_invio,
+	TO_BASE64(SHA1(IFNULL(a.nome_campagna, a.sms_name))) AS id_campagna,
+	IFNULL(a.nome_campagna, a.sms_name) AS nome_campagna,
+	a.pk_consumer AS pk_consumer,
+	a.account_id AS account_id,
+	a.sms_name AS sms_name,
+	a.tipo_messaggio AS tipo_messaggio,
+	SUBSTRING(a.sms_name, 0, 2) AS brand,
+	a.negozio AS negozio,
+	a.sales_assistant,
+	TIMESTAMP(_PARTITIONTIME) AS ts_inserimento,
+	CURRENT_TIMESTAMP AS ts_modifica,
+	SAFE_CAST(resource_timestamp AS TIMESTAMP) AS ts_creazione
+FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_SMS_RESULT")} 
+JOIN UNNEST (attributes) AS a
+WHERE
+	_PARTITIONTIME IN {partitions}  
+AND EXTRACT(DATE FROM a.dataora_creazione) IN ({where_partitions_current_table})
+		

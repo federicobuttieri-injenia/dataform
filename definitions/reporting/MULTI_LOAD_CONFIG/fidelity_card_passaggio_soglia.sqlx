@@ -1,0 +1,225 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLOUT",
+    name: "F_FIDELITY_PASSAGGIO_SOGLIA"
+}
+
+pre_operations {
+	DECLARE input_partitions ARRAY<DATE>;
+	
+	DECLARE output_partitions ARRAY<DATE>;
+	
+	SET input_partitions = ARRAY(
+		SELECT DATE(
+			EXTRACT(YEAR FROM DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)), 
+			EXTRACT(MONTH FROM DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)),
+			1     
+		)
+				);
+	
+	SET output_partitions = ARRAY(
+		SELECT CURRENT_DATE()
+				);
+}
+
+WITH S_FIDELITY_CARD_HISTORY AS (
+	SELECT * EXCEPT(rank)
+	FROM (
+		SELECT
+			F.*,
+			_PARTITIONTIME AS ts_creazione,
+			RANK() OVER(PARTITION BY 
+				COALESCE(DATA.tipo_operazione, DATA.custom_data.tipo_operazione, action),
+				COALESCE(DATA.id_operazione, requestid),
+				cod_negozio,
+				EXTRACT(YEAR FROM CAST(DATA.timestamp_operazione AS timestamp)),
+				SPLIT(id,',')[SAFE_OFFSET(1)] 
+			ORDER BY _PARTITIONTIME DESC, CAST(SPLIT(id,',')[SAFE_OFFSET(3)] AS INT64) DESC) AS rank
+		FROM ${ref("DM_SELLOUT_STAGING", "S_FIDELITY_CARD_HISTORY")}F
+		LEFT JOIN UNNEST(attributes) AS attributes
+		LEFT JOIN UNNEST(attributes.DATA) AS DATA
+		WHERE
+			(COALESCE(DATA.tipo_operazione, DATA.custom_data.tipo_operazione) IS NOT NULL AND action != 'force')
+		OR action IN ('assign', 'force')
+	) AS Q
+	WHERE rank = 1 
+),
+raw_report_fidelity AS (
+	SELECT
+		COALESCE(CAST(C.pk_consumer_new AS INT64),
+		CAST(SPLIT(id,',')[SAFE_OFFSET(0)] AS INT64)) AS pk_consumer,
+		SPLIT(id,',')[SAFE_OFFSET(1)] AS tipo_fidelity,
+		SPLIT(id,',')[SAFE_OFFSET(2)] AS codice,
+		CAST(SPLIT(id,',')[SAFE_OFFSET(3)]  AS INT64) AS history_id,
+		DATE(CAST(DATA.timestamp_operazione AS timestamp)) AS data_operazione,
+		DATA.id_operazione AS id_operazione,
+		COALESCE(DATA.tipo_operazione, DATA.custom_data.tipo_operazione, action) AS tipo_operazione,
+		N.tipo_negozio_retail AS tipo_negozio_retail,
+		COALESCE(N.porta, DATA.cod_negozio, DATA.custom_data.cod_negozio_ref) AS cod_negozio,
+		DATA.action AS action,
+		# SE action è process e il tipo è finalize_points allora siamo in fase di scongelamento
+		IF(
+			DATA.action = 'process' AND ANY_VALUE(DATA.custom_data.type) = 'finalize_points',
+			1,
+			NULL
+		) AS scongelamento,
+		PARSE_DATE("%Y%m%d", ANY_VALUE(DATA.custom_data.data_documento_ref)) AS data_acquisto_del_reso,
+		ANY_VALUE(DATA.importo_orig_corrente) AS importo_iniziale,
+		CASE
+			WHEN tipo_negozio_retail NOT LIKE '%EC' AND ANY_VALUE(COALESCE(DATA.tipo_operazione, DATA.custom_data.tipo_operazione)) NOT IN ("RETURN") THEN SUM(data_calcolo_punti.guadagnati)
+			WHEN tipo_negozio_retail NOT LIKE '%EC'	AND ANY_VALUE(COALESCE(DATA.tipo_operazione, DATA.custom_data.tipo_operazione)) IN ("RETURN") THEN -SUM(data_calcolo_punti.guadagnati)
+			WHEN (DATA.action = 'process' AND ANY_VALUE(DATA.custom_data.type) = 'finalize_points') AND ANY_VALUE(COALESCE(DATA.tipo_operazione, DATA.custom_data.tipo_operazione)) NOT IN ("RETURN") THEN SUM(data_calcolo_punti.guadagnati)
+			WHEN (DATA.action = 'process' AND ANY_VALUE(DATA.custom_data.type) = 'finalize_points') AND ANY_VALUE(COALESCE(DATA.tipo_operazione, DATA.custom_data.tipo_operazione)) IN ("RETURN") THEN -SUM(data_calcolo_punti.guadagnati)
+			WHEN DATA.action = 'assign' THEN SUM(DATA.importo_corrente - DATA.importo_orig_corrente)
+			ELSE 0
+		END	AS punti_guadagnati,
+		IF(
+			(DATA.action = 'process' AND ANY_VALUE(DATA.custom_data.type) = 'finalize_points'),
+			0,
+			SUM(data_calcolo_punti.utilizzati)
+		) AS punti_utilizzati,
+		ANY_VALUE(DATA.importo_corrente) AS importo_finale,
+		ANY_VALUE(DATA.importo_orig_congelato) AS importo_congelato_iniziale,
+		DM_SELLOUT.getPuntiCongelatiGuadagnati(
+			DATA.action,
+			ANY_VALUE(DATA.custom_data.type),
+			tipo_negozio_retail,
+			ANY_VALUE(COALESCE(DATA.tipo_operazione, DATA.custom_data.tipo_operazione)),
+			SUM(data_calcolo_punti.guadagnati)
+		) AS punti_congelati_guadagnati,
+		ANY_VALUE(DATA.importo_congelato) AS importo_congelato_finale,
+	FROM S_FIDELITY_CARD_HISTORY AS F
+	LEFT JOIN UNNEST(attributes) AS attributes
+	LEFT JOIN UNNEST(attributes.DATA) AS DATA
+	LEFT JOIN UNNEST(DATA.custom_data.operazioni) AS data_operazioni
+	LEFT JOIN UNNEST(DATA.custom_data.data_calcolo_punti) AS data_calcolo_punti
+	LEFT JOIN UNNEST(data_calcolo_punti.split) AS split_fields
+	LEFT JOIN ${ref("DM_SELLOUT", "D_PORTA")} N ON(
+			COALESCE(DATA.cod_negozio, DATA.custom_data.cod_negozio_ref) = N.porta
+	)
+	LEFT JOIN ${ref("DM_SELLOUT_STAGING", "V_MAPPING_CONSUMER")} C ON(
+			SPLIT(F.id,',')[SAFE_OFFSET(0)] = C.pk_consumer_old
+		AND C.f_anagrafica = TRUE
+	)
+	GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+),
+report_fidelity AS(
+	SELECT
+		*,
+		ROW_NUMBER() OVER(PARTITION BY pk_consumer, tipo_fidelity ORDER BY history_id ASC) AS first_row,
+		ROW_NUMBER() OVER(PARTITION BY pk_consumer, tipo_fidelity ORDER BY history_id DESC) AS last_row,
+	FROM raw_report_fidelity
+	WHERE
+		history_id IS NOT NULL
+	AND tipo_fidelity IN ("LOYALTY_PB_IT", "LOYALTY_MC_IT")
+	AND (
+		data_operazione BETWEEN UNNEST(input_partitions) AND LAST_DAY(DATEUNNEST(input_partitions), MONTH)	
+		OR (
+			data_operazione BETWEEN UNNEST(input_partitions) AND LAST_DAY(DATEUNNEST(input_partitions), MONTH) 
+			AND tipo_operazione = 'RETURN'
+			AND data_acquisto_del_reso BETWEEN UNNEST(input_partitions) AND LAST_DAY(DATEUNNEST(input_partitions), MONTH)
+		) 
+	)
+	ORDER BY history_id ASC
+),
+report_fidelity_resi_post AS(
+	SELECT pk_consumer, tipo_fidelity, SUM(punti_guadagnati) as resi
+	FROM raw_report_fidelity
+	WHERE
+		history_id IS NOT NULL
+	AND tipo_fidelity IN ("LOYALTY_PB_IT", "LOYALTY_MC_IT")
+	AND data_operazione BETWEEN DATE_ADD(LAST_DAY(DATEUNNEST(input_partitions), MONTH), INTERVAL 1 DAY) AND DATE_ADD(LAST_DAY(DATEUNNEST(input_partitions), MONTH), INTERVAL 15 DAY) 
+	AND tipo_operazione = 'RETURN'
+	AND data_acquisto_del_reso BETWEEN UNNEST(input_partitions) AND LAST_DAY(DATEUNNEST(input_partitions), MONTH)
+	GROUP BY 1,2
+),
+calcolo_soglie AS (
+	SELECT tipo, st.*
+	FROM ${ref("DM_SELLOUT_STAGING", "D_SOGLIE_FIDELITY")}, UNNEST(status) AS st
+	WHERE tipo IN ("LOYALTY_PB_IT", "LOYALTY_MC_IT")
+),
+calcolo_valore AS (
+	SELECT tipo, ps.*
+	FROM ${ref("DM_SELLOUT_STAGING", "D_SOGLIE_FIDELITY")}, UNNEST(passaggio_soglia) AS ps
+	WHERE tipo IN ("LOYALTY_PB_IT", "LOYALTY_MC_IT")
+),
+max_soglia_finale AS (
+	SELECT pk_consumer, st.description, sf.tipo, IFNULL(st.to, st.from) AS soglia_max
+	FROM ${ref("F_FIDELITY_PASSAGGIO_SOGLIA")} AS fps
+	JOIN ${ref("DM_SELLOUT_STAGING", "D_SOGLIE_FIDELITY")}AS sf ON (
+		sf.tipo IN ("LOYALTY_PB_IT", "LOYALTY_MC_IT")
+		AND fps.tipo_fidelity=sf.tipo
+	)
+	JOIN UNNEST(sf.status) AS st ON (
+		st.description = fps.soglia_finale
+		AND (st.inizio_validita IS NULL OR fps.data_riferimento >= st.inizio_validita)
+		AND (st.fine_validita IS NULL OR fps.data_riferimento <= st.fine_validita)
+	)
+	WHERE True
+	QUALIFY ROW_NUMBER() OVER (PARTITION BY pk_consumer, sf.tipo ORDER BY st.from DESC) = 1
+),
+preferred_store_per_consumer AS (
+	SELECT pk_consumer, soglie.tipo, negozio AS preferred_store
+	FROM ${ref("DM_SELLOUT_STAGING", "D_SOGLIE_FIDELITY")} soglie
+	JOIN ${ref("F_PREFERRED_STORE_SEGMENTO")} ps ON (soglie.insegna_tableau = ps.brand_preferred_store)
+	WHERE soglie.tipo IN ("LOYALTY_PB_IT", "LOYALTY_MC_IT")
+	AND ps.rank = 1
+	QUALIFY RANK() OVER(PARTITION BY pk_consumer, soglie.tipo, brand_preferred_store ORDER BY f_insegna DESC) = 1
+)
+SELECT
+	rf_first.tipo_fidelity,
+	rf_first.pk_consumer,
+	CAST(NULL AS STRING) AS cod_consumer,
+	calc_soglia_in.description AS soglia_iniziale,
+	calc_soglia_fin.description AS soglia_finale,
+	cv.valore,
+	preferred_store_per_consumer.preferred_store,
+	CURRENT_DATE() AS data_riferimento
+FROM report_fidelity AS rf_first
+JOIN report_fidelity AS rf_last ON (
+	rf_first.pk_consumer = rf_last.pk_consumer
+	AND rf_first.tipo_fidelity=rf_last.tipo_fidelity
+	AND rf_first.first_row = 1
+	AND rf_last.last_row = 1
+)
+LEFT JOIN report_fidelity_resi_post AS resi_post ON(
+	resi_post.pk_consumer = rf_first.pk_consumer
+	AND resi_post.tipo_fidelity=rf_first.tipo_fidelity
+)
+LEFT JOIN max_soglia_finale AS max_s ON (
+	max_s.pk_consumer = rf_first.pk_consumer
+	AND max_s.tipo=rf_first.tipo_fidelity
+)
+LEFT JOIN calcolo_soglie AS calc_soglia_in ON(
+	calc_soglia_in.tipo=COALESCE(max_s.tipo, rf_first.tipo_fidelity)  AND 
+	(
+		COALESCE(max_s.soglia_max, 0) BETWEEN calc_soglia_in.from AND calc_soglia_in.to
+		OR (COALESCE(max_s.soglia_max, 0) >= calc_soglia_in.from AND calc_soglia_in.to IS NULL)
+	)
+	AND (calc_soglia_in.inizio_validita IS NULL OR CURRENT_DATE >= calc_soglia_in.inizio_validita)
+	AND (calc_soglia_in.fine_validita IS NULL OR CURRENT_DATE <= calc_soglia_in.fine_validita)
+)
+LEFT JOIN calcolo_soglie AS calc_soglia_fin ON(
+	calc_soglia_fin.tipo=COALESCE(max_s.tipo, rf_first.tipo_fidelity) AND
+	(
+		(rf_last.importo_finale + COALESCE(resi_post.resi, 0)) BETWEEN calc_soglia_fin.from AND calc_soglia_fin.to
+		OR ((rf_last.importo_finale + COALESCE(resi_post.resi, 0)) >= calc_soglia_fin.from AND calc_soglia_fin.to IS NULL)
+	)
+	AND (calc_soglia_fin.inizio_validita IS NULL OR CURRENT_DATE >= calc_soglia_fin.inizio_validita)
+	AND (calc_soglia_fin.fine_validita IS NULL OR CURRENT_DATE <= calc_soglia_fin.fine_validita)
+)
+LEFT JOIN calcolo_valore AS cv ON(
+	cv.tipo=calc_soglia_in.tipo AND cv.soglia_from = calc_soglia_in.description AND cv.soglia_to = calc_soglia_fin.description 
+)
+LEFT JOIN preferred_store_per_consumer ON (rf_first.pk_consumer = preferred_store_per_consumer.pk_consumer AND rf_first.tipo_fidelity=preferred_store_per_consumer.tipo)
+WHERE (calc_soglia_in.from < calc_soglia_fin.from
+AND calc_soglia_in.tipo=calc_soglia_fin.tipo) OR 
+(
+	calc_soglia_in.from is NULL 
+	AND calc_soglia_fin.from is NULL
+	AND calc_soglia_in.tipo IS NULL
+	AND calc_soglia_fin.tipo IS NULL
+)
+AND cv.valore is not null
+ORDER BY rf_first.pk_consumer
+		

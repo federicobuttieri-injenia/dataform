@@ -1,0 +1,34 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLOUT_STAGING",
+    name: "FILE_VENDITE_ESCLUSI_BMS"
+}
+
+pre_operations {
+	DECLARE input_partitions ARRAY<DATE>;
+	
+	DECLARE output_partitions ARRAY<INT64>;
+	
+	SET input_partitions = ARRAY(
+		SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
+		FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")} 
+		WHERE 
+			table_name = 'S_FILE_VENDITE_ESCLUSI_BMS'
+		AND DATE(ts_lancio) >= DATE_SUB(CURRENT_DATE, INTERVAL 1 DAY) 
+		QUALIFY RANK() OVER(PARTITION BY table_name ORDER BY ts_lancio DESC) = 1
+				);
+	
+	SET output_partitions = ARRAY(
+		SELECT DISTINCT data_documento
+		FROM ${ref("DM_SELLOUT_STAGING", "S_FILE_VENDITE_ESCLUSI_BMS")}
+		WHERE DATE(_PARTITIONTIME) IN UNNEST(input_partitions)
+				);
+}
+
+SELECT *
+FROM ${ref("DM_SELLOUT_STAGING", "S_FILE_VENDITE_ESCLUSI_BMS")}
+WHERE 
+	DATE(_PARTITIONTIME) IN {partitions}
+AND data_documento in ({where_partitions_current_table})
+QUALIFY ROW_NUMBER() OVER(PARTITION BY file_name ORDER BY ts_inserimento DESC) = 1
+		

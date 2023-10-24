@@ -1,0 +1,74 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLIN",
+    name: "F_APPROVAZIONE_ORDINE_{year}0101"
+}
+
+pre_operations {
+	DECLARE input_partitions ARRAY<INT64>;
+	
+	DECLARE output_partitions ARRAY<INT64>;
+	
+	SET input_partitions = ARRAY(
+		SELECT DISTINCT all_s.data_vidimazione
+		FROM ${ref("DM_SELLOUT_STAGING", "S_APPROVAZIONE_ORDINE_*")} AS all_s
+		JOIN (
+			SELECT DISTINCT societa, SPLIT(numero_ordine_b2b, "_")[0] AS numero_ordine_b2b, serie_ordine_b2b
+			FROM ${ref("DM_SELLOUT_STAGING", "S_APPROVAZIONE_ORDINE_*")}
+			WHERE DATE(ts_modifica) = CURRENT_DATE
+		) AS s_today ON (
+			all_s.societa = s_today.societa
+		AND SPLIT(all_s.numero_ordine_b2b, "_")[0] = s_today.numero_ordine_b2b
+		AND all_s.serie_ordine_b2b = s_today.serie_ordine_b2b
+		)
+				);
+	
+	SET output_partitions = ARRAY(
+		SELECT DISTINCT data_vidimazione
+		FROM (
+			SELECT societa, SPLIT(numero_ordine_b2b, "_")[0] AS numero_ordine_b2b, serie_ordine_b2b, MAX(data_vidimazione) AS data_vidimazione
+			FROM ${ref("DM_SELLOUT_STAGING", "S_APPROVAZIONE_ORDINE_*")}
+			WHERE data_vidimazione IN UNNEST(input_partitions)
+			GROUP BY 1, 2, 3
+		)
+				);
+}
+
+WITH ordine_portale_intermediari AS (
+	SELECT
+		societa,
+		SPLIT(numero_ordine_b2b, "_")[0] AS numero_ordine_b2b,
+		serie_ordine_b2b,
+		modello,
+		variante,
+		cliente AS cliente_finale,
+		divisa AS divisa_finale,
+		prezzo AS prezzo_finale,
+		importo_netto_riga AS importo_netto_riga_finale
+	FROM ${ref("DM_SELLOUT_STAGING", "S_APPROVAZIONE_ORDINE_*")}
+	WHERE 
+		data_vidimazione IN {partitions}
+	AND portale_b2b NOT IN ('maxmara', 'marella', 'marina', 'pennyblack', 'maxandco')
+	QUALIFY ROW_NUMBER() OVER(
+		PARTITION BY societa, split(numero_ordine_b2b, "_")[0], serie_ordine_b2b, modello, variante 
+		ORDER BY dataora_checkout, ts_creazione DESC, ts_inserimento DESC, ts_modifica DESC
+	) = 1 AND action = 'REPLACE'
+)
+
+SELECT 
+	s.* EXCEPT(action, ts_modifica), 
+	CURRENT_TIMESTAMP AS ts_modifica, 
+	IFNULL(opi.cliente_finale, s.cliente) AS cliente_finale, 
+	IFNULL(opi.divisa_finale, s.divisa) AS divisa_finale, 
+	IFNULL(opi.prezzo_finale, s.prezzo) AS prezzo_finale, 
+	IFNULL(opi.importo_netto_riga_finale, s.importo_netto_riga) AS importo_netto_riga_finale
+FROM ${ref("DM_SELLOUT_STAGING", "S_APPROVAZIONE_ORDINE_*")} s
+LEFT JOIN ordine_portale_intermediari AS opi USING(societa, numero_ordine_b2b, serie_ordine_b2b, modello, variante)
+WHERE 
+	data_vidimazione IN ({where_partitions_current_table})
+AND portale_b2b IN ('maxmara', 'marella', 'marina', 'pennyblack', 'maxandco')	# DMA-5727
+QUALIFY RANK() OVER(
+	PARTITION BY societa, serie_ordine_b2b, numero_ordine_b2b 
+	ORDER BY ts_creazione DESC, ts_inserimento DESC, s.ts_modifica DESC
+) = 1 AND action = 'REPLACE'
+		

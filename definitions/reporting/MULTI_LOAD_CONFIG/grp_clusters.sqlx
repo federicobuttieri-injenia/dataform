@@ -1,0 +1,69 @@
+config {
+    type: "incremental",
+    schema: "GRP",
+    name: "clusters_full"
+}
+
+pre_operations {
+	DECLARE input_output_partitions ARRAY<INT64>;
+	
+	SET input_output_partitions = ARRAY(SELECT DISTINCT CONCAT(anno, stagione) 
+		FROM ${ref("DM_SELLOUT_STAGING", "D_CLIENTELA_CLUSTER")}
+		WHERE ts_inserimento >= TIMESTAMP_SUB(CURRENT_TIMESTAMP, INTERVAL 1 DAY)
+		UNION DISTINCT
+		SELECT DISTINCT CONCAT(anno, stagione) 
+		FROM ${ref("DM_SELLOUT_STAGING", "D_VARIANTE_CLUSTER")}
+		WHERE ts_inserimento >= TIMESTAMP_SUB(CURRENT_TIMESTAMP, INTERVAL 1 DAY));
+}
+
+SELECT
+	dcc.societa,
+	CAST(dcc.anno AS STRING) AS anno,
+	CAST(dcc.stagione AS STRING) AS stagione,
+	CONCAT(dcc.societa, '-', dcc.anno, '-', dcc.stagione, '-', dcc.uscita_collezione) AS uscita_collezione,
+	cli_neg.porta AS negozio,
+	CONCAT(dcc.societa, '-', dvc.modello) AS modello,
+	dvc.variante,
+	dvc.qta_consigliata,
+	dvc.qta_vincolata,
+	dvc.rating,
+	CAST(CONCAT(dcc.anno, dcc.stagione) AS INT64) AS annostagione
+FROM ${ref("DM_SELLOUT_STAGING", "D_CLIENTELA_CLUSTER")} AS dcc
+JOIN (
+	SELECT DISTINCT societa, anno, stagione, uscita_collezione, modello, variante 
+	FROM ${ref("D_PRODOTTO")}
+) AS p ON(
+		dcc.societa = p.societa
+	AND dcc.anno = p.anno
+	AND dcc.stagione = p.stagione
+	AND dcc.uscita_collezione = p.uscita_collezione
+)
+JOIN ${ref("DM_SELLOUT_STAGING", "D_VARIANTE_CLUSTER")} AS dvc ON(
+		dvc.societa = dcc.societa
+	AND dvc.anno = dcc.anno
+	AND dvc.stagione = dcc.stagione
+	AND p.modello = dvc.modello
+	AND p.variante = dvc.variante
+	AND dvc.cluster = dcc.cluster
+	AND dvc.tipo_ordine_cliente = dcc.tipo_ordine_cliente
+)
+JOIN (
+	SELECT DISTINCT cli.societa, cli.anno, cli.stagione, cli.cliente, p.porta, cli.tipo_ordine_cliente
+	FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTE_STAGIONE")} AS cli
+	LEFT JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS num_porta ON (
+		CAST(cli.punto_vendita_retail AS INT64) = num_porta.numero_porta AND num_porta.numero_porta != 0
+	)
+	JOIN ${ref("DM_SELLOUT", "D_PORTA")} AS p ON (
+		COALESCE(num_porta.porta, cli.punto_vendita_retail) = p.porta
+	)
+) AS cli_neg ON(
+		dcc.societa = cli_neg.societa
+	AND dcc.anno = cli_neg.anno
+	AND dcc.stagione = cli_neg.stagione
+	AND dcc.cliente = cli_neg.cliente
+	AND dcc.tipo_ordine_cliente = cli_neg.tipo_ordine_cliente
+)
+WHERE 
+	CAST(CONCAT(dcc.anno, dcc.stagione) AS INT64) IN UNNEST(input_output_partitions)
+AND dcc.tipo_ordine_cliente = 'CV'
+		

@@ -1,0 +1,22 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLOUT",
+    name: "F_PROMO_ENGINE_{year}0101"
+}
+
+pre_operations {
+	DECLARE input_output_partitions ARRAY<INT64>;
+	
+	SET input_output_partitions = ARRAY(
+		select distinct data_vendita 
+		from ${ref("DM_SELLOUT_STAGING", "S_PROMO_ENGINE_*")}
+		WHERE DATE(CAST(ts_modifica AS TIMESTAMP)) = CURRENT_DATE
+				);
+}
+
+		select * EXCEPT(ts_modifica),
+		CURRENT_TIMESTAMP() AS ts_modifica 
+		from ${ref("DM_SELLOUT_STAGING", "S_PROMO_ENGINE_*")}
+		where data_vendita IN UNNEST(input_output_partitions)
+		QUALIFY ROW_NUMBER() OVER (PARTITION BY input_filename, ts_creazione, id, codice_promo ORDER BY  ts_inserimento DESC, ts_modifica DESC) = 1
+		

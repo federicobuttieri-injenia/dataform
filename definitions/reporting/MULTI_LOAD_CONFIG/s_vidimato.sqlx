@@ -1,0 +1,42 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_APPROVAZIONE_ORDINE_{year}0101"
+}
+
+pre_operations {
+	DECLARE input_partitions ARRAY<DATE>;
+	
+	DECLARE output_partitions ARRAY<DATE>;
+	
+	SET input_partitions = ARRAY(
+		SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
+		FROM TEMP_LOCATION.PARTIZIONI_LOADJOB
+		WHERE DATE(ts_lancio) = CURRENT_DATE
+		AND table_name = 'S_LOG_APPROVAZIONE_ORDINE'
+				);
+	
+	SET output_partitions = ARRAY(
+		SELECT DISTINCT DATE(attributes.dataora_vidimazione)
+		FROM DM_SELLOUT_STAGING.S_LOG_APPROVAZIONE_ORDINE
+		WHERE _PARTITIONDATE IN UNNEST(input_partitions)
+				);
+}
+
+SELECT
+	id,
+	DATE(attributes.dataora_vidimazione) AS data_vidimazione,
+	attributes.* EXCEPT(
+		righe, importo_lordo, importo_sconto_ordine,
+		importo_sconto_incond, importo_netto, contributo_trasporto_unitario, contributo_trasporto,
+		percentuale_imposta, imponibile, importo_imposta, importo_fattura, totale_capi
+	),
+	(SELECT SUM(qta_ordinata) FROM riga.taglie) AS qta_ordinata,
+	riga.*,
+	_PARTITIONTIME AS ts_inserimento,
+	timestamp AS ts_creazione,
+	CURRENT_TIMESTAMP AS ts_modifica
+FROM DM_SELLOUT_STAGING.S_LOG_APPROVAZIONE_ORDINE, UNNEST(attributes.righe) AS riga
+WHERE _PARTITIONDATE IN {partitions}
+AND DATE(attributes.dataora_vidimazione) IN ({where_partitions_current_table})
+		

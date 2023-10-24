@@ -1,0 +1,136 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLOUT_STAGING",
+    name: "S_PREZZO_EXT"
+}
+
+pre_operations {
+	DECLARE input_output_partitions ARRAY<DATE>;
+	
+	SET input_output_partitions = ARRAY(
+		SELECT DISTINCT  PARSE_DATE("%Y%m%d", data_creazione) AS data_creazione
+		FROM ${ref("DM_PREZZO_LISTINO", "D_RICARICHI")}
+		WHERE data_creazione IS NOT NULL 
+		AND data_creazione != ''
+		AND DATE(CAST(modificato AS TIMESTAMP)) >= CURRENT_DATE
+				);
+}
+
+WITH ricarichi AS (
+	SELECT DISTINCT 
+		tipo_negozio                                     AS tipo_negozio_retail,
+		nazione                                          AS nazione,
+		negozio                                          AS negozio,
+		SAFE_CAST(SUBSTR(annostag, 1, 4) AS INT64)       AS anno,
+		SAFE_CAST(SUBSTR(annostag, -1, 1) AS INT64)      AS stagione,
+		CAST(ricarico AS FLOAT64)                        AS ricarico,
+		PARSE_DATE("%Y%m%d", data_creazione)				AS data_creazione,
+		CAST(modificato AS TIMESTAMP)					AS ts_creazione,
+		CURRENT_TIMESTAMP                                AS ts_modifica,
+		CURRENT_TIMESTAMP                                AS ts_inserimento,
+		IF(divisa IS NULL OR divisa = '', 'EUR', divisa) AS divisa_prezzo_markup, # Se non presente delfault EUR - questa e' la divisa del prezzo
+		IF(
+		CAST(cambio AS FLOAT64) = 0 OR cambio IS NULL,
+			1,
+			CAST(cambio AS FLOAT64)
+		)                                                AS cambio, # Se non presente default 1
+		IF(CAST(cambio_acquisto AS FLOAT64) = 0 OR cambio_acquisto IS NULL,
+			1,
+			CAST(cambio_acquisto AS FLOAT64))            AS cambio_acquisto, # Se non presente default 1
+		CAST(annostag AS INT64) 						 AS annostagione
+	FROM ${ref("DM_PREZZO_LISTINO", "D_RICARICHI")}
+	WHERE CAST(annostag as INT64) >= 20131
+	AND valuta_acquisto IS NOT NULL
+	AND NOT (valuta_acquisto = 'USD' AND cambio_acquisto = '1')
+	-- data_creazione
+	AND PARSE_DATE("%Y%m%d", data_creazione) IN UNNEST(input_output_partitions)
+	QUALIFY RANK() OVER (PARTITION BY tipo_negozio_retail, nazione, negozio, anno, stagione ORDER BY ts_creazione DESC) = 1
+),
+porte AS (
+	SELECT DISTINCT 
+		societa,
+		anno, 
+		stagione,
+		punto_vendita_retail AS negozio,
+		cliente,
+		nazione,
+		annostagione
+	FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTE_STAGIONE")}
+	JOIN (
+			SELECT DISTINCT 
+					nazione,
+					porta AS punto_vendita_retail
+			FROM ${ref("DM_SELLOUT", "D_PORTA")}
+	) USING (punto_vendita_retail)
+), 
+clienti_listini AS (
+	SELECT
+		societa,
+		anno,
+		stagione,
+		cliente,
+		listino,
+		divisa
+	FROM (
+		SELECT DISTINCT
+			societa,
+			anno,
+			stagione,
+			cliente,
+			listino_acquisto AS listino
+		FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTELA")}
+		WHERE listino_acquisto IS NOT NULL
+		AND listino_vendita IS NULL
+		AND validita IN ('V', '') 
+		AND annostagione >= 20131
+	) clientele
+	JOIN ${ref("DM_SELLOUT_STAGING", "D_LISTINO")} listini USING (societa, anno, stagione, listino)
+)
+SELECT DISTINCT
+	negozio                                                  AS negozio,
+	stagione                                                 AS stagione,
+	anno                                                     AS anno,
+	divisa_prezzo_markup                                     AS divisa,
+	prezzo                                                   AS costo,
+	'EUR'                                                    AS divisa_controvalore,
+	IF(
+		cambio = 1 AND prezzi.controvalore IS NOT NULL,
+		ROUND((prezzi.controvalore * ricarico), 0),
+		ROUND((prezzo * ricarico * cambio_acquisto) / cambio, 0)
+	)                                                        AS controvalore,
+	'EDW'                                                    AS project_name,
+	societa                                                  AS societa,
+	modello                                                  AS modello,
+	CAST(NULL AS STRING)                                     AS modello_retail,
+	ts_inserimento                                           AS ts_inserimento,
+	ts_creazione                                             AS ts_creazione,
+	tipo_negozio_retail                                      AS tipo_negozio_retail,
+	'MK'                                                     AS record_type,
+	'MK'                                                     AS input_filename,
+	'V'                                                      AS tipo_prezzo,
+	ts_modifica                                              AS ts_modifica,
+	nazione                                                  AS nazione_negozio,
+	data_creazione                                           AS data_creazione,
+	ROUND(prezzo * ricarico * cambio_acquisto, 0)            as prezzo,
+	ricarico                                                 AS ricarico,
+	cambio                                                   AS cambio,
+	cambio_acquisto                                          AS cambio_acquisto,
+	CAST(NULL AS FLOAT64)                                    AS tasso_medio,
+	CAST(NULL AS STRING)                                     AS uscita_collezione # l'uscita collezione aumenterebbe soltanto il numero di record a parita' di modello e prezzo
+FROM ricarichi
+JOIN porte USING (negozio, anno, stagione, nazione, annostagione)
+JOIN clienti_listini USING (societa, anno, stagione, cliente)
+JOIN (
+	SELECT DISTINCT
+		societa,
+		anno,
+		stagione,
+		modello,
+		listino,
+		prezzo,
+		divisa,
+		controvalore
+	FROM ${ref("D_PREZZO")}
+	WHERE tipo_prezzo = 'A'
+) prezzi USING (societa, anno, stagione, listino, divisa)
+	

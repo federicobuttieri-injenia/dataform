@@ -1,0 +1,34 @@
+config {
+    type: "incremental",
+    schema: "DM_SELLOUT",
+    name: "F_TSL"
+}
+
+pre_operations {
+	DECLARE input_output_partitions ARRAY<DATE>;
+	
+	SET input_output_partitions = ARRAY(
+		SELECT 
+			PARSE_DATE("%Y%m%d", partizioni.partition)
+		FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")} AS partizioni
+		JOIN (
+			SELECT 
+				TIMESTAMP_MILLIS(last_modified_time) AS modificata 
+			FROM ${ref("DM_SELLOUT", "__TABLES__")} 
+			WHERE table_id = "F_TSL"
+		) AS agg_f_tsl ON (agg_f_tsl.modificata < partizioni.ts_lancio)
+		WHERE partizioni.table_name = "S_TSL"
+		ORDER BY partizioni.partition DESC LIMIT 1
+				);
+}
+SELECT 
+	fk_prodotto, id_negozio, qta, pregresso
+FROM ${ref("DM_SELLOUT_STAGING", "S_TSL")} AS S_TSL
+WHERE 
+	_partitiontime IN UNNEST(input_output_partitions)
+AND (id_negozio, upd_datetime) IN (
+	SELECT AS STRUCT id_negozio, MAX(upd_datetime) AS upd_datetime
+	FROM ${ref("DM_SELLOUT_STAGING", "S_TSL")} AS S_TSL
+	WHERE _partitiontime IN UNNEST(input_output_partitions)
+	GROUP BY id_negozio
+)

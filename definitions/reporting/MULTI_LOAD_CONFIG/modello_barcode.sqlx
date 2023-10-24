@@ -1,0 +1,1015 @@
+config {
+    type: "incremental",
+    schema: "DM_PRODOTTO",
+    name: "D_MODELLO_BARCODE"
+}
+
+pre_operations {
+	DECLARE input_output_partitions ARRAY<INT64>;
+	
+	SET input_output_partitions = ARRAY(
+		SELECT *
+		FROM (
+			SELECT DISTINCT annostagione
+			FROM DM_SELLOUT_STAGING.D_MODELLO_PRODUZIONE
+			WHERE DATE(ts_modifica) = CURRENT_DATE
+			UNION DISTINCT
+			SELECT DISTINCT annostagione
+			FROM DM_SELLOUT_STAGING.D_ARTICOLO_PRODUZIONE
+			WHERE DATE(ts_modifica) = CURRENT_DATE
+		)
+		-- alcuni articoli hanno ast nullo o 0, valori non contemplati come partizioni su D_PRODOTTO
+		WHERE annostagione IS NOT NULL
+		AND annostagione >= 20001 -- minimo ast possibile su D_PRODOTTO
+				);
+}
+
+WITH _modelli_permanenti_all AS (
+	SELECT DISTINCT
+		PE.id,
+		PR.modello,
+		PR.modello_retail,
+		SUBSTR(PR.barcode_negozio, 1, 10) AS modello_barcode_negozio,
+		PR.indice_taglia,
+		PR.desc_tipo_taglia,
+		PR.anno,
+		PR.stagione,
+		PR.annostagione,
+		PR.nome,
+		PR.uscita_collezione,
+		PE.nome as pe_nome,
+		PE.modello_permanente,
+		PE.societa,
+		var_info.variante_permanente,
+		var_info.validita AS validita_variante_permanente,
+		var_info.desc_variante_permanente,
+		PR.variante,
+		UCR.desc_uscita_collezione,
+		UCR.modulo,
+		UCR.collezione_brand,
+		UCR.collezione,
+		UCR.gruppo_uscita,
+		IF(UCR.societa = 'MN', UCR.modulo, IF(UCR.modulo IS NOT NULL, UCR.modulo, UCR.gruppo_uscita)) AS uscita_modulo,
+		CONCAT(CAST(var_info.anno_ritiro AS STRING), CAST(var_info.stagione_ritiro AS STRING)) AS ast_ritiro,
+		PR.f_anagrafica_modello_base,
+		PR.validita,
+		RANK() OVER(
+			PARTITION BY PE.modello_permanente, var_info.variante_permanente, PE.societa
+			ORDER BY
+				PE.modello_permanente IS NULL,
+				PR.f_anagrafica_modello_base DESC,
+				PR.validita DESC,
+				var_info.validita DESC,
+				CONCAT(CAST(anno AS STRING), CAST(stagione AS STRING)) <= 
+		CASE PR.brand
+WHEN "MM" THEN "20232"
+WHEN "MC" THEN "20232"
+WHEN "MR" THEN "20232"
+WHEN "MA" THEN "20232"
+WHEN "IB" THEN "20201"
+WHEN "SP" THEN "20232"
+WHEN "WE" THEN "20232"
+ELSE "20201"
+		END
+	 DESC, -- modelli con ast entro i limiti per brand
+				CONCAT(CAST(PR.anno AS STRING), CAST(PR.stagione AS STRING)) DESC, -- ultimo ast
+				STARTS_WITH(PR.nome, '*'), -- il nome NON inizia per "*"
+				REGEXP_CONTAINS(PR.nome, r'^\d.*$'), -- il nome NON inizia con una cifra
+				REGEXP_CONTAINS(PR.nome, r'^.\d.*$'), -- il secondo carattere NON e una cifra
+				SUBSTR(PR.nome, 1, 1) = SUBSTR(PR.nome, 2, 1) -- il primo carattere N e uguale al secondo
+		) AS rk
+	FROM ${ref("DM_SELLOUT_STAGING", "D_MODELLO_PERMANENTE")} PE, UNNEST(varianti) AS var_info
+	JOIN (
+		SELECT mp.* EXCEPT(barcode_negozio, lavaggi, lista_sku, taglie, varianti, barcode_ean, composizioni, pezzi_unita_vendibili, modello_produzione), sku_info.*, tt.desc_tipo_taglia, var_info.variante, var_info.variante_permanente
+		FROM ${ref("DM_SELLOUT_STAGING", "D_MODELLO_PRODUZIONE")} mp, UNNEST(lista_sku) AS sku_info, unnest(varianti) AS var_info
+		LEFT JOIN (
+			SELECT T.societa AS societa,
+					T.tipo_taglia AS tipo_taglia,
+					T.desc_tipo_taglia as desc_tipo_taglia,
+					taglie.*
+			FROM ${ref("DM_SELLOUT_STAGING", "D_TIPO_TAGLIA")} T,
+			UNNEST(T.taglie) AS taglie
+		) tt USING (societa, tipo_taglia, indice_taglia)
+		WHERE sku_info.variante_produzione = var_info.variante_produzione
+	) PR USING (societa, modello_permanente, variante_permanente)
+	LEFT JOIN ${ref("DM_SELLOUT_STAGING", "D_USCITA_COLLEZIONE")} UCR USING (societa, anno, stagione, uscita_collezione)
+),
+modelli_permanenti AS ( -- info del modello rif per modello_perm-variante_perm-societa
+	SELECT DISTINCT
+		m.modello_retail,
+		m.modello_barcode_negozio,
+		m.desc_tipo_taglia,
+		m.modello_permanente,
+		m.variante_permanente,
+		m.desc_variante_permanente,
+		m.societa,
+		m_last.modello AS modello_rif,
+		m_last.anno AS anno_modello_rif,
+		m_last.stagione AS stagione_modello_rif,
+		m_last.nome AS nome_modello_rif,
+		m_last.uscita_collezione AS uscita_collezione_modello_rif,
+		m_last.desc_uscita_collezione AS desc_uscita_collezione_modello_rif,
+		m_last.collezione_brand AS collezione_brand_modello_rif,
+		m_last.uscita_modulo AS uscita_modulo_modello_rif,
+		IF(
+			m_last.uscita_modulo IS NOT NULL,
+			CONCAT(m.societa,"-", m_last.collezione_brand,"-",m_last.uscita_modulo),
+			CONCAT(m.societa,"-", m_last.collezione_brand)
+		) AS collezione_uscita_modello_rif,
+		m_last.variante,
+		m.ast_ritiro
+	FROM _modelli_permanenti_all m
+	JOIN (
+		SELECT *
+		FROM _modelli_permanenti_all
+		WHERE rk = 1
+		AND f_anagrafica_modello_base = '1'
+		AND validita != 'A'
+		AND modello_permanente IS NOT NULL
+	) m_last USING (societa, modello_permanente, variante_permanente)
+	WHERE m_last.validita_variante_permanente != 'A'
+	AND m.variante_permanente IS NOT NULL
+	AND IF(m_last.ast_ritiro IS NULL, TRUE, CONCAT(CAST(m.anno AS STRING), CAST(m.stagione AS STRING)) < m_last.ast_ritiro) -- valuto l'ast di ritiro solo se non nullo
+),
+-- usata per avere le info di tutti i modelli con i quali recuperare il riferimento
+modelli_produzione_per_rif AS (
+	SELECT DISTINCT
+		barcode_negozio,
+		modello,
+		modello_retail,
+		modello_barcode_negozio,
+		societa,
+		desc_tipo_taglia,
+		anno,
+		stagione,
+		variante,
+		variante_permanente,
+		modello_permanente,
+		modello_produzione,
+		modello_origine,
+		uscita_collezione,
+		f_anagrafica_modello_base,
+		f_tale_quale,
+		validita,
+		nome,
+		variante_produzione
+	FROM (
+		SELECT
+			*,
+			ROW_NUMBER() OVER(PARTITION BY barcode_negozio, societa
+				ORDER BY
+					indice_validita,
+					indice_versione,
+					indice_cifre_modello,
+					f_anagrafica_modello_base DESC, -- prima il modello con flag a 1
+					ts_inserimento DESC
+			) AS rank_validita
+		FROM (
+			SELECT
+				sku_info.barcode_negozio,
+				modello,
+				modello_retail,
+				tt.desc_tipo_taglia,
+				SUBSTR(mp.barcode_negozio, 1, 10) AS modello_barcode_negozio,
+				societa,
+				anno,
+				stagione,
+				annostagione,
+				var_info.variante,
+				var_info.variante_permanente,
+				modello_permanente,
+				modello_produzione,
+				modello_origine,
+				uscita_collezione,
+				f_anagrafica_modello_base,
+				f_tale_quale,
+				var_info.validita,
+				nome,
+				sku_info.variante_produzione,
+				IF(mp.validita = 'V', 1, 2) AS indice_validita,
+				CASE
+					WHEN mp.versione_modello = 'V' THEN 1
+					WHEN mp.versione_modello = 'T' THEN 2
+					WHEN mp.versione_modello = 'P' THEN 3
+					WHEN mp.versione_modello = 'R' THEN 4
+					WHEN mp.versione_modello = 'I' THEN 5
+					WHEN mp.versione_modello = 'C' THEN 6
+				END AS indice_versione,
+				CASE
+					WHEN mp.societa IN ('MM', 'MA') AND NOT ENDS_WITH(mp.modello, '00') THEN 3
+					WHEN mp.societa IN ('MM', 'MA') AND ENDS_WITH(mp.modello, '00') THEN 2
+					ELSE 1
+				END AS indice_cifre_modello,
+				mp.ts_inserimento
+			FROM ${ref("DM_SELLOUT_STAGING", "D_MODELLO_PRODUZIONE")} mp, UNNEST(lista_sku) AS sku_info, UNNEST(varianti) AS var_info
+			LEFT JOIN (
+					SELECT T.societa AS societa,
+							T.tipo_taglia AS tipo_taglia,
+							T.desc_tipo_taglia as desc_tipo_taglia,
+							taglie.*
+					FROM ${ref("DM_SELLOUT_STAGING", "D_TIPO_TAGLIA")} T,
+					UNNEST(T.taglie) AS taglie
+			) tt USING (societa, tipo_taglia, indice_taglia)
+			WHERE sku_info.barcode_negozio IS NOT NULL
+			AND sku_info.barcode_negozio != ''
+			AND sku_info.variante_produzione = var_info.variante_produzione
+		)
+	)
+	WHERE rank_validita = 1
+),
+PREZZI_VALIDI AS (
+	SELECT
+		PR.anno,
+		PR.stagione,
+		PR.societa,
+		PR.listino,
+		PR.modello,
+		PR.prezzo,
+		PR.tipo_prezzo,
+		PR.controvalore
+	FROM (
+		SELECT *, ROW_NUMBER() OVER(PARTITION BY societa, modello, listino, anno, stagione, tipo_prezzo ORDER BY ts_inserimento DESC, prezzo IS NULL) AS rk
+		FROM ${ref("D_PREZZO")}
+		WHERE tipo_prezzo IN ('A', 'V', 'S')
+	) PR
+	LEFT JOIN ${ref("DM_SELLOUT_STAGING", "D_TIPO_PREZZO_CLIENTE")} USING (societa, anno, stagione, cliente, tipo_prezzo, progr_periodo)
+	WHERE (
+		(data_inizio IS NULL AND data_fine IS NULL)
+		OR (CURRENT_DATE() BETWEEN data_inizio AND data_fine)
+		OR (CURRENT_DATE() >= data_inizio AND data_fine IS NULL)
+		OR (data_inizio IS NULL AND CURRENT_DATE <= data_fine)
+	)
+	AND PR.rk = 1
+),
+CLIENTELE_IT AS (
+	SELECT * EXCEPT(rk_italia)
+	FROM (
+		SELECT
+			*,
+			ROW_NUMBER() OVER(PARTITION BY societa, anno, stagione, uscita_collezione ORDER BY listino_vendita IS NOT NULL DESC, listino_acquisto IS NOT NULL DESC, f_tipo_ordine_riferimento = '1' DESC, tipo_ordine_cliente = 'CV' DESC) AS rk_italia
+		FROM (
+			SELECT * EXCEPT(rk)
+			FROM (
+				SELECT
+					societa,
+					anno,
+					stagione,
+					cliente,
+					uscita_collezione,
+					listino_acquisto,
+					listino_vendita,
+					f_tipo_ordine_riferimento,
+					tipo_ordine_cliente,
+					ROW_NUMBER() OVER(PARTITION BY societa, anno, stagione, cliente, uscita_collezione ORDER BY f_tipo_ordine_riferimento IS NOT NULL DESC, f_tipo_ordine_riferimento = '1' DESC, tipo_ordine_cliente = 'CV' DESC, listino_vendita IS NOT NULL DESC, listino_acquisto IS NOT NULL DESC) rk
+				FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTELA")}
+				WHERE validita IN ('V', '')
+			)
+			where rk = 1
+		)
+		JOIN (
+			SELECT
+				societa, anno, stagione,
+				
+		CASE
+WHEN SAFE_CAST(cliente AS INT64) BETWEEN 1 AND 599 THEN CONCAT('0015160000', SUBSTR(cliente, -3))
+WHEN cliente = '10007035' THEN '15110007035'
+WHEN SAFE_CAST(cliente AS INT64) BETWEEN 10010776 AND 10010781 THEN CONCAT('00152100', SUBSTR(cliente, -5))
+WHEN SAFE_CAST(cliente AS INT64) BETWEEN 10010828 AND 10010829 THEN CONCAT('00152100', SUBSTR(cliente, -5))
+WHEN cliente = '10010823' THEN CONCAT('00152100', SUBSTR(cliente, -5))
+WHEN cliente = '10010835' THEN CONCAT('00153100', SUBSTR(cliente, -5))
+ELSE cliente
+		END
+	 AS cliente
+			FROM ${ref("DM_PREZZO_LISTINO", "D_CLIENTE_STAGIONE")}
+			WHERE punto_vendita_retail IN (
+				'0100019',  # MM
+				'0100517',  # DT
+				'0100851',  # PE
+				'0100607',  # MR
+				'0000707',  # PB (MN)
+				'0000083',  # MC (MN)
+				'0100404'  # MA
+			)
+		) USING (anno, stagione, societa, cliente)
+	)
+	WHERE rk_italia = 1
+)
+
+SELECT
+	PR.* EXCEPT (rank_validita),
+	CURRENT_TIMESTAMP AS ts_modifica,
+	P_ACQUISTO_IT.prezzo AS prezzo_listino_sell_in_italia,
+	P_VENDITA_IT.prezzo AS prezzo_listino_sell_out_italia
+FROM
+	(
+		SELECT
+			* EXCEPT (indice_validita, indice_versione, indice_cifre_modello, f_anagrafica_modello_base, ts_inserimento, modello_produzione, variante_produzione),
+			ROW_NUMBER() OVER(
+				PARTITION BY barcode_negozio, modello, societa
+				ORDER BY
+					indice_validita,
+					indice_versione,
+					indice_cifre_modello,
+					f_anagrafica_modello_base DESC, -- prima il modello con flag a 1
+					ts_inserimento DESC
+			) AS rank_validita,
+			ARRAY(SELECT DISTINCT AS STRUCT * FROM UNNEST(modello_produzione) AS data WHERE data IS NOT NULL) AS modello_produzione, -- valori singoli
+			ARRAY(SELECT DISTINCT * FROM UNNEST(variante_produzione) AS data WHERE data IS NOT NULL) AS variante_produzione, -- valori singoli
+			ts_inserimento
+		FROM (
+			SELECT
+				CAST(MOD_ART.anno AS INT64) AS anno,
+				MOD_ART.annostagione,
+				CAST( -- per questo e tutti i campi "_rif" si cerca prima l'associazione per modello permanente, poi per origine, poi del modello attuale
+					CASE
+						WHEN modelli_permanenti.anno_modello_rif IS NOT NULL THEN modelli_permanenti.anno_modello_rif
+						WHEN associazione_mod_origine.anno_modello_rif IS NOT NULL THEN associazione_mod_origine.anno_modello_rif
+						ELSE MOD_ART.anno
+					END AS INT64
+				) AS anno_modello_rif,
+				MOD_ART.articolo AS articolo,
+				MOD_ART.barcode_negozio AS barcode_negozio,
+				IF(UC.brand IS NULL, MOD_ART.brand, UC.brand) AS brand,
+				IF(MOD_ART.f_promozionale = TRUE, 'PROMOZIONALE', NULL) AS capo_non_vendibile,
+				CAST(NULL AS STRING) AS ciclo_vita,
+				MOD_ART.classe AS classe,
+				MOD_ART.collezione AS collezione,
+				UC.collezione_brand AS collezione_brand,
+				IF(
+					uscita_modulo IS NOT NULL,
+					CONCAT(MOD_ART.societa,"-",collezione_brand,"-",uscita_modulo),
+					CONCAT(MOD_ART.societa,"-",collezione_brand)
+				) AS collezione_uscita,
+				IF(
+					uscita_modulo IS NOT NULL,
+					CONCAT(desc_collezione_brand," ",desc_uscita_modulo),
+					desc_collezione_brand
+				) AS desc_collezione_uscita,
+				MOD_ART.colore AS colore,
+				MOD_ART.testo_composizione AS composizione_principale,
+				MOD_ART.codice_composizione AS codice_composizione,
+				IFNULL(COMP_MOD.composizioni, COMP_ART.composizioni) AS composizioni,
+				MOD_ART.consegna AS consegna,
+				CAST(NULL AS DATE) AS data_prima_newsletter,
+				CAST(MOD_ART.data_consegna AS DATE) AS data_consegna,
+				SAFE_CAST(MOD_ART.data_cambio_stagione AS DATE) AS data_cambio_stagione,
+				CAST(CL.department AS STRING) AS department,
+				MOD_ART.desc_articolo AS desc_articolo,
+				IF(UC.desc_brand IS NOT NULL, UC.desc_brand, '') AS desc_brand,
+				CL.desc_classe AS desc_classe,
+				UC.desc_collezione AS desc_collezione,
+				UC.desc_collezione_brand AS desc_collezione_brand,
+				MOD_ART.desc_colore AS desc_colore,
+				R.desc_raggr_colore AS desc_raggr_colore,
+				CL.desc_department AS desc_department,
+				GM.desc_gruppo_merceologico AS desc_gruppo_merceologico,
+				CL.desc_macro_department AS desc_macro_department,
+				UC.desc_main_line AS desc_main_line,
+				CL.desc_micro_department AS desc_micro_department,
+				MOD_ART.desc_modello AS desc_modello,
+				UC.desc_tema AS desc_tema,
+				MOD_ART.desc_tipo_taglia,
+				MOD_ART.desc_variante AS desc_variante,
+				modelli_permanenti.desc_variante_permanente,
+				UC.desc_uscita_collezione AS desc_uscita_collezione,
+				SOTT_UC.desc_sotto_uscita_collezione AS desc_sotto_uscita_collezione,
+				CASE
+					WHEN modelli_permanenti.desc_uscita_collezione_modello_rif IS NOT NULL THEN modelli_permanenti.desc_uscita_collezione_modello_rif
+					WHEN associazione_mod_origine.desc_uscita_collezione_modello_rif IS NOT NULL THEN associazione_mod_origine.desc_uscita_collezione_modello_rif
+					ELSE UC.desc_uscita_collezione
+				END AS desc_uscita_collezione_modello_rif,
+				CASE
+					WHEN modelli_permanenti.collezione_brand_modello_rif IS NOT NULL THEN modelli_permanenti.collezione_brand_modello_rif
+					WHEN associazione_mod_origine.collezione_brand_modello_rif IS NOT NULL THEN associazione_mod_origine.collezione_brand_modello_rif
+					ELSE UC.collezione_brand
+				END AS collezione_brand_modello_rif,
+				CASE
+					WHEN modelli_permanenti.uscita_modulo_modello_rif IS NOT NULL THEN modelli_permanenti.uscita_modulo_modello_rif
+					WHEN associazione_mod_origine.uscita_modulo_modello_rif IS NOT NULL THEN associazione_mod_origine.uscita_modulo_modello_rif
+					ELSE UC.uscita_modulo
+				END AS uscita_modulo_modello_rif,
+				CASE
+					WHEN modelli_permanenti.collezione_uscita_modello_rif IS NOT NULL THEN modelli_permanenti.collezione_uscita_modello_rif
+					WHEN associazione_mod_origine.collezione_uscita_modello_rif IS NOT NULL THEN associazione_mod_origine.collezione_uscita_modello_rif
+					ELSE IF(
+						UC.uscita_modulo IS NOT NULL,
+						CONCAT(MOD_ART.societa,"-", UC.collezione_brand,"-", UC.uscita_modulo),
+						CONCAT(MOD_ART.societa,"-", UC.collezione_brand)
+					)
+				END AS collezione_uscita_modello_rif,
+				UC.desc_uscita_modulo AS desc_uscita_modulo,
+				MOD_ART.barcode_ean AS ean,
+				CAST(NULL AS BOOL) AS f_comunicazione,
+				CAST(MOD_ART.f_divisa AS STRING) AS f_divisa,
+				CAST(NULL AS BOOL) AS f_must_have,
+				CAST(NULL AS BOOL) AS f_newsletter,
+				CAST(NULL AS BOOL) AS f_ricami_applicazione,
+				CAST(NULL AS STRING) AS fascia_prezzo,
+				GM.gruppo_merceologico AS gruppo_merceologico,
+				MOD_ART.indice_taglia AS indice_taglia,
+				CAST(NULL AS STRING) AS ispirazione_ciclo_vita,
+				NULL AS lunghezza,
+				CAST(CL.macro_department AS STRING) AS macro_department,
+				UC.main_line AS main_line,
+				CAST(NULL AS STRING) AS manica,
+				CAST(CL.micro_department AS STRING) AS micro_department,
+				MOD_ART.modello AS modello,
+				MOD_ART.modello_retail,
+				SUBSTR(MOD_ART.barcode_negozio,1, 10) AS modello_barcode_negozio,
+				MOD_ART.modello_oe,
+				MOD_ART.modello_origine,
+				MOD_ART.modello_permanente,
+				ARRAY_AGG(STRUCT(MOD_ART.modello_produzione, MOD_ART.made_in)) OVER(PARTITION BY MOD_ART.barcode_negozio, MOD_ART.societa, MOD_ART.modello) AS modello_produzione,
+				CASE
+					WHEN modelli_permanenti.modello_rif IS NOT NULL THEN modelli_permanenti.modello_rif
+					WHEN associazione_mod_origine.modello_rif IS NOT NULL THEN associazione_mod_origine.modello_rif
+					ELSE MOD_ART.modello
+				END AS modello_rif,
+				MOD_ART.modello_variante AS modello_variante,
+				CONCAT(
+					CASE
+						WHEN modelli_permanenti.modello_rif IS NOT NULL THEN modelli_permanenti.modello_rif
+						WHEN associazione_mod_origine.modello_rif IS NOT NULL THEN associazione_mod_origine.modello_rif
+						ELSE MOD_ART.modello
+					END,
+					CASE
+						WHEN modelli_permanenti.modello_rif IS NOT NULL THEN modelli_permanenti.variante
+						WHEN associazione_mod_origine.modello_rif IS NOT NULL THEN associazione_mod_origine.variante
+						ELSE MOD_ART.variante
+					END
+				) AS modello_variante_rif,
+				MOD_ART.motivo_ricodifica,
+				MOD_ART.nome AS nome,
+				MOD_ART.nome_oe AS nome_oe,
+				CASE
+					WHEN modelli_permanenti.nome_modello_rif IS NOT NULL THEN modelli_permanenti.nome_modello_rif
+					WHEN associazione_mod_origine.nome_modello_rif IS NOT NULL THEN associazione_mod_origine.nome_modello_rif
+					ELSE MOD_ART.nome
+				END AS nome_modello_rif,
+				CAST(NULL AS STRING) AS nome_prima_newsletter,
+				MOD_ART.num_taglia_oe,
+				CAST(NULL AS STRING) AS pattern,
+				MOD_ART.peso_netto,
+				MOD_ART.peso_lordo,
+				MOD_ART.multiplo_vendita,
+				MOD_ART.minimo_vendibile,
+				IF(MOD_ART.societa_produzione IS NOT NULL, MOD_ART.societa_produzione, MOD_ART.societa) AS produttore,
+				MOD_ART.progr_articolo AS progr_articolo,
+				R.raggr_colore AS raggr_colore,
+				MOD_ART.societa AS societa,
+				MOD_ART.societa_brand AS societa_brand,
+				IF(
+					modelli_permanenti.variante_permanente IS NULL OR (modelli_permanenti.ast_ritiro IS NOT NULL AND CONCAT(CAST(MOD_ART.anno AS STRING), CAST(MOD_ART.stagione AS STRING)) >= modelli_permanenti.ast_ritiro),
+					'STAGIONALE',
+					'PERMANENTE'
+				) AS stagionale,
+				CAST(MOD_ART.stagione AS INT64) AS stagione,
+				CAST(
+					CASE
+						WHEN modelli_permanenti.stagione_modello_rif IS NOT NULL THEN modelli_permanenti.stagione_modello_rif
+						WHEN associazione_mod_origine.stagione_modello_rif IS NOT NULL THEN associazione_mod_origine.stagione_modello_rif
+						ELSE MOD_ART.stagione
+					END AS INT64
+				) AS stagione_modello_rif,
+				NULL AS stampa,
+				MOD_ART.taglia AS taglia,
+				NULL AS taglia_aggregata,
+				MOD_ART.tema AS tema,
+				CAST(NULL AS STRING) AS tessuto,
+				CAST(NULL AS STRING) AS tipo_ciclo_vita,
+				CAST(NULL AS STRING) AS tipo_lunghezza,
+				CAST(NULL AS STRING) AS tipo_produzione,
+				MOD_ART.tipo_taglia AS tipo_taglia,
+				MOD_ART.tipo_imballo,
+				MOD_ART.indice_prima_taglia AS indice_prima_taglia,
+				MOD_ART.indice_ultima_taglia AS indice_ultima_taglia,
+				MOD_ART.tipo_taglia_oe AS codice_taglia,
+				MOD_ART.indice_prima_tg_oe,
+				MOD_ART.indice_ultima_tg_oe,
+				MOD_ART.ts_inserimento AS ts_inserimento,
+				MOD_ART.uscita_collezione AS uscita_collezione,
+				MOD_ART.sotto_uscita_collezione AS sotto_uscita_collezione,
+				CASE
+					WHEN modelli_permanenti.uscita_collezione_modello_rif IS NOT NULL THEN modelli_permanenti.uscita_collezione_modello_rif
+					WHEN associazione_mod_origine.uscita_collezione_modello_rif IS NOT NULL THEN associazione_mod_origine.uscita_collezione_modello_rif
+					ELSE MOD_ART.uscita_collezione
+				END AS uscita_collezione_modello_rif,
+				UC.uscita_modulo AS uscita_modulo,
+				MOD_ART.variante AS variante,
+				MOD_ART.validita_variante AS validita_variante,
+				ARRAY_AGG(MOD_ART.variante_produzione) OVER(PARTITION BY MOD_ART.barcode_negozio, MOD_ART.societa) AS variante_produzione,
+				MOD_ART.variante_permanente as variante_permanente,
+				MOD_ART.data_fine_vita_utile as data_fine_vita_utile, 
+                			MOD_ART.data_inizio_vita_utile as data_inizio_vita_utile,
+				CAST(NULL AS STRING) AS vestibilita,
+				IF(MOD_ART.validita = 'V', 1, 2) AS indice_validita,
+				MOD_ART.validita AS validita,
+				_versione_modello AS versione_modello,
+				CASE
+					WHEN MOD_ART._versione_modello = 'V' THEN 1
+					WHEN MOD_ART._versione_modello = 'T' THEN 2
+					WHEN MOD_ART._versione_modello = 'P' THEN 3
+					WHEN MOD_ART._versione_modello = 'R' THEN 4
+					WHEN MOD_ART._versione_modello = 'I' THEN 5
+					WHEN MOD_ART._versione_modello = 'C' THEN 6
+				END AS indice_versione,
+				CASE
+					WHEN MOD_ART.societa IN ('MM', 'MA') AND NOT ENDS_WITH(MOD_ART.modello, '00') THEN 3
+					WHEN MOD_ART.societa IN ('MM', 'MA') AND ENDS_WITH(MOD_ART.modello, '00') THEN 2
+					ELSE 1
+				END AS indice_cifre_modello,
+				MOD_ART.f_anagrafica_modello_base,
+				MOD_ART.desc_editoriale
+			FROM
+				(
+					SELECT
+						MP.id,
+						MP.societa,
+						sku_info.barcode_negozio,
+						MP.brand,
+						MP.anno,
+						MP.stagione,
+						MP.annostagione,
+						CONCAT(modello, var_info.variante) AS modello_variante,
+						uscita_collezione,
+						sotto_uscita_collezione,
+						modello_permanente,
+						classe,
+						modello,
+						tg.modello_oe,
+						desc_modello,
+						modello_origine,
+						modello_retail,
+						SUBSTR(MP.barcode_negozio, 1, 10) AS modello_barcode_negozio,
+						var_info.variante,
+						comp_info.testo_composizione,
+						comp_info.codice_composizione,
+						var_info.colore,
+						var_info.desc_colore,
+						MP.made_in,
+						TRIM(var_info.tema) AS tema,
+						IF(f_promozionale = '1', TRUE, FALSE) AS f_promozionale,
+						sku_info.taglia,
+						collezione,
+						societa_produzione,
+						mp.tipo_taglia,
+						tt.desc_tipo_taglia,
+						MP.indice_prima_taglia,
+						MP.indice_ultima_taglia,
+						tg.tipo_taglia_oe,
+						MIN(tg.num_taglia_oe) OVER(PARTITION BY mp.id) as indice_prima_tg_oe,
+						MAX(tg.num_taglia_oe) OVER(PARTITION BY mp.id) as indice_ultima_tg_oe,
+						nome,
+						tg.nome_oe,
+						tg.num_taglia_oe,
+						sku_info.indice_taglia,
+						AP.articolo AS articolo,
+						AP.desc_tecnica AS desc_articolo,
+						var_info.consegna,
+						AP.progr_articolo AS progr_articolo,
+						MP.validita AS validita,
+						MP.versione_modello AS _versione_modello,
+						MP.ts_inserimento AS ts_inserimento,
+						AP.gruppo_merceologico,
+						'modello_produzione' AS _type,
+						sku_info.barcode_ean,
+						var_info.f_divisa,
+						var_info.data_consegna,
+						var_info.data_cambio_stagione,
+						var_info.variante_permanente,
+						MP.societa_brand,
+						var_info.desc_variante,
+						var_info.validita AS validita_variante,
+						var_info.variante_produzione,
+						var_info.data_fine_vita_utile AS data_fine_vita_utile,
+                        			var_info.data_inizio_vita_utile AS data_inizio_vita_utile,
+						modello_produzione,
+						motivo_ricodifica,
+						f_anagrafica_modello_base,
+						MP.tipo_imballo,
+						MP.peso_netto,
+						MP.peso_lordo,
+						mp.multiplo_vendita,
+						mp.minimo_vendibile,
+						mp.desc_editoriale
+					FROM ${ref("DM_SELLOUT_STAGING", "D_MODELLO_PRODUZIONE")} mp, UNNEST(lista_sku) AS sku_info, UNNEST(varianti) AS var_info
+					LEFT JOIN UNNEST(taglie) AS tg USING (indice_taglia)
+					LEFT JOIN (
+						SELECT T.societa AS societa,
+								T.tipo_taglia AS tipo_taglia,
+								T.desc_tipo_taglia as desc_tipo_taglia,
+								taglie.*
+						FROM ${ref("DM_SELLOUT_STAGING", "D_TIPO_TAGLIA")} T,
+						UNNEST(T.taglie) AS taglie
+					) tt #USING (societa, tipo_taglia, indice_taglia)
+					ON (mp.societa = tt.societa AND mp.tipo_taglia = tt.tipo_taglia AND sku_info.indice_taglia = tt.indice_taglia) #TEST
+					LEFT OUTER JOIN
+						(
+							SELECT * EXCEPT(_rank)
+							FROM (
+								SELECT
+									id,
+									comp_info.progr_composizione,
+									ANY_VALUE(comp_info.codice_composizione) AS codice_composizione,
+									STRING_AGG(DISTINCT comp_info.testo_composizione) AS testo_composizione,
+									ROW_NUMBER() OVER(PARTITION BY id ORDER BY comp_info.progr_composizione) as _rank
+								FROM
+									${ref("DM_SELLOUT_STAGING", "D_MODELLO_PRODUZIONE")},
+									UNNEST(composizioni) AS comp_info
+								WHERE
+									annostagione IN UNNEST(input_output_partitions)
+								GROUP BY
+									id,
+									progr_composizione
+							) AS sorted_comp
+							WHERE _rank = 1
+						) comp_info USING (id)
+					LEFT OUTER JOIN
+						(
+							SELECT
+								articolo,
+								societa,
+								desc_tecnica,
+								progr_articolo,
+								ANY_VALUE(gruppo_merceologico) AS gruppo_merceologico
+							FROM
+								${ref("DM_SELLOUT_STAGING", "D_ARTICOLO_PRODUZIONE")}
+							GROUP BY
+								1, 2, 3, 4
+						) AP ON (MP.articolo_principale = AP.articolo AND MP.societa = AP.societa)
+					WHERE
+						sku_info.barcode_negozio IS NOT NULL
+						AND sku_info.barcode_negozio != ''
+						AND sku_info.variante_produzione = var_info.variante_produzione
+						AND annostagione IN UNNEST(input_output_partitions)
+					UNION DISTINCT
+					SELECT
+						AP.id,
+						societa,
+						sku_info.barcode_negozio,
+						NULL AS brand,
+						anno,
+						stagione,
+						annostagione,
+						'' AS modello_variante,
+						NULL AS uscita_collezione,
+						NULL AS sotto_uscita_collezione,
+						NULL AS modello_permanente,
+						NULL AS classe,
+						'' AS modello,
+						NULL AS modello_oe,
+						NULL AS modello_retail,
+						NULL AS modelo_barcode_negozio,
+						NULL AS desc_modello,
+						NULL AS modello_origine,
+						NULL AS variante,
+						comp_info.testo_composizione,
+						comp_info.codice_composizione,
+						NULL AS colore,
+						NULL AS desc_colore,
+						made_in,
+						NULL AS tema,
+						FALSE AS f_promozionale,
+						sku_info.misura_articolo AS taglia,
+						NULL AS collezione,
+						NULL AS societa_produzione,
+						NULL AS tipo_taglia,
+						NULL AS desc_tipo_taglia,
+						CAST(NULL AS INT64) AS indice_prima_taglia,
+						CAST(NULL AS INT64) AS indice_ultima_taglia,
+						CAST(NULL AS STRING) AS codice_taglia,
+						CAST(NULL AS STRING) AS indice_prima_tg_oe,
+						CAST(NULL AS STRING) AS indice_ultima_tg_oe,
+						NULL AS nome,
+						CAST(NULL AS STRING) AS nome_oe,
+						CAST(NULL AS STRING) AS num_taglia_oe,
+						sku_info.indice_misura AS indice_taglia,
+						articolo,
+						desc_tecnica AS desc_articolo,
+						NULL AS consegna,
+						progr_articolo,
+						AP.validita AS validita,
+						NULL AS _versione_modello,
+						AP.ts_inserimento AS ts_inserimento,
+						AP.gruppo_merceologico AS gruppo_merceologico,
+						'articolo_produzione' AS _type,
+						NULL AS barcode_ean,
+						NULL AS f_divisa,
+						NULL AS data_consegna,
+						NULL AS data_cambio_stagione,
+						NULL AS variante_permanente,
+						NULL AS societa_brand,
+						var_info.desc_variante,
+						var_info.validita AS validita_variante,
+						var_info.variante_produzione,
+						CAST(NULL AS DATE) AS data_fine_vita_utile,
+                        			CAST(NULL AS DATE) AS data_inizio_vita_utile,
+						NULL AS modello_produzione,
+						NULL AS motivo_ricodifica,
+						'1' AS f_anagrafica_modello_base, -- campo non definito per gli articoli, imposto il primo valore considerato, 1
+						CAST(NULL AS STRING) AS tipo_imballo,
+						AP.peso_netto,
+						AP.peso_lordo,
+						NULL AS multiplo_vendita,
+						NULL AS minimo_vendibile,
+						NULL AS desc_editoriale
+					FROM
+						${ref("DM_SELLOUT_STAGING", "D_ARTICOLO_PRODUZIONE")} AP,
+						UNNEST(lista_sku) AS sku_info,
+						UNNEST(varianti) AS var_info
+						LEFT OUTER JOIN
+							(
+								SELECT
+									id,
+									comp_info.testo_composizione,
+									comp_info.codice_composizione
+								FROM
+									${ref("DM_SELLOUT_STAGING", "D_ARTICOLO_PRODUZIONE")},
+									UNNEST(composizioni) AS comp_info
+								WHERE
+									comp_info.progr_composizione = 0
+							) comp_info USING (id)
+					WHERE
+						sku_info.barcode_negozio IS NOT NULL
+						AND sku_info.barcode_negozio != ''
+						AND sku_info.variante_articolo_produzione = var_info.variante_produzione
+						AND annostagione IN UNNEST(input_output_partitions)
+				) MOD_ART
+				LEFT JOIN (
+					SELECT DISTINCT
+						societa,
+						C.colore,
+						raggr_colore,
+						desc_raggr_colore
+					FROM ${ref("DM_SELLOUT_STAGING", "D_RAGGR_COLORE")}, UNNEST(colore) as C
+				) R  USING (societa, colore)
+			LEFT OUTER JOIN (
+				SELECT
+					id,
+					societa,
+					collezione,
+					desc_collezione,
+					uscita_collezione,
+					desc_uscita_collezione,
+					brand,
+					desc_brand,
+					main_line,
+					desc_main_line,
+					temi,
+					anno,
+					stagione,
+					IF(societa = 'MN', modulo, IF(modulo IS NOT NULL, modulo, gruppo_uscita)) AS uscita_modulo,
+					IF(societa = 'MN', desc_modulo, IF(desc_modulo IS NOT NULL, desc_modulo, desc_gruppo_uscita)) AS desc_uscita_modulo,
+					TRIM(info_tema.tema) AS tema,
+					info_tema.desc_tema,
+					collezione_brand,
+					desc_collezione_brand,
+					modulo
+				FROM
+					${ref("DM_SELLOUT_STAGING", "D_USCITA_COLLEZIONE")},
+					UNNEST(temi) AS info_tema
+			) UC USING (societa, anno, stagione, uscita_collezione, tema)
+			LEFT OUTER JOIN (
+				SELECT
+					id,
+					societa, 
+					anno, 
+					stagione, 
+					uscita_collezione, 
+					sotto_uscita_collezione,
+					desc_sotto_uscita_collezione,
+				FROM
+					${ref("DM_SELLOUT_STAGING", "D_USCITA_COLLEZIONE")},
+					UNNEST(sotto_uscite_collezione) AS info_sotto_uscite_collezione
+			) SOTT_UC USING (societa, anno, stagione, uscita_collezione, sotto_uscita_collezione)
+			LEFT JOIN (
+				SELECT DISTINCT
+					mod.societa,
+					mod.anno,
+					mod.stagione,
+					mod.modello,
+					mod.modello_retail,
+					mod.modello_barcode_negozio,
+					mod.desc_tipo_taglia,
+					mod.nome,
+					mod.variante,
+					IF(modelli_permanenti.anno_modello_rif IS NULL, mod_orig.anno, modelli_permanenti.anno_modello_rif) AS anno_modello_rif,
+					IF(modelli_permanenti.stagione_modello_rif IS NULL, mod_orig.stagione, modelli_permanenti.stagione_modello_rif) AS stagione_modello_rif,
+					IF(modelli_permanenti.modello_rif IS NULL, mod_orig.modello, modelli_permanenti.modello_rif) AS modello_rif,
+					IF(modelli_permanenti.nome_modello_rif IS NULL, mod_orig.nome, modelli_permanenti.nome_modello_rif) AS nome_modello_rif,
+					IF(modelli_permanenti.uscita_collezione_modello_rif IS NULL, mod_orig.uscita_collezione, modelli_permanenti.uscita_collezione_modello_rif) AS uscita_collezione_modello_rif,
+					IF(modelli_permanenti.desc_uscita_collezione_modello_rif IS NULL, UCR.desc_uscita_collezione, modelli_permanenti.desc_uscita_collezione_modello_rif) AS desc_uscita_collezione_modello_rif,
+					IF(modelli_permanenti.collezione_brand_modello_rif IS NULL, UCR.collezione_brand, modelli_permanenti.collezione_brand_modello_rif) AS collezione_brand_modello_rif,
+					IF(modelli_permanenti.uscita_modulo_modello_rif IS NULL, IF(UCR.societa = 'MN', UCR.modulo, IF(UCR.modulo IS NOT NULL, UCR.modulo, UCR.gruppo_uscita)), modelli_permanenti.uscita_modulo_modello_rif) AS uscita_modulo_modello_rif,
+					IF(
+						modelli_permanenti.collezione_uscita_modello_rif IS NULL, 
+						IF(
+							IF(UCR.societa = 'MN', UCR.modulo, IF(UCR.modulo IS NOT NULL, UCR.modulo, UCR.gruppo_uscita)) IS NOT NULL,
+							CONCAT(mod.societa,"-", UCR.collezione_brand,"-", IF(UCR.societa = 'MN', UCR.modulo, IF(UCR.modulo IS NOT NULL, UCR.modulo, UCR.gruppo_uscita))),
+							CONCAT(mod.societa,"-", UCR.collezione_brand)
+						), 
+						modelli_permanenti.collezione_uscita_modello_rif
+					) AS collezione_uscita_modello_rif,
+				FROM modelli_produzione_per_rif mod -- modello attuale
+				JOIN modelli_produzione_per_rif mod_orig ON (mod.societa = mod_orig.societa AND mod.modello_origine = mod_orig.modello AND mod.variante_produzione = mod_orig.variante_produzione) -- modello origine
+				LEFT JOIN ${ref("DM_SELLOUT_STAGING", "D_USCITA_COLLEZIONE")} UCR ON (mod.societa = UCR.societa AND mod.anno = UCR.anno AND mod.stagione = UCR.stagione AND mod_orig.uscita_collezione = UCR.uscita_collezione) -- uscita coll del modello origine
+				LEFT JOIN modelli_permanenti ON (mod.modello_permanente = modelli_permanenti.modello_permanente AND mod.societa = modelli_permanenti.societa AND mod.variante_permanente = modelli_permanenti.variante_permanente)
+				WHERE mod.f_tale_quale = '1'
+				AND mod.f_anagrafica_modello_base = '1'
+			) associazione_mod_origine USING (modello, societa, anno, stagione, variante) -- il modello riferimento puo anche essere trovato con il modello origine
+			LEFT JOIN modelli_permanenti USING (modello_permanente, variante_permanente, societa) -- normale associazione con i modelli permanenti per trovare il riferimento
+			LEFT OUTER JOIN (
+				SELECT
+					department,
+					desc_department,
+					micro_department,
+					desc_micro_department,
+					macro_department,
+					desc_macro_department,
+					classe.classe,
+					classe.desc_classe
+				FROM
+					${ref("DM_SELLOUT_STAGING", "D_CLASSE")} classe
+				JOIN
+					${ref("DM_SELLOUT", "D_DEPARTMENT")} dept
+					ON (classe.classe = IF(dept.classe_actual != '/', dept.classe_actual, CAST(dept.classe_new AS STRING)))
+			) CL USING (classe)
+			LEFT OUTER JOIN
+				${ref("DM_SELLOUT_STAGING", "D_GRUPPO_MERCEOLOGICO")} GM ON (GM.gruppo_merceologico = MOD_ART.gruppo_merceologico AND GM.societa = MOD_ART.societa)
+			LEFT OUTER JOIN (
+				SELECT
+					id,
+					ARRAY_AGG(DISTINCT IFNULL(comp_info.testo_composizione, "")) AS composizioni
+				FROM
+					${ref("DM_SELLOUT_STAGING", "D_MODELLO_PRODUZIONE")},
+					UNNEST(composizioni) AS comp_info
+				WHERE annostagione IN UNNEST(input_output_partitions)
+				GROUP BY
+					id,
+					progr_composizione
+			) COMP_MOD ON (COMP_MOD.id = MOD_ART.id)
+			LEFT OUTER JOIN (
+				SELECT
+					id,
+					[IFNULL(comp_info.testo_composizione, "")] AS composizioni
+				FROM
+					${ref("DM_SELLOUT_STAGING", "D_ARTICOLO_PRODUZIONE")},
+					UNNEST(composizioni) AS comp_info
+			) COMP_ART ON (COMP_ART.id = MOD_ART.id)
+			WHERE NOT (CL.classe IS NULL AND _type = 'modello_produzione')
+		)
+	) PR
+	-- JOIN per aggiunta dei prezzi di listino con negozi di riferimento italiani
+	LEFT JOIN CLIENTELE_IT USING(societa, anno, stagione, uscita_collezione)
+	LEFT JOIN PREZZI_VALIDI AS P_ACQUISTO_IT ON (
+		P_ACQUISTO_IT.tipo_prezzo = 'A'
+		AND PR.societa = P_ACQUISTO_IT.societa
+		AND PR.modello = P_ACQUISTO_IT.modello
+		AND CLIENTELE_IT.listino_acquisto = P_ACQUISTO_IT.listino
+		AND PR.anno = P_ACQUISTO_IT.anno
+		AND PR.stagione = P_ACQUISTO_IT.stagione
+	)
+	LEFT JOIN PREZZI_VALIDI AS P_VENDITA_IT ON (
+		P_VENDITA_IT.tipo_prezzo = 'V'
+		AND PR.societa = P_VENDITA_IT.societa
+		AND PR.modello = P_VENDITA_IT.modello
+		AND CLIENTELE_IT.listino_vendita = P_VENDITA_IT.listino
+		AND PR.anno = P_VENDITA_IT.anno
+		AND PR.stagione = P_VENDITA_IT.stagione
+	)
+	WHERE rank_validita = 1
+	UNION ALL
+	(
+		SELECT  -- scampolo con barcode nullo
+			CAST(NULL AS INT64) AS anno,
+			NULL AS annostagione,
+			CAST(NULL AS INT64) AS anno_modello_rif,
+			CAST(NULL AS STRING) AS articolo,
+			barcode_negozio,
+			CAST(NULL AS STRING) AS brand,
+			CAST(NULL AS STRING) AS capo_non_vendibile,
+			CAST(NULL AS STRING) AS ciclo_vita,
+			CAST(NULL AS STRING) AS classe,
+			CAST(NULL AS STRING) AS collezione,
+			CAST(NULL AS STRING) AS collezione_brand,
+			CAST(NULL AS STRING) AS collezione_uscita,
+			CAST(NULL AS STRING) AS desc_collezione_uscita,
+			CAST(NULL AS STRING) AS colore,
+			CAST(NULL AS STRING) AS composizione_principale,
+			CAST(NULL AS STRING) AS codice_composizione,
+			[] AS composizioni,
+			CAST(NULL AS STRING) AS consegna,
+			CAST(NULL AS DATE) AS data_prima_newsletter,
+			CAST(NULL AS DATE) AS data_consegna,
+			CAST(NULL AS DATE) AS data_cambio_stagione,
+			CAST(NULL AS STRING) AS department,
+			CAST(NULL AS STRING) AS desc_articolo,
+			CAST(NULL AS STRING) AS desc_brand,
+			CAST(NULL AS STRING) AS desc_classe,
+			CAST(NULL AS STRING) AS desc_collezione,
+			CAST(NULL AS STRING) AS desc_collezione_brand,
+			CAST(NULL AS STRING) AS desc_colore,
+			CAST(NULL AS STRING) AS desc_raggr_colore,
+			CAST(NULL AS STRING) AS desc_department,
+			CAST(NULL AS STRING) AS desc_gruppo_merceologico,
+			CAST(NULL AS STRING) AS desc_macro_department,
+			CAST(NULL AS STRING) AS desc_main_line,
+			CAST(NULL AS STRING) AS desc_micro_department,
+			CAST(NULL AS STRING) AS desc_modello,
+			CAST(NULL AS STRING) AS desc_tema,
+			CAST(NULL AS STRING) AS desc_tipo_taglia,
+			CAST(NULL AS STRING) AS desc_variante,
+			CAST(NULL AS STRING) AS desc_variante_permanente,
+			CAST(NULL AS STRING) AS desc_uscita_collezione,
+			CAST(NULL AS STRING) AS desc_sotto_uscita_collezione,
+			CAST(NULL AS STRING) AS desc_uscita_collezione_modello_rif,
+			CAST(NULL AS STRING) AS collezione_brand_modello_rif,
+			CAST(NULL AS STRING) AS uscita_modulo_modello_rif,
+			CAST(NULL AS STRING) AS collezione_uscita_modello_rif,
+			CAST(NULL AS STRING) AS desc_uscita_modulo,
+			CAST(NULL AS STRING) AS ean,
+			CAST(NULL AS BOOL) AS f_comunicazione,
+			CAST(NULL AS STRING) AS f_divisa,
+			CAST(NULL AS BOOL) AS f_must_have,
+			CAST(NULL AS BOOL) AS f_newsletter,
+			CAST(NULL AS BOOL) AS f_ricami_applicazione,
+			CAST(NULL AS STRING) AS fascia_prezzo,
+			CAST(NULL AS STRING) AS gruppo_merceologico,
+			CAST(NULL AS INT64) AS indice_taglia,
+			CAST(NULL AS STRING) AS ispirazione_ciclo_vita,
+			CAST(NULL AS INT64) AS lunghezza,
+			CAST(NULL AS STRING) AS macro_department,
+			CAST(NULL AS STRING) AS main_line,
+			CAST(NULL AS STRING) AS manica,
+			CAST(NULL AS STRING) AS micro_department,
+			CAST(NULL AS STRING) AS modello,
+			CAST(NULL AS STRING) AS modello_retail,
+			CAST(NULL AS STRING) AS modello_barcode_negozio,
+			CAST(NULL AS STRING) AS modello_oe,
+			CAST(NULL AS STRING) AS modello_origine,
+			CAST(NULL AS STRING) AS modello_permanente,
+			CAST(NULL AS STRING) AS modello_rif,
+			CAST(NULL AS STRING) AS modello_variante,
+			CAST(NULL AS STRING) AS modello_variante_rif,
+			CAST(NULL AS STRING) AS motivo_ricodifica,
+			CAST(NULL AS STRING) AS nome,
+			CAST(NULL AS STRING) AS nome_oe,
+			CAST(NULL AS STRING) AS nome_modello_rif,
+			CAST(NULL AS STRING) AS nome_prima_newsletter,
+			CAST(NULL AS STRING) AS num_taglia_oe,
+			CAST(NULL AS STRING) AS pattern,
+			CAST(NULL AS FLOAT64) AS peso_netto,
+			CAST(NULL AS FLOAT64) AS peso_lordo,
+			CAST(NULL AS INT64) AS multiplo_vendita,
+			CAST(NULL AS INT64) AS minimo_vendibile,
+			'DT' AS produttore,
+			CAST(NULL AS STRING) AS progr_articolo,
+			CAST(NULL AS STRING) AS raggr_colore,
+			'DT' AS societa,
+			CAST(NULL AS STRING) AS societa_brand,
+			CAST(NULL AS STRING) AS stagionale,
+			CAST(NULL AS INT64) AS stagione,
+			CAST(NULL AS INT64) AS stagione_modello_rif,
+			CAST(NULL AS INT64) AS stampa,
+			CAST(NULL AS STRING) AS taglia,
+			CAST(NULL AS INT64) AS taglia_aggregata,
+			CAST(NULL AS STRING) AS tema,
+			CAST(NULL AS STRING) AS tessuto,
+			CAST(NULL AS STRING) AS tipo_ciclo_vita,
+			CAST(NULL AS STRING) AS tipo_lunghezza,
+			CAST(NULL AS STRING) AS tipo_produzione,
+			CAST(NULL AS STRING) AS tipo_taglia,
+			CAST(NULL AS STRING) AS tipo_imballo,
+			CAST(NULL AS INT64) AS indice_prima_taglia,
+			CAST(NULL AS INT64) AS indice_ultima_taglia,
+			CAST(NULL AS STRING) AS codice_taglia,
+			CAST(NULL AS STRING) AS indice_prima_tg_oe,
+			CAST(NULL AS STRING) as indice_ultima_tg_oe,
+			CAST(NULL AS STRING) AS uscita_collezione,
+			CAST(NULL AS STRING) AS sotto_uscita_collezione,
+			CAST(NULL AS STRING) AS uscita_collezione_modello_rif,
+			CAST(NULL AS STRING) AS uscita_modulo,
+			CAST(NULL AS STRING) AS variante,
+			CAST(NULL AS STRING) AS validita_variante,
+			CAST(NULL AS STRING) AS variante_permanente,
+			CAST(NULL AS DATE) AS data_fine_vita_utile, 
+                		CAST(NULL AS DATE) AS data_inizio_vita_utile,
+			CAST(NULL AS STRING) AS vestibilita,
+			CAST(NULL AS STRING) AS validita,
+			CAST(NULL AS STRING) AS versione_modello,
+			CAST(NULL AS STRING) AS desc_editoriale,
+			-- i seguenti campi vengono calcolati dopo gli altri, dunque non sono in ordine
+			NULL AS modello_produzione, -- array vuoto
+			NULL AS variante_produzione, -- array vuoto
+			CURRENT_TIMESTAMP AS ts_inserimento,
+			CURRENT_TIMESTAMP AS ts_modifica,
+			CAST(NULL AS FLOAT64) AS prezzo_listino_sell_in_italia,
+			CAST(NULL AS FLOAT64) AS prezzo_listino_sell_out_italia
+		FROM UNNEST(['00000000000000']) AS barcode_negozio
+		-- caricamento dello scampolo solo se non presente sulla tabella
+		WHERE barcode_negozio NOT IN (
+			SELECT barcode_negozio
+			FROM ${ref("D_PRODOTTO")}
+		)
+	)
+	

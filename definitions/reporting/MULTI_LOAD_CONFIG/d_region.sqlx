@@ -1,0 +1,28 @@
+config {
+    type: "table",
+    schema: "DM_DIGITAL",
+    name: "D_REGION"
+}
+
+SELECT
+	brand,
+	region,
+	country,
+	date_begin,
+	date_end,
+	warehouse_code,
+	societa_v1,
+	societa_v2,
+	webanalytics_brand,
+	webanalytics_country,
+	negozio,
+	currency_trx,
+	currency_fnc,
+	merchant,
+	techcenter,
+	revenue_share_societa_industriale,
+	revenue_share_techcenter,
+	revenue_share_merchant,
+	time_zone
+FROM ${ref("DM_DIGITAL_STAGING", "S_REGION")}
+		

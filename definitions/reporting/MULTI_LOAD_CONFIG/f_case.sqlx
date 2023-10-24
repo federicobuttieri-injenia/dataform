@@ -1,0 +1,37 @@
+config {
+    type: "incremental",
+    schema: "DM_CRM",
+    name: "F_CASE"
+}
+
+pre_operations {
+	DECLARE input_partitions ARRAY<DATE>;
+	
+	DECLARE output_partitions ARRAY<INT64>;
+	
+	SET input_partitions = ARRAY(
+		SELECT DISTINCT PARSE_DATE("%Y%m%d", `partition`)
+		FROM ${ref("TEMP_LOCATION", "PARTIZIONI_LOADJOB")} 
+		WHERE 
+			DATE(ts_lancio) = CURRENT_DATE 
+		AND table_name = 'S_LOG_CASE'
+				);
+	
+	SET output_partitions = ARRAY(
+		SELECT DISTINCT CAST((FLOOR((numero_case - 1) / 10000) * 10000) as INT64) + 1
+		FROM (
+			SELECT DISTINCT a.numero_case AS numero_case
+			FROM ${ref("DM_SELLOUT_STAGING", "S_LOG_CASE")}, UNNEST (attributes) a
+			WHERE _PARTITIONDATE IN UNNEST(input_partitions)
+		)
+				);
+}
+
+SELECT * EXCEPT (_R)
+FROM (
+	SELECT *,
+		ROW_NUMBER() OVER (PARTITION BY numero_case ORDER BY ts_inserimento desc, ts_modifica desc, ts_creazione desc) AS _R
+FROM UNNEST (output_partitions) op, ${ref("S_CASE")}
+	WHERE CAST(numero_case AS INT64) BETWEEN op AND op + 9999
+) WHERE _R = 1
+		
